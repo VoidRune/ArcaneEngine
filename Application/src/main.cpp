@@ -45,7 +45,7 @@ int main()
 			while (window->Width() == 0 || window->Height() == 0)
 				window->WaitEvents();
 
-			device->WaitIdle();
+			renderer->WaitForFrameEnd();
 			presentQueue.reset();
 			presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), winDesc, presentMode);
 			std::cout << "Swapchain recreated!" << std::endl;

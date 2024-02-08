@@ -17,6 +17,7 @@ public:
 
 	void RenderFrame(float elapsedTime);
 	void SwapchainResized(void* presentQueue);
+	void WaitForFrameEnd();
 
 private:
 

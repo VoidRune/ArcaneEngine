@@ -399,6 +399,12 @@ void VolumeRenderer::BuildRenderGraph()
 
 }
 
+void VolumeRenderer::WaitForFrameEnd()
+{
+	m_RenderThreadFuture.wait();
+	m_Device->WaitIdle();
+}
+
 void VolumeRenderer::SwapchainResized(void* presentQueue)
 {
 	m_PresentQueue = static_cast<Arc::PresentQueue*>(presentQueue);
