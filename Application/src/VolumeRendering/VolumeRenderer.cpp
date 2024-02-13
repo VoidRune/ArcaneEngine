@@ -3,6 +3,8 @@
 #include <fstream>
 #include "stb/stb_image.h"
 #include "Graphics/Vulkan/SpirvCompiler.h"
+#include "Core/Log.h"
+#include "Core/Timer.h"
 
 VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* presentQueue)
 {
@@ -403,6 +405,27 @@ void VolumeRenderer::WaitForFrameEnd()
 {
 	m_RenderThreadFuture.wait();
 	m_Device->WaitIdle();
+}
+
+void VolumeRenderer::RecompileShaders()
+{
+	WaitForFrameEnd();
+
+	Arc::Timer timer;
+
+	m_Device->GetResourceCache()->ReleaseResource(m_VolumeComputeShader.get());
+	SpirvHelper::Init();
+	m_Device->GetResourceCache()->CreateShader(m_VolumeComputeShader.get(), Arc::ShaderDesc().SetFilePath("res/Shaders/VolumetricRendering/Volume.comp"));
+	SpirvHelper::Finalize();
+
+	m_Device->GetResourceCache()->ReleaseResource(m_ComputePipeline.get());
+
+	m_Device->GetResourceCache()->CreateComputePipeline(m_ComputePipeline.get(), Arc::ComputePipelineDesc()
+		.SetShaderStage(m_VolumeComputeShader.get()));
+
+	ARC_LOG("Recompiled shaders! " + std::to_string(timer.elapsed_mili()) + "ms");
+
+	m_CameraFrameData.frameIndex = 0;
 }
 
 void VolumeRenderer::SwapchainResized(void* presentQueue)

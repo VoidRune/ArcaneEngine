@@ -1,4 +1,5 @@
 #include "Device.h"
+#include "Core/Log.h"
 
 #include <set>
 
@@ -462,7 +463,9 @@ namespace Arc
         VK_CHECK(vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr));
 
         if (deviceCount == 0)
-            std::cout << "Failed to find GPUs with vulkan support!" << std::endl;
+        {
+            ARC_LOG("Failed to find GPUs with Vulkan support!");
+        }
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
         VK_CHECK(vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data()));
@@ -497,13 +500,13 @@ namespace Arc
 
         if (bestDevice == VK_NULL_HANDLE)
         {
-            std::cout << "Failed to find suitable GPU!" << std::endl;
+            ARC_LOG("Failed to find suitable GPU!");
         }
         else
         {
             m_PhysicalDevice = bestDevice;
             vkGetPhysicalDeviceProperties(bestDevice, &m_PhysicalDeviceProperties);
-            std::cout << "GPU name: " << m_PhysicalDeviceProperties.deviceName << std::endl;
+            ARC_LOG(std::string("GPU used: ") + m_PhysicalDeviceProperties.deviceName);
         }
     }
 
@@ -548,8 +551,9 @@ namespace Arc
         vkDestroySurfaceKHR(m_Instance, surface, nullptr);
 
         if (m_QueueFamilyIndices.graphicsFamilyIndex == uint32_t(-1))
-            std::cout << "Failed to find appropriate queue families!" << std::endl;
-
+        {
+            ARC_LOG("Failed to find appropriate queue families!");
+        }
     }
 
     void Device::CreateLogicalDevice()
@@ -664,10 +668,12 @@ namespace Arc
         switch (messageSeverity)
         {
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-            std::cout << "ERROR: " << pCallbackData->pMessage << std::endl;
+            ARC_LOG_ERROR(pCallbackData->pMessage);
+
             break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-            std::cout << "WARNING: " << pCallbackData->pMessage << std::endl;
+            ARC_LOG_WARNING(pCallbackData->pMessage);
+
             break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
 

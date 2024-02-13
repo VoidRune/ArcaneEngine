@@ -7,5 +7,6 @@ public:
 	virtual ~BaseRenderer() {}
 	virtual void RenderFrame(float elapsedTime) {}
 	virtual void SwapchainResized(void* presentQueue) {}
+	virtual void RecompileShaders() {}
 	virtual void WaitForFrameEnd() {}
 };

@@ -291,25 +291,6 @@ namespace Arc
 
     void ResourceCache::CreateShader(Shader* shader, const ShaderDesc& shaderDesc)
     {
-        ReloadShader(shader, shaderDesc);
-
-        m_ResourceReleaseFuctions[shader->m_ShaderModule] = [=]() {
-            vkDestroyShaderModule(m_Device, shader->m_ShaderModule, nullptr);
-        };
-    }
-
-    void ResourceCache::ReloadShader(Shader* shader, const ShaderDesc& shaderDesc)
-    {
-        if (shader->m_ShaderModule)
-        {
-            vkDestroyShaderModule(m_Device, shader->m_ShaderModule, nullptr);
-        }
-        //std::vector<uint32_t> bytecode = GetBytecode(filename);
-        //auto shaderModuleCreateInfo = vk::ShaderModuleCreateInfo()
-        //    .setCodeSize(bytecode.size() * sizeof(uint32_t))
-        //    .setPCode(bytecode.data());
-        //_shaderModule = logicalDevice.createShaderModuleUnique(shaderModuleCreateInfo);
-        //spirv_cross::Compiler compiler(bytecode.data(), bytecode.size());
 
         std::string result;
         //std::vector<uint32_t> r = GetBytecode(shaderDesc.filePath);
@@ -318,15 +299,15 @@ namespace Arc
         std::ifstream in(shaderDesc.FilePath.c_str(), std::ios::in | std::ios::binary);
         if (in)
         {
-        	in.seekg(0, std::ios::end);
-        	result.resize(in.tellg());
-        	in.seekg(0, std::ios::beg);
-        	in.read(&result[0], result.size());
-        	in.close();
+            in.seekg(0, std::ios::end);
+            result.resize(in.tellg());
+            in.seekg(0, std::ios::beg);
+            in.read(&result[0], result.size());
+            in.close();
         }
         else
         {
-        	std::cout << "Coul not open file: " << shaderDesc.FilePath.c_str() << std::endl;
+            std::cout << "Coul not open file: " << shaderDesc.FilePath.c_str() << std::endl;
         }
 
         std::filesystem::path path = shaderDesc.FilePath;
@@ -368,7 +349,7 @@ namespace Arc
         //{
         //    std::cout << module.GetErrorMessage() << std::endl;
         //}
-        
+
         spirv_cross::Compiler comp(SpirV);
         spirv_cross::ShaderResources resources = comp.get_shader_resources();
         //spv::ExecutionModel entryPoints = comp.get_execution_model();
@@ -393,7 +374,7 @@ namespace Arc
             attribute.format = format;
             attribute.offset = attributeOffset;
             inputAttributes.push_back(attribute);
-        
+
             attributeLocation++;
             attributeOffset += width * vecSize;
         }
@@ -431,10 +412,10 @@ namespace Arc
 
         for (const auto& resource : resources.uniform_buffers)
         {
-        	const auto& bufferType = comp.get_type(resource.base_type_id);
-        	uint32_t bufferSize = comp.get_declared_struct_size(bufferType);
+            const auto& bufferType = comp.get_type(resource.base_type_id);
+            uint32_t bufferSize = comp.get_declared_struct_size(bufferType);
             uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
-        	uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);   
+            uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
             const spirv_cross::SPIRType& type = comp.get_type(resource.type_id);
             uint32_t count = type.array[0];
             if (count <= 0) count = 1;
@@ -526,6 +507,11 @@ namespace Arc
             layoutBinding.binding.pImmutableSamplers = nullptr;
             shader->m_LayoutBindings.push_back(layoutBinding);
         }
+
+        m_ResourceReleaseFuctions[shader->m_ShaderModule] = [=]() {
+            vkDestroyShaderModule(m_Device, shader->m_ShaderModule, nullptr);
+            shader->m_LayoutBindings.clear();
+        };
     }
 
     std::vector<uint32_t> ResourceCache::GetBytecode(std::string filename)
@@ -546,28 +532,9 @@ namespace Arc
 
     void ResourceCache::CreatePipeline(Pipeline* pipeline, const PipelineDesc& pipelineDesc)
     {
-        ReloadPipeline(pipeline, pipelineDesc);
-
-        m_ResourceReleaseFuctions[pipeline->m_Pipeline] = [=]() {
-            vkDestroyPipelineLayout(m_Device, pipeline->m_PipelineLayout, nullptr);
-            vkDestroyPipeline(m_Device, pipeline->m_Pipeline, nullptr);
-        };
-    }
-
-    void ResourceCache::ReloadPipeline(Pipeline* pipeline, const PipelineDesc& pipelineDesc)
-    {
-        if (pipeline->m_PipelineLayout)
-        {
-            vkDestroyPipelineLayout(m_Device, pipeline->m_PipelineLayout, nullptr);
-        }
-        if (pipeline->m_Pipeline)
-        {
-            vkDestroyPipeline(m_Device, pipeline->m_Pipeline, nullptr);
-        }
-
         std::vector<VkDynamicState> dynamicStates = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
         };
 
         if (pipelineDesc.DepthBiasEnabled)
@@ -682,7 +649,7 @@ namespace Arc
         pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         pushConstantRange.offset = 0;
         pushConstantRange.size = 128;
-        
+
         std::array<std::vector<VkDescriptorSetLayoutBinding>, 32> layoutBindings;
         int32_t maxSetIndex = -1;
         for (const auto& shader : pipelineDesc.ShaderStages)
@@ -705,7 +672,7 @@ namespace Arc
                 if (b.descriptorCount >= MAX_BINDLESS_DESCRIPTOR_COUNT)
                     flags |= (uint32_t)DescriptorFlags::Bindless;
             }
-            
+
             layouts[i] = GetDescriptorSetLayout(layoutBindings[i], flags);
         }
 
@@ -753,11 +720,7 @@ namespace Arc
         pipelineInfo.basePipelineIndex = -1;
 
         VK_CHECK(vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline->m_Pipeline));
-    }
 
-    void ResourceCache::CreateComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& pipelineDesc)
-    {
-        ReloadComputePipeline(pipeline, pipelineDesc);
 
         m_ResourceReleaseFuctions[pipeline->m_Pipeline] = [=]() {
             vkDestroyPipelineLayout(m_Device, pipeline->m_PipelineLayout, nullptr);
@@ -765,17 +728,8 @@ namespace Arc
         };
     }
 
-    void ResourceCache::ReloadComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& pipelineDesc)
+    void ResourceCache::CreateComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& pipelineDesc)
     {
-        if (pipeline->m_PipelineLayout)
-        {
-            vkDestroyPipelineLayout(m_Device, pipeline->m_PipelineLayout, nullptr);
-        }
-        if (pipeline->m_Pipeline)
-        {
-            vkDestroyPipeline(m_Device, pipeline->m_Pipeline, nullptr);
-        }
-
         VkPushConstantRange pushConstantRange{};
         pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         pushConstantRange.offset = 0;
@@ -821,6 +775,10 @@ namespace Arc
 
         VK_CHECK(vkCreateComputePipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline->m_Pipeline));
 
+        m_ResourceReleaseFuctions[pipeline->m_Pipeline] = [=]() {
+            vkDestroyPipelineLayout(m_Device, pipeline->m_PipelineLayout, nullptr);
+            vkDestroyPipeline(m_Device, pipeline->m_Pipeline, nullptr);
+        };
     }
 
     VkDescriptorSetLayout ResourceCache::GetDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding>& layoutBindings, uint32_t flags)

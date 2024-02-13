@@ -23,11 +23,8 @@ namespace Arc
 		void AllocateDescriptorSets(const std::vector<DescriptorSet*> descriptorSet, const DescriptorSetLayoutDesc& layoutDescription);
 		void AllocateInFlightDescriptorSet(InFlightDescriptorSet* frameDescriptorSet, const DescriptorSetLayoutDesc& layoutDescription);
 		void CreateShader(Shader* shader, const ShaderDesc& shaderDesc);
-		void ReloadShader(Shader* shader, const ShaderDesc& shaderDesc);
 		void CreatePipeline(Pipeline* pipeline, const PipelineDesc& pipelineDesc);
-		void ReloadPipeline(Pipeline* pipeline, const PipelineDesc& pipelineDesc);
 		void CreateComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& pipelineDesc);
-		void ReloadComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& pipelineDesc);
 
 		void* MapMemory(Buffer* buffer);
 		void UnmapMemory(Buffer* buffer);
