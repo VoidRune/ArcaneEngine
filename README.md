@@ -2,7 +2,8 @@
 Custom C++ renderer using Vulkan API.
 
 ## Build
-Open the `Scripts/` directory and run the appropriate `Setup` script to generate project files.
+1. Clone this repository
+2. Open the `Scripts/` directory and run the appropriate `Setup` script to generate project files.
 
 Note that Vulkan SDK is not included in this project and needs to be downloaded manually!
 
