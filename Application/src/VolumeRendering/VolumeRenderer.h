@@ -47,7 +47,7 @@ private:
 		int32_t sampleCount = 32;
 		int32_t lightSampleCount = 16;
 
-		alignas(16) glm::vec3 color = { 0, 0, 1 };
+		alignas(16) glm::vec3 backgroundColor = { 1.0, 1.0, 1.0 };
 		float densityLimitMin = 0.1;
 		float densityLimitMax = 1.0;
 		float absorptionCoefficient = 4.0;

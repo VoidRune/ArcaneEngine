@@ -304,17 +304,17 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		points[i] = m_DensityRemap[i] / 255.0f;
 	}
 
-	ImGui::PlotLines("graph 1.0f", points, m_DensityRemap.size());
+	ImGui::PlotLines("Density", points, m_DensityRemap.size());
 
 	bool val1 = ImGui::SliderInt("Sample count", &m_CameraFrameData.sampleCount, 1, 256);
 	bool val2 = ImGui::SliderInt("Light sample count", &m_CameraFrameData.lightSampleCount, 1, 64);
-	bool val3 = ImGui::ColorEdit3("Color", &m_CameraFrameData.color.r);
+	bool val3 = ImGui::ColorEdit3("Background", &m_CameraFrameData.backgroundColor.r);
 	bool val4 = ImGui::SliderFloat("Density limit minimum", &m_CameraFrameData.densityLimitMin, 0.0f, 1.0f);
 	bool val5 = ImGui::SliderFloat("Density limit maximum", &m_CameraFrameData.densityLimitMax, 0.0f, 1.0f);
 	bool val6 = ImGui::SliderFloat("Absorption", &m_CameraFrameData.absorptionCoefficient, 0.0f, 12.0f);
 	bool val7 = ImGui::SliderFloat("Light multiplier", &m_CameraFrameData.lightMultiplier, 0.0f, 8.0f);
 	ImGui::End();
-
+	
 	if (m_Camera->HasMoved ||
 		val1 ||
 		val2 ||

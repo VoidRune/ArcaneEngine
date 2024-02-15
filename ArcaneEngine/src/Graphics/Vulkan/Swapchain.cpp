@@ -137,10 +137,7 @@ namespace Arc
 
         if (err == VK_ERROR_OUT_OF_DATE_KHR)
         {
-            //Core::Get()->WaitIdle();
             m_OutOfDate = true;
-            //Destroy();
-            //Create(imagesCount, preferredMode);
         }
 
         return m_ImageIndex;
@@ -162,8 +159,7 @@ namespace Arc
 
         if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
         {
-            //Core::Get()->WaitIdle();
-            m_OutOfDate = 1;
+            m_OutOfDate = true;
         }
         else
         {

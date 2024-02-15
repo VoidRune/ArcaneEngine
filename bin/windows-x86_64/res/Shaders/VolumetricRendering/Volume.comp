@@ -12,7 +12,7 @@ layout(set = 0, binding = 0) uniform PerFrameData {
     int sampleCount;
     int lightSampleCount;
 
-    vec3 color;
+    vec3 backgroundColor;
     float densityLimitMin;
     float densityLimitMax;
     float absorptionCoefficient;
@@ -219,7 +219,9 @@ void main()
                 //lightEnergy += remappedDensity * stepSize * transmittance * lightTransmittance;
                 transmittance *= exp(-remappedDensity * stepSize * data.absorptionCoefficient);
 
-                color.rgb += transmittance * texture(colorGradient, vec2(density, 0.5)).rgb;
+                //transmittance *= lightTransmittance;
+
+                color.rgb += lightTransmittance * transmittance * texture(colorGradient, vec2(density, 0.5)).rgb;
                 colorSum += transmittance;
 
                 if(transmittance < 0.01)
@@ -243,11 +245,10 @@ void main()
         //vec3 sky = texture(hdrTexture, uv).rgb;
         //color.rgb += transmittance * sky + lightEnergy * vec3(1.0);
     
-        vec3 backgroundColor = vec3(1.0);
         //vec3 cloudColor = lightEnergy * vec3(1, 1, 1);
         //color.rgb = transmittance * sky + cloudColor;
 
-        color.rgb += transmittance * backgroundColor;
+        color.rgb += transmittance * data.backgroundColor;
         //color.rgb = transmittance * backgroundColor + texture(colorGradient, vec2(transmittance, 0.5)).rgb;
 
     }
