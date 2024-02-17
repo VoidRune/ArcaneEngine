@@ -5,6 +5,7 @@
 #include "VolumeRendering/VolumeRenderer.h"
 #include "Core/Timer.h"
 #include "Core/Log.h"
+#include "Audio/AudioEngine.h"
 #include <memory>
 #include <iostream>
 
