@@ -10,3 +10,5 @@ workspace "ArcaneEngine"
 
 include "ArcaneEngine/Build-Engine.lua"
 include "Application/Build-App.lua"
+include "AppClient/Build-AppClient.lua"
+include "AppServer/Build-AppServer.lua"
