@@ -157,7 +157,7 @@ namespace Arc
         allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
         allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
-        Buffer stagingBuffer;
+        GpuBuffer stagingBuffer;
 
         VK_CHECK(vmaCreateBuffer(m_ResourceCache->GetAllocator(), &stagingBufferInfo, &allocInfo,
             &stagingBuffer.m_Buffer,
@@ -303,7 +303,7 @@ namespace Arc
         }
     }
 
-    void Device::UploadToDeviceLocalBuffer(Buffer* buffer, void* data, uint32_t size)
+    void Device::UploadToDeviceLocalBuffer(GpuBuffer* buffer, void* data, uint32_t size)
     {
         /* Allocate staging buffer */
         VkBufferCreateInfo stagingBufferInfo = {};
@@ -317,7 +317,7 @@ namespace Arc
         allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
         allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
-        Buffer stagingBuffer;
+        GpuBuffer stagingBuffer;
 
         VK_CHECK(vmaCreateBuffer(m_ResourceCache->GetAllocator(), &stagingBufferInfo, &allocInfo,
             &stagingBuffer.m_Buffer,

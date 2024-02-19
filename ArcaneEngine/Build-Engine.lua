@@ -4,10 +4,10 @@ project "ArcaneEngine"
    	cppdialect "C++20"
    	staticruntime "off"
 
-	targetdir ("../bin/%{cfg.system}-%{cfg.architecture}")
-	objdir ("../build/%{cfg.system}-%{cfg.architecture}")
+	targetdir ("../bin/%{cfg.system}-%{cfg.architecture}/%{prj.name}")
+	objdir ("../build/%{cfg.system}-%{cfg.architecture}/%{prj.name}")
 	--debugdir ("$(ProjectDir)")
-	debugdir ("../bin/%{cfg.system}-%{cfg.architecture}")
+	debugdir ("../bin/%{cfg.system}-%{cfg.architecture}/%{prj.name}")
 
    	files 
 	{ 
@@ -22,6 +22,7 @@ project "ArcaneEngine"
 		"src",
 		"$(VULKAN_SDK)/include",
 		"dependencies/glfw/include",
+		"dependencies/GameNetworkingSockets/include",
    	}
 
 	links
@@ -34,6 +35,18 @@ project "ArcaneEngine"
 	{ 
 		"$(VULKAN_SDK)/lib",
 	}
+	
+	filter { "system:windows", "configurations:Debug" }	
+      		links
+      		{
+          		"dependencies/GameNetworkingSockets/bin/Windows/Debug/GameNetworkingSockets.lib"
+      		}
+
+  	filter { "system:windows", "configurations:Release or configurations:Dist" }	
+      		links
+      		{
+          		"dependencies/GameNetworkingSockets/bin/Windows/Release/GameNetworkingSockets.lib"
+      		}
 
    	filter "system:windows"
        		systemversion "latest"

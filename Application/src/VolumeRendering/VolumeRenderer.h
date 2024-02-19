@@ -53,7 +53,7 @@ private:
 		float absorptionCoefficient = 4.0;
 		float lightMultiplier = 1.0;
 	} m_CameraFrameData;
-	std::unique_ptr<Arc::InFlightBuffer> m_CameraFrameDataBuffer;
+	std::unique_ptr<Arc::InFlightGpuBuffer> m_CameraFrameDataBuffer;
 	std::unique_ptr<Arc::InFlightDescriptorSet> m_GlobalDescriptor;
 	std::unique_ptr<Arc::DescriptorSet> m_BindlessTexturesDescriptor;
 

@@ -3,7 +3,7 @@
 #include "Vulkan/Common.h"
 #include "Vulkan/Swapchain.h"
 #include "Vulkan/Image.h"
-#include "Vulkan/Buffer.h"
+#include "Vulkan/GpuBuffer.h"
 #include "RenderGraph.h"
 #include "GpuProfiler.h"
 #include "ResourceCache.h"
@@ -34,7 +34,7 @@ namespace Arc
 		void UpdateDescriptorSet(DescriptorSet* descriptorSet, const DescriptorWriteDesc& writeDesc);
 		void UpdateInFlightDescriptorSet(InFlightDescriptorSet* descriptorSet, const InFlightDescriptorWriteDesc& writeDesc);
 		void SetImageData(Image* image, const void* data, uint32_t size, ImageLayout newLayout);
-		void UploadToDeviceLocalBuffer(Buffer* buffer, void* data, uint32_t size);
+		void UploadToDeviceLocalBuffer(GpuBuffer* buffer, void* data, uint32_t size);
 		void TransitionImageLayout(Image* image, ImageLayout newLayout);
 
 		std::unique_ptr<Swapchain> CreateSwapchain(SurfaceDesc windowDesc, PresentMode preferredMode);

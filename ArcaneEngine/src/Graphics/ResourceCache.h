@@ -1,7 +1,7 @@
 #pragma once
 #include "Vulkan/VkLocal.h"
 #include "Vulkan/Common.h"
-#include "Vulkan/Buffer.h"
+#include "Vulkan/GpuBuffer.h"
 #include "Vulkan/Image.h"
 #include "Vulkan/DescriptorSet.h"
 #include "Vulkan/Shader.h"
@@ -16,8 +16,8 @@ namespace Arc
 		ResourceCache(VkInstance instance, VkDevice device, VkPhysicalDevice physicalDevice, uint32_t imageCount);
 		~ResourceCache();
 
-		void CreateBuffer(Buffer* buffer, const BufferDesc& bufferDescription);
-		void CreateInFlightBuffer(InFlightBuffer* buffer, const BufferDesc& bufferDescription);
+		void CreateBuffer(GpuBuffer* buffer, const GpuBufferDesc& bufferDescription);
+		void CreateInFlightBuffer(InFlightGpuBuffer* buffer, const GpuBufferDesc& bufferDescription);
 		void CreateImage(Image* image, const ImageDesc& imageDescription);
 		void CreateSampler(Sampler* sampler, const SamplerDesc& samplerDescription);
 		void AllocateDescriptorSets(const std::vector<DescriptorSet*> descriptorSet, const DescriptorSetLayoutDesc& layoutDescription);
@@ -26,13 +26,13 @@ namespace Arc
 		void CreatePipeline(Pipeline* pipeline, const PipelineDesc& pipelineDesc);
 		void CreateComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& pipelineDesc);
 
-		void* MapMemory(Buffer* buffer);
-		void UnmapMemory(Buffer* buffer);
-		void* MapMemory(InFlightBuffer* buffer, uint32_t frameIndex);
-		void UnmapMemory(InFlightBuffer* buffer, uint32_t frameIndex);
+		void* MapMemory(GpuBuffer* buffer);
+		void UnmapMemory(GpuBuffer* buffer);
+		void* MapMemory(InFlightGpuBuffer* buffer, uint32_t frameIndex);
+		void UnmapMemory(InFlightGpuBuffer* buffer, uint32_t frameIndex);
 
-		void ReleaseResource(Buffer* buffer);
-		void ReleaseResource(InFlightBuffer* buffer);
+		void ReleaseResource(GpuBuffer* buffer);
+		void ReleaseResource(InFlightGpuBuffer* buffer);
 		void ReleaseResource(Image* image);
 		void ReleaseResource(Sampler* sampler);
 		void ReleaseResource(Shader* shader);

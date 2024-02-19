@@ -2,12 +2,14 @@
 #include "Window/Input.h"
 #include "Graphics/Device.h"
 #include "Graphics/PresentQueue.h"
-#include "VolumeRendering/VolumeRenderer.h"
 #include "Core/Timer.h"
 #include "Core/Log.h"
 #include "Audio/AudioEngine.h"
 #include <memory>
 #include <iostream>
+
+#include "VolumeRendering/VolumeRenderer.h"
+#include "MultiplayerGame/MultiplayerGame.h"
 
 void Run()
 {
@@ -31,6 +33,7 @@ void Run()
 	std::unique_ptr<BaseRenderer> renderer;
 
 	renderer = std::make_unique<VolumeRenderer>(window.get(), device.get(), presentQueue.get());
+	//renderer = std::make_unique<MultiplayerGame>(window.get(), device.get(), presentQueue.get());
 
 	Arc::Timer timer;
 	while (!window->IsClosed())

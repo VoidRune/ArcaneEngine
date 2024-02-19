@@ -43,7 +43,7 @@ namespace Arc
         vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
 	}
 
-    void ResourceCache::CreateBuffer(Buffer* buffer, const BufferDesc& bufferDescription)
+    void ResourceCache::CreateBuffer(GpuBuffer* buffer, const GpuBufferDesc& bufferDescription)
     {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -76,7 +76,7 @@ namespace Arc
         };
     }
 
-    void ResourceCache::CreateInFlightBuffer(InFlightBuffer* buffer, const BufferDesc& bufferDescription)
+    void ResourceCache::CreateInFlightBuffer(InFlightGpuBuffer* buffer, const GpuBufferDesc& bufferDescription)
     {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -833,38 +833,38 @@ namespace Arc
         }
     }
 
-    void* ResourceCache::MapMemory(Buffer* buffer)
+    void* ResourceCache::MapMemory(GpuBuffer* buffer)
     {
         void* data;
         vmaMapMemory(m_MemoryAllocator, buffer->m_Allocation, &data);
         return data;
     }
 
-    void ResourceCache::UnmapMemory(Buffer* buffer)
+    void ResourceCache::UnmapMemory(GpuBuffer* buffer)
     {
         vmaUnmapMemory(m_MemoryAllocator, buffer->m_Allocation);
     }
 
-    void* ResourceCache::MapMemory(InFlightBuffer* buffer, uint32_t frameIndex)
+    void* ResourceCache::MapMemory(InFlightGpuBuffer* buffer, uint32_t frameIndex)
     {
         void* data;
         vmaMapMemory(m_MemoryAllocator, buffer->m_Allocation[frameIndex], &data);
         return data;
     }
 
-    void ResourceCache::UnmapMemory(InFlightBuffer* buffer, uint32_t frameIndex)
+    void ResourceCache::UnmapMemory(InFlightGpuBuffer* buffer, uint32_t frameIndex)
     {
         vmaUnmapMemory(m_MemoryAllocator, buffer->m_Allocation[frameIndex]);
     }
 
-    void ResourceCache::ReleaseResource(Buffer* buffer)
+    void ResourceCache::ReleaseResource(GpuBuffer* buffer)
     {
         void* key = buffer->m_Buffer;
         m_ResourceReleaseFuctions[key]();
         m_ResourceReleaseFuctions.erase(key);
     }
 
-    void ResourceCache::ReleaseResource(InFlightBuffer* buffer)
+    void ResourceCache::ReleaseResource(InFlightGpuBuffer* buffer)
     {
         void* key = buffer->m_Buffer[0];
         m_ResourceReleaseFuctions[key]();
