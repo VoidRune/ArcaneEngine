@@ -1,4 +1,5 @@
 #include "Client.h"
+#include "Core/Log.h"
 
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
@@ -50,7 +51,7 @@ namespace Arc
 		SteamDatagramErrMsg errMsg;
 		if (!GameNetworkingSockets_Init(nullptr, errMsg))
 		{
-			OnFatalError("GameNetworkingSockets_Init failed");
+			ARC_LOG_ERROR("Failed to init GameNetworkingSockets!");
 			return;
 		}
 
@@ -60,7 +61,7 @@ namespace Arc
 		SteamNetworkingIPAddr address;
 		if (!address.ParseString(m_ServerAddress.c_str()))
 		{
-			OnFatalError("Invalid IP address - could not parse: " + m_ServerAddress);
+			ARC_LOG_ERROR("Invalid IP address - could not parse: " + m_ServerAddress);
 			return;
 		}
 
@@ -69,7 +70,7 @@ namespace Arc
 		m_Connection = m_Interface->ConnectByIPAddress(address, 1, &options);
 		if (m_Connection == k_HSteamNetConnection_Invalid)
 		{
-			OnFatalError("Failed to create connection: " + m_ServerAddress);
+			ARC_LOG_ERROR("Failed to create connection: " + m_ServerAddress);
 			return;
 		}
 
@@ -160,16 +161,16 @@ namespace Arc
 			{
 				// Note: we could distinguish between a timeout, a rejected connection,
 				// or some other transport problem.
-				std::cout << "Could not connect to remove host. " << status->m_info.m_szEndDebug << std::endl;
+				ARC_LOG(std::string("Could not connect to remove host. ") + status->m_info.m_szEndDebug);
 			}
 			else if (status->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally)
 			{
-				std::cout << "Lost connection with remote host. " << status->m_info.m_szEndDebug << std::endl;
+				ARC_LOG(std::string("Lost connection with remote host. ") + status->m_info.m_szEndDebug);
 			}
 			else
 			{
 				// NOTE: We could check the reason code for a normal disconnection
-				std::cout << "Disconnected from host. " << status->m_info.m_szEndDebug << std::endl;
+				ARC_LOG(std::string("Disconnected from host. ") + status->m_info.m_szEndDebug);
 			}
 
 			// Clean up the connection.  This is important!
@@ -199,12 +200,5 @@ namespace Arc
 			break;
 		}
 	}
-
-	void Client::OnFatalError(const std::string& message)
-	{
-		std::cout << message << std::endl;
-	}
-
-
 
 }

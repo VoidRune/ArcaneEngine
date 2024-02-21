@@ -1,4 +1,5 @@
 #include "Server.h"
+#include "Core/Log.h"
 
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
@@ -75,7 +76,7 @@ namespace Arc
 		SteamDatagramErrMsg errMsg;
 		if (!GameNetworkingSockets_Init(nullptr, errMsg))
 		{
-			OnFatalError("GameNetworkingSockets_Init failed");
+			ARC_LOG_ERROR("Failed to init GameNetworkingSockets!");
 			return;
 		}
 
@@ -94,7 +95,7 @@ namespace Arc
 
 		if (m_ListenSocket == k_HSteamListenSocket_Invalid)
 		{
-			OnFatalError("Fatal error: Failed to listen on port " + m_Port);
+			ARC_LOG_ERROR("Failed to listen on port " + std::to_string(m_Port));
 			return;
 		}
 
@@ -102,11 +103,11 @@ namespace Arc
 		m_PollGroup = m_Interface->CreatePollGroup();
 		if (m_PollGroup == k_HSteamNetPollGroup_Invalid)
 		{
-			OnFatalError("Fatal error: Failed to listen on port " + m_Port);
+			ARC_LOG_ERROR("Failed to listen on port " + std::to_string(m_Port));
 			return;
 		}
 
-		std::cout << "Server listening on port " << m_Port << std::endl;
+		ARC_LOG("Server listening on port " + std::to_string(m_Port));
 
 		while (m_Running)
 		{
@@ -116,7 +117,6 @@ namespace Arc
 		}
 
 		// Close all the connections
-		std::cout << "Closing connections..." << std::endl;
 		for (const auto& [clientID, clientInfo] : m_ConnectedClients)
 		{
 			m_Interface->CloseConnection(clientID, 0, "Server Shutdown", true);
@@ -188,7 +188,7 @@ namespace Arc
 			if (m_Interface->AcceptConnection(status->m_hConn) != k_EResultOK)
 			{
 				m_Interface->CloseConnection(status->m_hConn, 0, nullptr, false);
-				std::cout << "Couldn't accept connection (it was already closed?)" << std::endl;
+				ARC_LOG_ERROR("Couldn't accept connection (it was already closed?)");
 				break;
 			}
 
@@ -196,7 +196,7 @@ namespace Arc
 			if (!m_Interface->SetConnectionPollGroup(status->m_hConn, m_PollGroup))
 			{
 				m_Interface->CloseConnection(status->m_hConn, 0, nullptr, false);
-				std::cout << "Failed to set poll group" << std::endl;
+				ARC_LOG_ERROR("Failed to set poll group");
 				break;
 			}
 
@@ -247,7 +247,7 @@ namespace Arc
 			auto itClient = m_ConnectedClients.find(incomingMessage->m_conn);
 			if (itClient == m_ConnectedClients.end())
 			{
-				std::cout << "ERROR: Received data from unregistered client\n";
+				ARC_LOG_ERROR("Received data from unregistered client");
 				continue;
 			}
 
@@ -269,10 +269,5 @@ namespace Arc
 	void Server::PollConnectionStateChanges()
 	{
 		m_Interface->RunCallbacks();
-	}
-
-	void Server::OnFatalError(const std::string& message)
-	{
-		std::cout << message << std::endl;
 	}
 }

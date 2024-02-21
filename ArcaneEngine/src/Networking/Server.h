@@ -43,8 +43,6 @@ namespace Arc
 		void SetClientNick(ClientID hConn, const char* nick);
 		void PollConnectionStateChanges();
 
-		void OnFatalError(const std::string& message);
-
 	private:
 
 		std::thread m_NetworkThread;

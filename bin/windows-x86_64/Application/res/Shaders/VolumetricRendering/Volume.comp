@@ -13,10 +13,8 @@ layout(set = 0, binding = 0) uniform PerFrameData {
     int lightSampleCount;
 
     vec3 backgroundColor;
-    float densityLimitMin;
-    float densityLimitMax;
     float absorptionCoefficient;
-    float lightMultiplier;
+    float colorIntensity;
 } data;
 
 layout (set = 1, binding = 0) uniform sampler3D volumeTexture;
@@ -133,7 +131,7 @@ float lightMarch(vec3 point, vec3 lightDir)
         //lightDensity += 2.0 * fbm(lightPoint * 8.0) * (0.7 - distance(lightPoint, vec3(0.5, 0.5, 0.5)));
         lightPoint += lightRayStep;
     }
-    float lightTransmittance = exp(-lightDensity * lightStepSize * data.lightMultiplier);
+    float lightTransmittance = exp(-lightDensity * lightStepSize);
 
     return lightTransmittance;
 }
@@ -160,7 +158,7 @@ void main()
 
 
 
-    vec4 color = vec4(0.0);
+    vec4 color = vec4(data.backgroundColor, 1.0f);
     vec3 lightDir = normalize(vec3(1, 1, 1));
 
     float transmittance = 1.0;
@@ -205,15 +203,14 @@ void main()
         vec3 rayStep = rayDirection * stepSize;
         vec3 p = rayOrigin + rayDirection * max(tmin, 0) + rayStep * mod(RandomValue(seed), 1.0);
 
-        float colorSum = 0.0;
         for (int i = 0; i < data.sampleCount; i++)
         {
             float density = texture(volumeTexture, p).r;
+            float remappedDensity = texture(densityRemap, vec2(density, 0.5)).r;
             //float density = 2.0 * fbm(p * 8.0) * (0.7 - distance(p, vec3(0.5, 0.5, 0.5)));
 
-            if(density > 0.01 && density >= data.densityLimitMin && density <= data.densityLimitMax)
+            if(remappedDensity > 0.01)
             {
-                float remappedDensity = texture(densityRemap, vec2(density, 0.5)).r;
                 float lightTransmittance = lightMarch(p, lightDir);
 
                 //lightEnergy += remappedDensity * stepSize * transmittance * lightTransmittance;
@@ -221,8 +218,7 @@ void main()
 
                 //transmittance *= lightTransmittance;
 
-                color.rgb += lightTransmittance * transmittance * texture(colorGradient, vec2(density, 0.5)).rgb;
-                colorSum += transmittance;
+                color.rgb += transmittance * texture(colorGradient, vec2(density, 0.5)).rgb * stepSize * data.colorIntensity;
 
                 if(transmittance < 0.01)
                     break;
@@ -230,13 +226,8 @@ void main()
 
             p += rayStep;
         }
-        if(colorSum > 0)
-            color /= colorSum;
+
     }
-
-    vec3 cloudColor = lightEnergy * vec3(1, 1, 1);
-
-    //color.rgb = transmittance * data.color;// + (1.0 - lightTransmittance) * vec3(1, 0, 0);
 
 
     if(true)
@@ -248,7 +239,6 @@ void main()
         //vec3 cloudColor = lightEnergy * vec3(1, 1, 1);
         //color.rgb = transmittance * sky + cloudColor;
 
-        color.rgb += transmittance * data.backgroundColor;
         //color.rgb = transmittance * backgroundColor + texture(colorGradient, vec2(transmittance, 0.5)).rgb;
 
     }

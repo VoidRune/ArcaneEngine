@@ -38,8 +38,6 @@ namespace Arc
 		void PollIncomingMessages();
 		void PollConnectionStateChanges();
 
-		void OnFatalError(const std::string& message);
-
 	private:
 
 		std::thread m_NetworkThread;

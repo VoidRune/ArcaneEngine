@@ -123,16 +123,34 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 	stbi_image_free(hdrData);
 
 
+	DensityPoint dp;
+	//points.push_back(dp);
+	//dp.density = 1.0f;
+	//dp.location = 0.5f;
+	//dp.color = { 0, 0, 0 };
+	//points.push_back(dp);
+	dp.density = 1.0f;
+	dp.location = 0.5f;
+	dp.color = { 0, 0, 1 };
+	m_Points.push_back(dp);
+
+	/* Add left-most and right-most points */
+	dp.density = 0.0f;
+	dp.location = 0.0f;
+	dp.color = { 1, 0, 0 };
+	m_Points.push_back(dp);
+	dp.density = 1.0f;
+	dp.location = 1.0f;
+	dp.color = { 1, 1, 1 };
+	m_Points.push_back(dp);
+
+	std::sort(m_Points.begin(), m_Points.end(), [](DensityPoint a, DensityPoint b) { return a.location < b.location; });
 
 	uint32_t gradSize = 256;
-	std::vector<uint8_t> gradientData(gradSize * 4);
-	for (size_t i = 0; i < gradSize; i++)
-	{
-		gradientData[i * 4 + 0] = 255 - i;
-		gradientData[i * 4 + 1] = 0;
-		gradientData[i * 4 + 2] = i;
-		gradientData[i * 4 + 3] = 255;
-	}
+	m_DensityRemap.resize(gradSize);
+	m_GradientData.resize(gradSize * 4);
+
+	CalculateDataPoints();
 
 	m_ColorGradientImage = std::make_unique<Arc::Image>();
 	core->GetResourceCache()->CreateImage(m_ColorGradientImage.get(), Arc::ImageDesc()
@@ -140,58 +158,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 		.SetFormat(Arc::Format::R8G8B8A8_Unorm)
 		.AddUsageFlag(Arc::ImageUsage::TransferDst)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
-	core->SetImageData(m_ColorGradientImage.get(), gradientData.data(), gradSize * 1 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
-
-	std::vector<DensityPoint> points;
-	DensityPoint dp;
-	dp.density = 0.0f;
-	dp.location = 0.0f;
-	dp.color = { 1, 1, 1 };
-	points.push_back(dp);
-	dp.density = 1.0f;
-	dp.location = 0.5f;
-	points.push_back(dp);
-	dp.density = 0.5f;
-	dp.location = 1.0f;
-	points.push_back(dp);
-	uint32_t pointIndex = 0;
-
-	m_DensityRemap.resize(gradSize);
-	//for (size_t i = 0; i < gradSize; i++)
-	//{
-	//	float location = (float)i / gradSize;
-	//
-	//	if()
-	//	pointIndex
-	//	std::cout << location << std::endl;
-	//	m_densityRemap[i] = 255;
-	//}
-
-	auto current = points.begin();
-	auto next = std::next(current);
-	float step = 1.0f / (gradSize - 1);
-
-	for (int i = 0; i < gradSize; ++i) {
-		// Find the two points between which the current 'location' lies
-		/*
-		while (next != points.end() && (*next).location <= i * step) {
-			current = next;
-			++next;
-		}
-
-		// Calculate interpolation factor
-		float t = 0.0f;
-		if (next != points.end()) {
-			t = (i * step - (*current).location) / ((*next).location - (*current).location);
-		}
-
-		// Perform linear interpolation for density and store in m_densityRemap
-		float interpolatedDensity = ((*next).density - (*current).density) * t + (*current).density;
-		m_densityRemap[i] = static_cast<uint8_t>(interpolatedDensity * 255.0f);
-		std::cout << interpolatedDensity << std::endl;
-		*/
-		m_DensityRemap[i] = 255.0f;
-	}
+	core->SetImageData(m_ColorGradientImage.get(), m_GradientData.data(), gradSize * 1 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
 
 	m_DensityImage = std::make_unique<Arc::Image>();
 	core->GetResourceCache()->CreateImage(m_DensityImage.get(), Arc::ImageDesc()
@@ -258,6 +225,52 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 	m_RenderThreadFuture = std::promise<void>().get_future();
 }
 
+void VolumeRenderer::CalculateDataPoints()
+{
+	std::vector<DensityPoint> pointsCopy;
+	DensityPoint dp;
+	dp.density = 0.0f;
+	dp.location = 0.0f;
+	dp.color = { 0, 0, 0 };
+	pointsCopy.push_back(dp);
+
+	for (size_t i = 0; i < m_Points.size(); i++)
+	{
+		pointsCopy.push_back(m_Points[i]);
+	}
+
+	dp.density = 0.0f;
+	dp.location = 1.0f;
+	dp.color = { 0, 0, 0 };
+	pointsCopy.push_back(dp);
+
+
+	std::sort(pointsCopy.begin(), pointsCopy.end(), [](DensityPoint a, DensityPoint b) { return a.location < b.location; });
+
+	for (size_t i = 0; i < m_DensityRemap.size(); i++)
+	{
+		float f = i / float(m_DensityRemap.size());
+		DensityPoint left = pointsCopy[0];
+		DensityPoint right = pointsCopy[pointsCopy.size() - 1];
+
+		for (size_t j = 0; j < pointsCopy.size() - 1; j++)
+		{
+			if (pointsCopy[j].location >= f)
+				break;
+			left = pointsCopy[j];
+			right = pointsCopy[j + 1];
+		}
+
+		float lerpDensity = (left.density * (right.location - f) + right.density * (f - left.location)) / (right.location - left.location);
+		glm::vec3 lerpColor = (left.color * (right.location - f) + right.color * (f - left.location)) / (right.location - left.location);
+		m_DensityRemap[i] = lerpDensity * 255.0f;
+		m_GradientData[i * 4 + 0] = lerpColor.r * 255.0f;
+		m_GradientData[i * 4 + 1] = lerpColor.g * 255.0f;
+		m_GradientData[i * 4 + 2] = lerpColor.b * 255.0f;
+		m_GradientData[i * 4 + 3] = 255;
+	}
+}
+
 VolumeRenderer::~VolumeRenderer()
 {
 	m_RenderThreadFuture.wait();
@@ -297,32 +310,74 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	ImGui::Begin("Volume settings", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Image(m_ImGuiDset, ImVec2(256, 20));
 
+	ImGui::SetNextItemWidth(256.0f);
+	std::vector<float> imguiRemapData(m_DensityRemap.size());
+	for (size_t i = 0; i < imguiRemapData.size(); i++)
+		imguiRemapData[i] = m_DensityRemap[i];
+	ImGui::PlotLines("Density", imguiRemapData.data(), imguiRemapData.size());
 
-	float points[256];
-	for (size_t i = 0; i < 256; i++)
+	bool changed = false;
+	if (ImGui::BeginListBox("Data points"))
 	{
-		points[i] = m_DensityRemap[i] / 255.0f;
+		ImGui::PushItemWidth(84);
+		for (size_t i = 0; i < m_Points.size(); i++)
+		{	
+			std::string s1 = "##L" + std::to_string(i);
+			std::string s2 = "##D" + std::to_string(i);
+			std::string s3 = "##C" + std::to_string(i);
+
+			changed |= ImGui::SliderFloat(s1.c_str(), &m_Points[i].location, 0.0f, 1.0f);
+			ImGui::SameLine();
+			changed |= ImGui::SliderFloat(s2.c_str(), &m_Points[i].density, 0.0f, 1.0f);
+			ImGui::SameLine();
+			changed |= ImGui::ColorEdit3(s3.c_str(), &m_Points[i].color.r, ImGuiColorEditFlags_NoInputs);
+		}
+		ImGui::PopItemWidth();
+		ImGui::EndListBox();
 	}
 
-	ImGui::PlotLines("Density", points, m_DensityRemap.size());
+	if (ImGui::Button("Add"))
+	{
+		DensityPoint dp;
+		dp.density = 0.0f;
+		dp.location = 0.0f;
+		dp.color = { 1.0, 1.0, 1.0 };
+		m_Points.push_back(dp);
+
+		changed = true;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Remove"))
+	{
+		if (m_Points.size() >= 1)
+			m_Points.pop_back();
+		changed = true;
+	}
+	ImGui::SameLine();
+	ImGui::Text("Density point");
+
+	if (changed)
+	{
+		ARC_LOG("Changed desity points!");
+		CalculateDataPoints();
+		m_Device->SetImageData(m_ColorGradientImage.get(), m_GradientData.data(), m_DensityRemap.size() * 1 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
+		m_Device->SetImageData(m_DensityImage.get(), m_DensityRemap.data(), m_DensityRemap.size() * sizeof(uint8_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
+	}
 
 	bool val1 = ImGui::SliderInt("Sample count", &m_CameraFrameData.sampleCount, 1, 256);
 	bool val2 = ImGui::SliderInt("Light sample count", &m_CameraFrameData.lightSampleCount, 1, 64);
 	bool val3 = ImGui::ColorEdit3("Background", &m_CameraFrameData.backgroundColor.r);
-	bool val4 = ImGui::SliderFloat("Density limit minimum", &m_CameraFrameData.densityLimitMin, 0.0f, 1.0f);
-	bool val5 = ImGui::SliderFloat("Density limit maximum", &m_CameraFrameData.densityLimitMax, 0.0f, 1.0f);
-	bool val6 = ImGui::SliderFloat("Absorption", &m_CameraFrameData.absorptionCoefficient, 0.0f, 12.0f);
-	bool val7 = ImGui::SliderFloat("Light multiplier", &m_CameraFrameData.lightMultiplier, 0.0f, 8.0f);
+	bool val4 = ImGui::SliderFloat("Absorption", &m_CameraFrameData.absorptionCoefficient, 0.0f, 4.0f);
+	bool val5 = ImGui::SliderFloat("Color intensity", &m_CameraFrameData.colorIntensity, 0.0f, 8.0f);
 	ImGui::End();
 	
 	if (m_Camera->HasMoved ||
+		changed ||
 		val1 ||
 		val2 ||
 		val3 ||
 		val4 ||
-		val5 ||
-		val6 ||
-		val7)
+		val5)
 	{
 		m_CameraFrameData.frameIndex = 1;
 	}

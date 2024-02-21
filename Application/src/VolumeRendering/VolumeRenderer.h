@@ -26,6 +26,8 @@ private:
 	void PreparePipelines();
 	void BuildRenderGraph();
 
+	void CalculateDataPoints();
+
 	Arc::Window* m_Window;
 	Arc::Device* m_Device;
 	Arc::PresentQueue* m_PresentQueue;
@@ -47,11 +49,9 @@ private:
 		int32_t sampleCount = 32;
 		int32_t lightSampleCount = 16;
 
-		alignas(16) glm::vec3 backgroundColor = { 1.0, 1.0, 1.0 };
-		float densityLimitMin = 0.1;
-		float densityLimitMax = 1.0;
-		float absorptionCoefficient = 4.0;
-		float lightMultiplier = 1.0;
+		alignas(16) glm::vec3 backgroundColor = { 0, 0, 0 };
+		float absorptionCoefficient = 1.0;
+		float colorIntensity = 4.0;
 	} m_CameraFrameData;
 	std::unique_ptr<Arc::InFlightGpuBuffer> m_CameraFrameDataBuffer;
 	std::unique_ptr<Arc::InFlightDescriptorSet> m_GlobalDescriptor;
@@ -69,7 +69,9 @@ private:
 		float density;
 		glm::vec3 color;
 	};
+	std::vector<DensityPoint> m_Points;
 	std::vector<uint8_t> m_DensityRemap;
+	std::vector<uint8_t> m_GradientData;
 	std::unique_ptr<Arc::Image> m_ColorGradientImage;
 	std::unique_ptr<Arc::Image> m_DensityImage;
 	VkDescriptorSet m_ImGuiDset;
