@@ -18,3 +18,4 @@ Note that Vulkan SDK is not included in this project and needs to be downloaded 
 * [miniaudio](https://github.com/mackron/miniaudio)
 * [minivorbis](https://github.com/edubart/minivorbis)
 * [minimp3](https://github.com/lieff/minimp3)
+* [GameNetworkingSockets](https://github.com/ValveSoftware/GameNetworkingSockets)
