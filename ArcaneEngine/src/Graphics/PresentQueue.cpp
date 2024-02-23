@@ -67,6 +67,9 @@ namespace Arc
 
 	void PresentQueue::EndFrame()
 	{
+		if (m_Swapchain->OutOfDate())
+			return;
+
 		CommandBuffer* cmd = &m_Frames[m_FrameIndex].commandBuffer;
 		cmd->End();
 

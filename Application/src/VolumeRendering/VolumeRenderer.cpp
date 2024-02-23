@@ -124,27 +124,18 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 
 
 	DensityPoint dp;
-	//points.push_back(dp);
-	//dp.density = 1.0f;
-	//dp.location = 0.5f;
-	//dp.color = { 0, 0, 0 };
-	//points.push_back(dp);
-	dp.density = 1.0f;
-	dp.location = 0.5f;
-	dp.color = { 0, 0, 1 };
-	m_Points.push_back(dp);
-
-	/* Add left-most and right-most points */
 	dp.density = 0.0f;
 	dp.location = 0.0f;
 	dp.color = { 1, 0, 0 };
 	m_Points.push_back(dp);
 	dp.density = 1.0f;
+	dp.location = 0.65f;
+	dp.color = { 0, 0, 1 };
+	m_Points.push_back(dp);
+	dp.density = 1.0f;
 	dp.location = 1.0f;
 	dp.color = { 1, 1, 1 };
 	m_Points.push_back(dp);
-
-	std::sort(m_Points.begin(), m_Points.end(), [](DensityPoint a, DensityPoint b) { return a.location < b.location; });
 
 	uint32_t gradSize = 256;
 	m_DensityRemap.resize(gradSize);

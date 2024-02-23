@@ -3,10 +3,7 @@
 int main()
 {
 	Application* app = new Application();
-	while (app->IsRunning())
-	{
-		app->Update();
-	}
+	app->Run();
 	delete app;
 	return 0;
 }

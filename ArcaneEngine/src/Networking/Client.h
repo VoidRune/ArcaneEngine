@@ -29,6 +29,7 @@ namespace Arc
 
 		void SendBuffer(Buffer buffer, bool reliable = true);
 
+		uint32_t GetClientID() { return m_Connection; }
 	private:
 		void NetworkThreadFunc();
 
