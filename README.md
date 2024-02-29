@@ -1,7 +1,5 @@
-# ArcaneEngine
 <div align="center">
-  <img src="images/Logo.png" alt="Logo" height="160">
-  <h3 align="center">ArcaneEngine</h3>
+  <img src="images/Logo.png" alt="Logo" height="120">
 </div>
 
 Custom C++ renderer using Vulkan API.
