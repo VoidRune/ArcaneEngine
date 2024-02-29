@@ -47,15 +47,15 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 		.AddFlag(Arc::DescriptorFlags::Bindless));
 
 
-	std::ifstream file("res/Volume/body_512x512x226.raw", std::ios::ate | std::ios::binary);
-	//std::ifstream file("res/Volume/manix.raw", std::ios::ate | std::ios::binary);
+	//std::ifstream file("res/Volume/body_512x512x226.raw", std::ios::ate | std::ios::binary);
+	std::ifstream file("res/Volume/manix.raw", std::ios::ate | std::ios::binary);
 
 	if (!file.is_open())
 		throw std::runtime_error("failed to open file!");
 
 	file.seekg(0);
-	uint16_t sizeX = 512, sizeY = 512, sizeZ = 226;
-	//uint16_t sizeX = 512, sizeY = 512, sizeZ = 460;
+	//uint16_t sizeX = 512, sizeY = 512, sizeZ = 226;
+	uint16_t sizeX = 512, sizeY = 512, sizeZ = 460;
 	//file.read((char*)&sizeX, sizeof(sizeX));
 	//file.read((char*)&sizeY, sizeof(sizeY));
 	//file.read((char*)&sizeZ, sizeof(sizeZ));
@@ -69,8 +69,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 		sizeZ = temp;
 	}
 
-	uint8_t* data = new uint8_t[sizeX * sizeY * sizeZ];
-	file.read((char*)data, sizeof(uint8_t) * sizeX * sizeY * sizeZ);
+	uint16_t* data = new uint16_t[sizeX * sizeY * sizeZ];
+	file.read((char*)data, sizeof(uint16_t) * sizeX * sizeY * sizeZ);
 	file.close();
 
 	std::vector<uint8_t> imageData1(sizeX * sizeY * sizeZ);
@@ -125,20 +125,19 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 
 	DensityPoint dp;
 	dp.density = 0.0f;
-	dp.location = 0.0f;
+	dp.location = 0.05f;
 	dp.color = { 1, 0, 0 };
 	m_Points.push_back(dp);
 	dp.density = 1.0f;
 	dp.location = 0.65f;
-	dp.color = { 0, 0, 1 };
+	dp.color = { 1.0, 0.9, 0.0 };
 	m_Points.push_back(dp);
 	dp.density = 1.0f;
 	dp.location = 1.0f;
-	dp.color = { 1, 1, 1 };
+	dp.color = { 0.0, 1.0, 1.0 };
 	m_Points.push_back(dp);
 
 	uint32_t gradSize = 256;
-	m_DensityRemap.resize(gradSize);
 	m_GradientData.resize(gradSize * 4);
 
 	CalculateDataPoints();
@@ -151,17 +150,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
 	core->SetImageData(m_ColorGradientImage.get(), m_GradientData.data(), gradSize * 1 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
 
-	m_DensityImage = std::make_unique<Arc::Image>();
-	core->GetResourceCache()->CreateImage(m_DensityImage.get(), Arc::ImageDesc()
-		.SetExtent({ (uint32_t)gradSize, (uint32_t)1 })
-		.SetFormat(Arc::Format::R8_Unorm)
-		.AddUsageFlag(Arc::ImageUsage::TransferDst)
-		.AddUsageFlag(Arc::ImageUsage::Sampled));
-	core->SetImageData(m_DensityImage.get(), m_DensityRemap.data(), gradSize * sizeof(uint8_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
-
-
 	m_ImGuiDset = ImGui_ImplVulkan_AddTexture(m_LinearSampler->GetHandle(), m_ColorGradientImage->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
 
 	m_ComputeAttachment = std::make_unique<Arc::Image>();
 	m_AccumulationImage = std::make_unique<Arc::Image>();
@@ -191,16 +180,14 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 		.AddBinding(1, Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Compute)
 		.AddBinding(1, Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Compute)
 		.AddBinding(1, Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Compute)
-		.AddBinding(1, Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Compute)
 		.AddBinding(1, Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute)
 		.AddBinding(1, Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute));
 	m_Device->UpdateDescriptorSet(m_ComputeDescriptor.get(), Arc::DescriptorWriteDesc()
 		.AddImageWrite(0, m_LinearSampler->GetHandle(), texture.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal)
 		.AddImageWrite(1, m_LinearSampler->GetHandle(), m_ColorGradientImage->GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal)
-		.AddImageWrite(2, m_LinearSampler->GetHandle(), m_DensityImage->GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal)
-		.AddImageWrite(3, m_PointSampler->GetHandle(), hdrTexture.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal)
-		.AddImageWrite(4, m_PointSampler->GetHandle(), m_AccumulationImage->GetImageView(), Arc::ImageLayout::General)
-		.AddImageWrite(5, m_PointSampler->GetHandle(), m_ComputeAttachment->GetImageView(), Arc::ImageLayout::General));
+		.AddImageWrite(2, m_PointSampler->GetHandle(), hdrTexture.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal)
+		.AddImageWrite(3, m_PointSampler->GetHandle(), m_AccumulationImage->GetImageView(), Arc::ImageLayout::General)
+		.AddImageWrite(4, m_PointSampler->GetHandle(), m_ComputeAttachment->GetImageView(), Arc::ImageLayout::General));
 
 	m_Device->TransitionImageLayout(m_AccumulationImage.get(), Arc::ImageLayout::General);
 	m_Device->TransitionImageLayout(m_ComputeAttachment.get(), Arc::ImageLayout::General);
@@ -238,9 +225,9 @@ void VolumeRenderer::CalculateDataPoints()
 
 	std::sort(pointsCopy.begin(), pointsCopy.end(), [](DensityPoint a, DensityPoint b) { return a.location < b.location; });
 
-	for (size_t i = 0; i < m_DensityRemap.size(); i++)
+	for (size_t i = 0; i < 256; i++)
 	{
-		float f = i / float(m_DensityRemap.size());
+		float f = i / float(256);
 		DensityPoint left = pointsCopy[0];
 		DensityPoint right = pointsCopy[pointsCopy.size() - 1];
 
@@ -254,11 +241,10 @@ void VolumeRenderer::CalculateDataPoints()
 
 		float lerpDensity = (left.density * (right.location - f) + right.density * (f - left.location)) / (right.location - left.location);
 		glm::vec3 lerpColor = (left.color * (right.location - f) + right.color * (f - left.location)) / (right.location - left.location);
-		m_DensityRemap[i] = lerpDensity * 255.0f;
 		m_GradientData[i * 4 + 0] = lerpColor.r * 255.0f;
 		m_GradientData[i * 4 + 1] = lerpColor.g * 255.0f;
 		m_GradientData[i * 4 + 2] = lerpColor.b * 255.0f;
-		m_GradientData[i * 4 + 3] = 255;
+		m_GradientData[i * 4 + 3] = lerpDensity * 255.0f;
 	}
 }
 
@@ -300,12 +286,6 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 
 	ImGui::Begin("Volume settings", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Image(m_ImGuiDset, ImVec2(256, 20));
-
-	ImGui::SetNextItemWidth(256.0f);
-	std::vector<float> imguiRemapData(m_DensityRemap.size());
-	for (size_t i = 0; i < imguiRemapData.size(); i++)
-		imguiRemapData[i] = m_DensityRemap[i];
-	ImGui::PlotLines("Density", imguiRemapData.data(), imguiRemapData.size());
 
 	bool changed = false;
 	if (ImGui::BeginListBox("Data points"))
@@ -351,15 +331,13 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	{
 		ARC_LOG("Changed desity points!");
 		CalculateDataPoints();
-		m_Device->SetImageData(m_ColorGradientImage.get(), m_GradientData.data(), m_DensityRemap.size() * 1 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
-		m_Device->SetImageData(m_DensityImage.get(), m_DensityRemap.data(), m_DensityRemap.size() * sizeof(uint8_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
+		m_Device->SetImageData(m_ColorGradientImage.get(), m_GradientData.data(), m_GradientData.size(), Arc::ImageLayout::ShaderReadOnlyOptimal);
 	}
 
-	bool val1 = ImGui::SliderInt("Sample count", &m_CameraFrameData.sampleCount, 1, 256);
-	bool val2 = ImGui::SliderInt("Light sample count", &m_CameraFrameData.lightSampleCount, 1, 64);
-	bool val3 = ImGui::ColorEdit3("Background", &m_CameraFrameData.backgroundColor.r);
-	bool val4 = ImGui::SliderFloat("Absorption", &m_CameraFrameData.absorptionCoefficient, 0.0f, 4.0f);
-	bool val5 = ImGui::SliderFloat("Color intensity", &m_CameraFrameData.colorIntensity, 0.0f, 8.0f);
+	bool val1 = ImGui::SliderInt("Bounce limit", &m_CameraFrameData.bounceLimit, 1, 128);
+	bool val2 = ImGui::SliderFloat("Extinction", &m_CameraFrameData.extinction, 0.0f, 100.0f);
+	bool val3 = ImGui::SliderFloat("Anisotropy", &m_CameraFrameData.anisotropy, -1.0f, 1.0f);
+	bool val4 = ImGui::ColorEdit3("Background", &m_CameraFrameData.backgroundColor.r);
 	ImGui::End();
 	
 	if (m_Camera->HasMoved ||
@@ -367,8 +345,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		val1 ||
 		val2 ||
 		val3 ||
-		val4 ||
-		val5)
+		val4)
 	{
 		m_CameraFrameData.frameIndex = 1;
 	}
@@ -497,8 +474,8 @@ void VolumeRenderer::SwapchainResized(void* presentQueue)
 		.AddImageWrite(0, m_PointSampler->GetHandle(), m_ComputeAttachment->GetImageView(), Arc::ImageLayout::General));
 
 	m_Device->UpdateDescriptorSet(m_ComputeDescriptor.get(), Arc::DescriptorWriteDesc()
-		.AddImageWrite(4, m_PointSampler->GetHandle(), m_AccumulationImage->GetImageView(), Arc::ImageLayout::General)
-		.AddImageWrite(5, m_PointSampler->GetHandle(), m_ComputeAttachment->GetImageView(), Arc::ImageLayout::General));
+		.AddImageWrite(3, m_PointSampler->GetHandle(), m_AccumulationImage->GetImageView(), Arc::ImageLayout::General)
+		.AddImageWrite(4, m_PointSampler->GetHandle(), m_ComputeAttachment->GetImageView(), Arc::ImageLayout::General));
 
 	m_Device->TransitionImageLayout(m_AccumulationImage.get(), Arc::ImageLayout::General);
 	m_Device->TransitionImageLayout(m_ComputeAttachment.get(), Arc::ImageLayout::General);

@@ -36,7 +36,8 @@ void CameraFPS::Update(double deltaTime)
 
         Yaw = fmod(Yaw, 360.0f);
         Pitch = std::clamp(Pitch, -89.0f, 89.0f);
-        HasMoved = true;
+        if(LastMouseX != mouseX || LastMouseY != mouseY)
+            HasMoved = true;
     }
     LastMouseX = mouseX;
     LastMouseY = mouseY;

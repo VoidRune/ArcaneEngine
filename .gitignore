@@ -1,5 +1,6 @@
 # Folders
 build/
+bin/windows-x86_64/Application/res/Volume/manix.raw
 
 # Visual Studio files and folder
 **.pdb

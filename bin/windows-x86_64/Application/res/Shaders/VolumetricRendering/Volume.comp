@@ -9,20 +9,17 @@ layout(set = 0, binding = 0) uniform PerFrameData {
 	vec4 cameraPos;
 	vec4 cameraDir;
     uint frameIndex;
-    int sampleCount;
-    int lightSampleCount;
-
+    int bounceLimit;
+    float extinction;
+    float anisotropy;
     vec3 backgroundColor;
-    float absorptionCoefficient;
-    float colorIntensity;
 } data;
 
 layout (set = 1, binding = 0) uniform sampler3D volumeTexture;
 layout (set = 1, binding = 1) uniform sampler2D colorGradient;
-layout (set = 1, binding = 2) uniform sampler2D densityRemap;
-layout (set = 1, binding = 3) uniform sampler2D hdrTexture;
-layout (set = 1, binding = 4, rgba32f) uniform image2D accumulationImage;
-layout (set = 1, binding = 5, rgba8) uniform image2D image;
+layout (set = 1, binding = 2) uniform sampler2D hdrTexture;
+layout (set = 1, binding = 3, rgba32f) uniform image2D accumulationImage;
+layout (set = 1, binding = 4, rgba8) uniform image2D image;
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
@@ -105,15 +102,47 @@ float fbm(vec3 x) {
 
 float HenyeyGreenstein(float g, float costh)
 {
-    return (1.0 / (4.0 * PI)) * ((1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * costh, 1.5));
+    return (1.0 / (4.0 * PI)) * ((1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * costh, 15));
+}
+
+float sampleHenyeyGreensteinAngleCosine(inout uint state, float g) {
+    float g2 = g * g;
+    float c = (1.0 - g2) / (1.0 - g + 2.0 * g * RandomValue(state));
+    return (1.0 + g2 - c * c) / (2.0 * g);
+}
+
+vec2 random_disk(inout uint state) {
+    float radius = sqrt(RandomValue(state));
+    float angle = 6.2831853 * RandomValue(state);
+    return radius * vec2(cos(angle), sin(angle));
+}
+
+vec3 random_sphere(inout uint state) {
+    vec2 disk = random_disk(state);
+    float norm = dot(disk, disk);
+    float radius = 2.0 * sqrt(1.0 - norm);
+    float z = 1.0 - 2.0 * norm;
+    return vec3(radius * disk, z);
+}
+
+vec3 sampleHenyeyGreenstein(inout uint state, float g, vec3 direction) {
+    // generate random direction and adjust it so that the angle is HG-sampled
+    vec3 u = random_sphere(state);
+    if (abs(g) < 1e-5) {
+        return u;
+    }
+    float hgcos = sampleHenyeyGreensteinAngleCosine(state, g);
+    vec3 circle = normalize(u - dot(u, direction) * direction);
+    return sqrt(1.0 - hgcos * hgcos) * circle + hgcos * direction;
 }
 
 vec3 p1 = vec3(0, 0, 0);
 vec3 p2 = vec3(1, 1, 1);
-uint seed = data.frameIndex;
+uint rng = data.frameIndex;
 
 float lightMarch(vec3 point, vec3 lightDir)
 {
+    /*
     float lmin;
     float lmax;
     RayBox(point, lightDir, p1, p2, lmin, lmax);
@@ -122,7 +151,7 @@ float lightMarch(vec3 point, vec3 lightDir)
 
     float lightStepSize = lightDist / data.lightSampleCount;
     vec3 lightRayStep = lightDir * lightStepSize;
-    vec3 lightPoint = point + lightRayStep * mod(RandomValue(seed), 1.0);
+    vec3 lightPoint = point + lightRayStep * mod(RandomValue(rng), 1.0);
 
     float lightDensity = 0.0;
     for (int j = 0; j < data.lightSampleCount; j++)
@@ -134,7 +163,25 @@ float lightMarch(vec3 point, vec3 lightDir)
     float lightTransmittance = exp(-lightDensity * lightStepSize);
 
     return lightTransmittance;
+    */
+    return 0.0f;
 }
+
+float max3(vec3 v) {
+    return max(max(v.x, v.y), v.z);
+}
+
+float mean3(vec3 v) {
+    return dot(v, vec3(1.0 / 3.0));
+}
+
+struct Photon {
+    vec3 position;
+    vec3 direction;
+    vec3 transmittance;
+    vec3 radiance;
+    uint bounces;
+};
 
 void main() 
 {
@@ -154,15 +201,12 @@ void main()
     float tmax;
     bool intersect = RayBox(rayOrigin, rayDirection, p1, p2, tmin, tmax);
     tmin = max(tmin, 0.0);
-    float dist = tmax - tmin;
+    float maxDist = tmax - tmin;
 
 
 
     vec4 color = vec4(data.backgroundColor, 1.0f);
     vec3 lightDir = normalize(vec3(1, 1, 1));
-
-    float transmittance = 1.0;
-    float lightEnergy = 0.0;
 
     if(intersect)
     {
@@ -199,34 +243,126 @@ void main()
         }*/
 
 
-        float stepSize = dist / data.sampleCount;
+        Photon photon;
+        photon.position = rayOrigin + rayDirection * tmin;
+        photon.direction = rayDirection;
+        photon.bounces = 0;
+        photon.transmittance = vec3(1.0f);
+        photon.radiance = vec3(0);
+
+        while(true)
+        {
+           float step = -log(RandomValue(rng)) / data.extinction;
+           photon.position += step * photon.direction;
+
+            float intensity = texture(volumeTexture, photon.position).r;
+            //float intensity = 1.0 * fbm(photon.position * 8.0) * (0.7 - distance(photon.position, vec3(0.5, 0.5, 0.5)));
+            vec4 transferFunction = texture(colorGradient, vec2(intensity, 0.5));
+
+            float PNull = 1.0 - transferFunction.a;
+            float PScattering;
+            if (photon.bounces >= data.bounceLimit) {
+                PScattering = 0.0;
+            } else {
+                PScattering = transferFunction.a * max3(transferFunction.rgb);
+            }
+            float PAbsorption = 1.0 - PNull - PScattering;
+
+            float rand = RandomValue(rng);
+            if (any(greaterThan(photon.position, vec3(1))) || any(lessThan(photon.position, vec3(0)))) {
+                // out of bounds
+                //vec4 envSample = sampleEnvironmentMap(photon.direction);
+                //vec3 envSample = vec3(dot(photon.direction, vec3(1, 1, 1)));
+                vec3 envSample = data.backgroundColor;
+                vec3 radiance = photon.transmittance * envSample.rgb;
+                photon.radiance += (radiance - photon.radiance);
+                
+                break;
+            } else if (rand < PAbsorption) {
+                // absorption
+                vec3 radiance = vec3(0);
+                // emmision
+                if(transferFunction.a > 0.4)
+                    radiance = photon.transmittance * transferFunction.rgb;
+                photon.radiance += (radiance - photon.radiance);
+
+                break;
+            } else if (rand < PAbsorption + PScattering) {
+                // scattering
+                photon.transmittance *= photon.transmittance * transferFunction.rgb;
+
+                float anisotropy = data.anisotropy;
+                photon.direction = sampleHenyeyGreenstein(rng, anisotropy, photon.direction);
+                photon.bounces++;
+            } else {
+                //photon.direction = sampleHenyeyGreenstein(rng, 0.9999, photon.direction);
+                // null collision
+            }
+        }
+
+        color.rgb = photon.radiance;
+
+        /*
+        vec3 radiance = vec3(0);
+        for (int i = 0; i < data.sampleCount; i++)
+        {
+            float dist = 0.0f;
+            while(true)
+            {
+                float step = -log(RandomValue(rng)) / data.extinction;
+                dist += step;
+                if(dist > maxDist)
+                    break;
+
+                vec3 p = rayOrigin + rayDirection * (tmin + dist);
+                float density = texture(volumeTexture, p).r;
+                vec4 transferFunction = texture(colorGradient, vec2(density, 0.5));
+
+                if(RandomValue(rng) < transferFunction.a)
+                {
+                    float lightTransmittance = lightMarch(p, lightDir);
+                    //color.rgb = transferFunction.rgb * lightTransmittance * 4;
+                    //color.rgb /= log(data.absorptionCoefficient);
+
+                    radiance += transferFunction.rgb * lightTransmittance;
+                    break;
+                }
+            }
+        }
+        color.rgb = radiance / data.sampleCount;
+        */
+
+        /*
+        color.rgb = vec3(0);
+        float stepSize = maxDist / data.sampleCount;
         vec3 rayStep = rayDirection * stepSize;
-        vec3 p = rayOrigin + rayDirection * max(tmin, 0) + rayStep * mod(RandomValue(seed), 1.0);
+        vec3 p = rayOrigin + rayDirection * max(tmin, 0) + rayStep * mod(RandomValue(rng), 1.0);
+
+        float transmittance = 1.0;
 
         for (int i = 0; i < data.sampleCount; i++)
         {
             float density = texture(volumeTexture, p).r;
-            float remappedDensity = texture(densityRemap, vec2(density, 0.5)).r;
+            vec4 transferFunction = texture(colorGradient, vec2(density, 0.5));
+            vec3 sampledColor = transferFunction.rgb;
+            float opacity = transferFunction.a;
+            //float remappedDensity = texture(densityRemap, vec2(density, 0.5)).r;
             //float density = 2.0 * fbm(p * 8.0) * (0.7 - distance(p, vec3(0.5, 0.5, 0.5)));
 
-            if(remappedDensity > 0.01)
+
+            if(opacity > 0.01)
             {
-                float lightTransmittance = lightMarch(p, lightDir);
-
                 //lightEnergy += remappedDensity * stepSize * transmittance * lightTransmittance;
-                transmittance *= exp(-remappedDensity * stepSize * data.absorptionCoefficient);
-
+                transmittance *= exp(-opacity * stepSize * data.absorptionCoefficient);
                 //transmittance *= lightTransmittance;
-
-                color.rgb += transmittance * texture(colorGradient, vec2(density, 0.5)).rgb * stepSize * data.colorIntensity;
-
+                color.rgb += transmittance * sampledColor * stepSize * data.colorIntensity;
                 if(transmittance < 0.01)
                     break;
             }
 
             p += rayStep;
         }
-
+        */
     }
 
 

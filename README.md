@@ -8,7 +8,9 @@ Custom C++ renderer using Vulkan API.
 Note that Vulkan SDK is not included in this project and needs to be downloaded manually!
 
 ## Volume renderer
-![Volume Rendering](/images/volume1.png)
+![Absorption emission](/images/volume1.png)
+![Multiple scattering](/images/volume2.png)
+Note manix dataset is not included!
 
 ## Dependencies
 * [GLFW](https://www.glfw.org)

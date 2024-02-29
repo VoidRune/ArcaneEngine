@@ -20,7 +20,7 @@ Application::Application()
 	winDesc.hWnd = m_Window->GetHWnd();
 
 	uint32_t inFlightImageCount = 3;
-	Arc::PresentMode presentMode = Arc::PresentMode::Mailbox;
+	Arc::PresentMode presentMode = Arc::PresentMode::Fifo;
 
 	m_Device = std::make_unique<Arc::Device>(m_Window->GetExtensions(), winDesc, inFlightImageCount);
 	m_PresentQueue = std::make_unique<Arc::PresentQueue>(m_Device.get(), winDesc, presentMode);
@@ -85,14 +85,23 @@ void Application::Run()
 		float dt = elapsedTime - m_LastTime;
 		m_LastTime = elapsedTime;
 		m_Camera->Update(dt);
+		if (m_Camera->HasMoved)
+		{
+			Arc::BufferStreamWriter stream(m_ScratchBuffer);
+			stream.WriteRaw<PacketType>(PacketType::MovePlayer);
+			stream.WriteRaw<uint32_t>(m_Client->GetClientID());
+			stream.WriteRaw<PlayerInfo>(PlayerInfo(m_Camera->Position));
+			m_Client->SendBuffer(Arc::Buffer(m_ScratchBuffer, stream.GetStreamPosition()), false);
+		}
+
 		Renderer::FrameData frameData;
 		frameData.View = m_Camera->View;
 		frameData.Projection = m_Camera->Projection;
 
 		for (auto& player : m_Players)
 		{
-			//frameData.Models.push_back(Model(m_Mesh, player.second.Position));
-			std::cout << player.second.Position.x << " " << player.second.Position.y << " " << player.second.Position.z << std::endl;
+			frameData.Models.push_back(Model(m_Mesh, player.second.Position));
+			//std::cout << player.second.Position.x << " " << player.second.Position.y << " " << player.second.Position.z << std::endl;
 		}
 		frameData.Models.push_back(Model(m_Mesh, glm::vec3(0, 0, 0)));
 		m_Renderer->RenderFrame(frameData);

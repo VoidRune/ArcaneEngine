@@ -46,12 +46,10 @@ private:
 		glm::vec4 cameraPos;
 		glm::vec4 cameraDir;
 		uint32_t frameIndex = 0;
-		int32_t sampleCount = 32;
-		int32_t lightSampleCount = 16;
-
-		alignas(16) glm::vec3 backgroundColor = { 0, 0, 0 };
-		float absorptionCoefficient = 1.0;
-		float colorIntensity = 4.0;
+		int32_t bounceLimit = 124;
+		float extinction = 24.0f;
+		float anisotropy = 0.2f;
+		alignas(16) glm::vec3 backgroundColor = { 1, 1, 1 };
 	} m_CameraFrameData;
 	std::unique_ptr<Arc::InFlightGpuBuffer> m_CameraFrameDataBuffer;
 	std::unique_ptr<Arc::InFlightDescriptorSet> m_GlobalDescriptor;
@@ -70,10 +68,8 @@ private:
 		glm::vec3 color;
 	};
 	std::vector<DensityPoint> m_Points;
-	std::vector<uint8_t> m_DensityRemap;
 	std::vector<uint8_t> m_GradientData;
 	std::unique_ptr<Arc::Image> m_ColorGradientImage;
-	std::unique_ptr<Arc::Image> m_DensityImage;
 	VkDescriptorSet m_ImGuiDset;
 
 	std::unique_ptr<Arc::Sampler> m_PointSampler;
