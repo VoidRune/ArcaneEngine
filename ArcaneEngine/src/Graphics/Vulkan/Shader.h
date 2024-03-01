@@ -7,12 +7,15 @@ namespace Arc
     {
     public:
 
-        std::string FilePath;
+        std::vector<uint32_t> SpirV;
         std::string EntryPoint{ "main" };
+        std::string FilePath;
 
+        ShaderDesc& SetSpirv(const std::vector<uint32_t>& spirv);
         ShaderDesc& SetFilePath(const std::string& filePath);
         ShaderDesc& SetEntryPoint(const std::string& entryPoint);
     };
+
     class Shader
     {
     public:

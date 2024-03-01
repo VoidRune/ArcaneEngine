@@ -1,12 +1,13 @@
 #include "Shader.h"
-#include "SpirvCompiler.h"
-#include <fstream>
-#include <filesystem>
-#include <iostream>
-#include <mutex>
 
 namespace Arc
 {
+	ShaderDesc& ShaderDesc::SetSpirv(const std::vector<uint32_t>& spirv)
+	{
+		this->SpirV = spirv;
+		return *this;
+	}
+
 	ShaderDesc& ShaderDesc::SetFilePath(const std::string& filePath)
 	{
 		this->FilePath = filePath;

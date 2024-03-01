@@ -1,7 +1,7 @@
 #include "Renderer.h"
 #include "Graphics/ImGui/ImguiWrapper.h"
 #include "stb/stb_image.h"
-#include "Graphics/Vulkan/SpirvCompiler.h"
+#include "Graphics/Vulkan/ShaderCompiler.h"
 #include "Core/Log.h"
 #include "Core/Timer.h"
 
@@ -174,12 +174,18 @@ void Renderer::CompileShaders()
 	m_MeshFragmentShader = std::make_unique<Arc::Shader>();
 	m_PresentVertexShader = std::make_unique<Arc::Shader>();
 	m_PresentFragmentShader = std::make_unique<Arc::Shader>();
-	SpirvHelper::Init();
-	m_Device->GetResourceCache()->CreateShader(m_MeshVertexShader.get(), Arc::ShaderDesc().SetFilePath("res/Shaders/Mesh.vert"));
-	m_Device->GetResourceCache()->CreateShader(m_MeshFragmentShader.get(), Arc::ShaderDesc().SetFilePath("res/Shaders/Mesh.frag"));
-	m_Device->GetResourceCache()->CreateShader(m_PresentVertexShader.get(), Arc::ShaderDesc().SetFilePath("res/Shaders/Present.vert"));
-	m_Device->GetResourceCache()->CreateShader(m_PresentFragmentShader.get(), Arc::ShaderDesc().SetFilePath("res/Shaders/Present.frag"));
-	SpirvHelper::Finalize();
+
+	Arc::ShaderCompiler::Initialize();
+	Arc::ShaderDesc shaderDesc;
+	Arc::ShaderCompiler::Compile("res/Shaders/Mesh.vert", shaderDesc);
+	m_Device->GetResourceCache()->CreateShader(m_MeshVertexShader.get(), shaderDesc);
+	Arc::ShaderCompiler::Compile("res/Shaders/Mesh.frag", shaderDesc);
+	m_Device->GetResourceCache()->CreateShader(m_MeshFragmentShader.get(), shaderDesc);
+	Arc::ShaderCompiler::Compile("res/Shaders/Present.vert", shaderDesc);
+	m_Device->GetResourceCache()->CreateShader(m_PresentVertexShader.get(), shaderDesc);
+	Arc::ShaderCompiler::Compile("res/Shaders/Present.frag", shaderDesc);
+	m_Device->GetResourceCache()->CreateShader(m_PresentFragmentShader.get(), shaderDesc);
+	Arc::ShaderCompiler::Finalize();
 }
 
 void Renderer::PreparePipelines()

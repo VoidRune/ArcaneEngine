@@ -1,7 +1,13 @@
 #include "ResourceCache.h"
-#include "Vulkan/SpirvCompiler.h"
-#include <fstream>
+#include "Core/Log.h"
 #include <filesystem>
+
+#include "spirv_cross/spirv_cross.hpp"
+#ifdef _DEBUG
+#pragma comment(lib, "spirv-cross-cored.lib")
+#else
+#pragma comment(lib, "spirv-cross-core.lib")
+#endif
 
 #define MAX_BINDLESS_DESCRIPTOR_COUNT 1024
 
@@ -291,24 +297,21 @@ namespace Arc
 
     void ResourceCache::CreateShader(Shader* shader, const ShaderDesc& shaderDesc)
     {
+        if (shaderDesc.SpirV.size() == 0)
+        {
+            ARC_LOG_ERROR("SpirV size is 0: " + shaderDesc.FilePath);
+            return;
+        }
 
-        std::string result;
-        //std::vector<uint32_t> r = GetBytecode(shaderDesc.filePath);
-        //result.resize(r.size() * sizeof(uint32_t));
-        //memcpy(&result[0], r.data(), r.size() * sizeof(uint32_t));
-        std::ifstream in(shaderDesc.FilePath.c_str(), std::ios::in | std::ios::binary);
-        if (in)
-        {
-            in.seekg(0, std::ios::end);
-            result.resize(in.tellg());
-            in.seekg(0, std::ios::beg);
-            in.read(&result[0], result.size());
-            in.close();
-        }
-        else
-        {
-            std::cout << "Coul not open file: " << shaderDesc.FilePath.c_str() << std::endl;
-        }
+        VkShaderModuleCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.codeSize = shaderDesc.SpirV.size() * sizeof(uint32_t);
+        createInfo.pCode = reinterpret_cast<const uint32_t*>(shaderDesc.SpirV.data());
+
+        VK_CHECK(vkCreateShaderModule(m_Device, &createInfo, nullptr, &shader->m_ShaderModule));
+
+        shader->m_EntryPoint = shaderDesc.EntryPoint;
+        shader->m_ShaderStage = VK_SHADER_STAGE_VERTEX_BIT;
 
         std::filesystem::path path = shaderDesc.FilePath;
         std::string extension = path.extension().string();
@@ -316,41 +319,20 @@ namespace Arc
         VkShaderStageFlagBits shaderStage = VK_SHADER_STAGE_VERTEX_BIT;
         if (extension == ".vert")
             shaderStage = VK_SHADER_STAGE_VERTEX_BIT;
+        if (extension == ".tcon")
+            shaderStage = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        if (extension == ".teval")
+            shaderStage = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+        if (extension == ".geom")
+            shaderStage = VK_SHADER_STAGE_GEOMETRY_BIT;
         if (extension == ".frag")
             shaderStage = VK_SHADER_STAGE_FRAGMENT_BIT;
         if (extension == ".comp")
             shaderStage = VK_SHADER_STAGE_COMPUTE_BIT;
 
-        //SpirvHelper::Init();
-        std::vector<uint32_t> SpirV;
-        bool success = SpirvHelper::GLSLtoSPV(shaderStage, result.c_str(), SpirV);
-        //SpirvHelper::Finalize();
+        shader->m_ShaderStage = shaderStage;
 
-        if (success)
-        {
-            VkShaderModuleCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-            createInfo.codeSize = SpirV.size() * sizeof(uint32_t);
-            createInfo.pCode = reinterpret_cast<const uint32_t*>(SpirV.data());
-
-            VK_CHECK(vkCreateShaderModule(m_Device, &createInfo, nullptr, &shader->m_ShaderModule));
-
-            shader->m_EntryPoint = shaderDesc.EntryPoint;
-            shader->m_ShaderStage = shaderStage;
-        }
-
-        //shaderc::Compiler compiler;
-        //shaderc::CompileOptions options;
-        //options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
-        //options.SetOptimizationLevel(shaderc_optimization_level_performance);
-        //
-        //shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(result.c_str(), result.size(), shaderc_fragment_shader, shaderDesc.filePath.c_str(), options);
-        //if (module.GetCompilationStatus() != shaderc_compilation_status_success)
-        //{
-        //    std::cout << module.GetErrorMessage() << std::endl;
-        //}
-
-        spirv_cross::Compiler comp(SpirV);
+        spirv_cross::Compiler comp(shaderDesc.SpirV);
         spirv_cross::ShaderResources resources = comp.get_shader_resources();
         //spv::ExecutionModel entryPoints = comp.get_execution_model();
 
@@ -514,27 +496,11 @@ namespace Arc
         };
     }
 
-    std::vector<uint32_t> ResourceCache::GetBytecode(std::string filename)
-    {
-        std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-        if (!file.is_open())
-            throw std::runtime_error("failed to open file!");
-
-        size_t fileSize = (size_t)file.tellg();
-        std::vector<uint32_t> bytecode(std::ceil(fileSize / float(sizeof(uint32_t))));
-
-        file.seekg(0);
-        file.read((char*)bytecode.data(), bytecode.size() * sizeof(uint32_t));
-        file.close();
-        return bytecode;
-    }
-
     void ResourceCache::CreatePipeline(Pipeline* pipeline, const PipelineDesc& pipelineDesc)
     {
         std::vector<VkDynamicState> dynamicStates = {
-    VK_DYNAMIC_STATE_VIEWPORT,
-    VK_DYNAMIC_STATE_SCISSOR
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
         };
 
         if (pipelineDesc.DepthBiasEnabled)

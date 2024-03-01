@@ -2,9 +2,9 @@
 #include "Graphics/ImGui/ImguiWrapper.h"
 #include <fstream>
 #include "stb/stb_image.h"
-#include "Graphics/Vulkan/SpirvCompiler.h"
 #include "Core/Log.h"
 #include "Core/Timer.h"
+#include "Graphics/Vulkan/ShaderCompiler.h"
 
 VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* presentQueue)
 {
@@ -385,11 +385,17 @@ void VolumeRenderer::CompileShaders()
 	m_VolumeComputeShader = std::make_unique<Arc::Shader>();
 	m_PresentVertexShader = std::make_unique<Arc::Shader>();
 	m_PresentFragmentShader = std::make_unique<Arc::Shader>();
-	SpirvHelper::Init();
-	m_Device->GetResourceCache()->CreateShader(m_VolumeComputeShader.get(), Arc::ShaderDesc().SetFilePath("res/Shaders/VolumetricRendering/Volume.comp"));
-	m_Device->GetResourceCache()->CreateShader(m_PresentVertexShader.get(), Arc::ShaderDesc().SetFilePath("res/Shaders/VolumetricRendering/Present.vert"));
-	m_Device->GetResourceCache()->CreateShader(m_PresentFragmentShader.get(), Arc::ShaderDesc().SetFilePath("res/Shaders/VolumetricRendering/Present.frag"));
-	SpirvHelper::Finalize();
+
+	Arc::ShaderCompiler::Initialize();
+	Arc::ShaderDesc shaderDesc;
+	Arc::ShaderCompiler::Compile("res/Shaders/VolumetricRendering/Volume.comp", shaderDesc);
+	m_Device->GetResourceCache()->CreateShader(m_VolumeComputeShader.get(), shaderDesc);
+	Arc::ShaderCompiler::Compile("res/Shaders/VolumetricRendering/Present.vert", shaderDesc);
+	m_Device->GetResourceCache()->CreateShader(m_PresentVertexShader.get(), shaderDesc);
+	Arc::ShaderCompiler::Compile("res/Shaders/VolumetricRendering/Present.frag", shaderDesc);
+	m_Device->GetResourceCache()->CreateShader(m_PresentFragmentShader.get(), shaderDesc);
+	Arc::ShaderCompiler::Finalize();
+
 }
 
 void VolumeRenderer::PreparePipelines()
@@ -436,15 +442,20 @@ void VolumeRenderer::RecompileShaders()
 
 	Arc::Timer timer;
 
-	m_Device->GetResourceCache()->ReleaseResource(m_VolumeComputeShader.get());
-	SpirvHelper::Init();
-	m_Device->GetResourceCache()->CreateShader(m_VolumeComputeShader.get(), Arc::ShaderDesc().SetFilePath("res/Shaders/VolumetricRendering/Volume.comp"));
-	SpirvHelper::Finalize();
+	Arc::ShaderCompiler::Initialize();
 
-	m_Device->GetResourceCache()->ReleaseResource(m_ComputePipeline.get());
+	Arc::ShaderDesc shaderDesc;
+	if (Arc::ShaderCompiler::Compile("res/Shaders/VolumetricRendering/Volume.comp", shaderDesc))
+	{
+		m_Device->GetResourceCache()->ReleaseResource(m_VolumeComputeShader.get());
+		m_Device->GetResourceCache()->CreateShader(m_VolumeComputeShader.get(), shaderDesc);	
 
-	m_Device->GetResourceCache()->CreateComputePipeline(m_ComputePipeline.get(), Arc::ComputePipelineDesc()
-		.SetShaderStage(m_VolumeComputeShader.get()));
+		m_Device->GetResourceCache()->ReleaseResource(m_ComputePipeline.get());
+		m_Device->GetResourceCache()->CreateComputePipeline(m_ComputePipeline.get(), Arc::ComputePipelineDesc()
+			.SetShaderStage(m_VolumeComputeShader.get()));
+	}
+
+	Arc::ShaderCompiler::Finalize();
 
 	ARC_LOG("Recompiled shaders! " + std::to_string(timer.elapsed_mili()) + "ms");
 

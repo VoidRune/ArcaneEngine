@@ -46,7 +46,6 @@ namespace Arc
 		VkDescriptorPool GetDescriptorPool() { return m_DescriptorPool; }
 	private:
 
-		std::vector<uint32_t> GetBytecode(std::string filename);
 		VkDescriptorSetLayout GetDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding>& layoutBindings, uint32_t flags);
 
 		VkDevice m_Device;
