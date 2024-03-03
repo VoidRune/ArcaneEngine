@@ -5,8 +5,6 @@
 #define NOGDI
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
 
 #include <iostream>
 
@@ -170,23 +168,5 @@ namespace Arc
 		int windowHeight;
 		glfwGetWindowSize((GLFWwindow*)m_Window, &windowWidth, &windowHeight);
 		return windowHeight;
-	}
-
-	std::vector<const char*> Window::GetExtensions()
-	{
-		uint32_t extensionCount = 0;
-		const char** extensions = glfwGetRequiredInstanceExtensions(&extensionCount);
-		std::vector<const char*> extensionsVector(extensions, extensions + extensionCount);
-		return extensionsVector;
-	}
-
-	void* Window::GetHInstance()
-	{
-		return GetModuleHandle(nullptr);
-	}
-
-	void* Window::GetHWnd()
-	{
-		return glfwGetWin32Window((GLFWwindow*)m_Window);
 	}
 }

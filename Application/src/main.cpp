@@ -18,15 +18,11 @@ void Run()
 	windowDesc.Fullscreen = false;
 	auto window = std::make_unique<Arc::Window>(windowDesc);
 
-	Arc::SurfaceDesc winDesc = {};
-	winDesc.hInstance = window->GetHInstance();
-	winDesc.hWnd = window->GetHWnd();
-
 	uint32_t inFlightImageCount = 3;
 	Arc::PresentMode presentMode = Arc::PresentMode::Mailbox;
 
-	auto device = std::make_unique<Arc::Device>(window->GetExtensions(), winDesc, inFlightImageCount);
-	auto presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), winDesc, presentMode);
+	auto device = std::make_unique<Arc::Device>(window->GetHandle(), inFlightImageCount);
+	auto presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), presentMode);
 
 	std::unique_ptr<BaseRenderer> renderer;
 
@@ -51,7 +47,7 @@ void Run()
 
 			renderer->WaitForFrameEnd();
 			presentQueue.reset();
-			presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), winDesc, presentMode);
+			presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), presentMode);
 			ARC_LOG("Swapchain recreated!");
 			renderer->SwapchainResized(presentQueue.get());
 		}

@@ -3,14 +3,12 @@
 namespace Arc
 {
 
-	PresentQueue::PresentQueue(Device* device, 
-		SurfaceDesc windowDesc,
-		PresentMode preferredMode)
+	PresentQueue::PresentQueue(Device* device, PresentMode preferredMode)
 	{
 		m_Device = device->GetLogicalDevice();
 		m_GraphicsQueue = device->GetGraphicsQueue();
 
-		m_Swapchain = device->CreateSwapchain(windowDesc, preferredMode);
+		m_Swapchain = device->CreateSwapchain(preferredMode);
 		m_FrameIndex = 0;
 
 		VkSemaphoreCreateInfo semaphoreInfo = {};

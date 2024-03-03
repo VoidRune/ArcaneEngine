@@ -4,13 +4,12 @@
 namespace Arc
 {
 	struct QueueFamilyIndices;
-	struct SurfaceDesc;
 	class Swapchain
 	{
 	public:
 		Swapchain(
 			VkInstance instance, VkDevice device, VkPhysicalDevice physicalDevice,
-			SurfaceDesc windowDesc,
+			VkSurfaceKHR surface,
 			QueueFamilyIndices gueueFamilyIndices,
 			VkQueue presentQueue,
 			uint32_t imagesCount,
@@ -30,7 +29,6 @@ namespace Arc
 		bool OutOfDate() { return m_OutOfDate; }
 	private:
 
-		void CreateSurface(VkInstance instance, SurfaceDesc windowDesc);
 		void CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, QueueFamilyIndices gueueFamilyIndices, uint32_t imagesCount, VkPresentModeKHR preferredMode);
 		void CreateImageViews();
 

@@ -13,6 +13,14 @@ namespace Arc
 	class Client
 	{
 	public:
+		enum class ConnectionStatus
+		{
+			Disconnected = 0, 
+			Connected, 
+			Connecting, 
+			FailedToConnect
+		};
+
 		using DataReceivedCallback = std::function<void(const Buffer)>;
 		using ServerConnectedCallback = std::function<void()>;
 		using ServerDisconnectedCallback = std::function<void()>;
@@ -30,6 +38,7 @@ namespace Arc
 		void SendBuffer(Buffer buffer, bool reliable = true);
 
 		uint32_t GetClientID() { return m_Connection; }
+		ConnectionStatus GetConnectionStatus() { return m_ConnectionStatus; }
 	private:
 		void NetworkThreadFunc();
 
@@ -48,6 +57,7 @@ namespace Arc
 
 		std::string m_ServerAddress;
 		bool m_Running = false;
+		ConnectionStatus m_ConnectionStatus = ConnectionStatus::Disconnected;
 
 		using NetConnection = uint32_t;
 

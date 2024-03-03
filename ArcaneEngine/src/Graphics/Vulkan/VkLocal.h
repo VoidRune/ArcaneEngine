@@ -39,12 +39,6 @@ typedef struct _SECURITY_ATTRIBUTES SECURITY_ATTRIBUTES;
 
 namespace Arc
 {
-	struct SurfaceDesc
-	{
-		void* hInstance;
-		void* hWnd;
-	};
-
 	struct QueueFamilyIndices
 	{
 		uint32_t graphicsFamilyIndex;

@@ -17,7 +17,7 @@ namespace Arc
 	class Device
 	{
 	public:
-		Device(const std::vector<const char*>& extensions, SurfaceDesc windowDesc, uint32_t imageCount);
+		Device(void* windowHandle, uint32_t imageCount);
 		~Device();
 
 		void WaitIdle();
@@ -37,7 +37,7 @@ namespace Arc
 		void UploadToDeviceLocalBuffer(GpuBuffer* buffer, void* data, uint32_t size);
 		void TransitionImageLayout(Image* image, ImageLayout newLayout);
 
-		std::unique_ptr<Swapchain> CreateSwapchain(SurfaceDesc windowDesc, PresentMode preferredMode);
+		std::unique_ptr<Swapchain> CreateSwapchain(PresentMode preferredMode);
 
 		VkInstance GetInstance() { return m_Instance; }
 		VkDevice GetLogicalDevice() { return m_LogicalDevice; }
@@ -55,21 +55,21 @@ namespace Arc
 		ResourceCache* GetResourceCache() { return m_ResourceCache.get(); }
 	private:
 
-		void CreateInstance(const std::vector<const char*>& extensions);
+		void CreateInstance();
 		void CreateDebugUtilsMessenger();
 		void FindPhysicalDevice();
-		void FindQueueFamilyIndices(SurfaceDesc windowDesc);
+		void FindQueueFamilyIndices();
 		void CreateLogicalDevice();
 		void GetDeviceQueue();
 		void CreateCommandPool();
-		void CheckImageCount(SurfaceDesc windowDesc);
-
+		void CreateSurface(void* windowHandle);
 
 		VkInstance m_Instance;
 		VkPhysicalDevice m_PhysicalDevice;
 		VkPhysicalDeviceProperties m_PhysicalDeviceProperties;
 		VkDevice m_LogicalDevice;
 		VkCommandPool m_CommandPool;
+		VkSurfaceKHR m_Surface;
 
 		QueueFamilyIndices m_QueueFamilyIndices;
 		VkQueue m_GraphicsQueue;

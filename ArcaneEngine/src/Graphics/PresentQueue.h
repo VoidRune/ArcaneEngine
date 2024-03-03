@@ -6,13 +6,11 @@
 namespace Arc
 {
 	class Device;
-	struct SurfaceDesc;
 	class Swapchain;
 	class PresentQueue
 	{
 	public:
-		PresentQueue(Device* core, SurfaceDesc windowDesc,
-			PresentMode preferredMode);
+		PresentQueue(Device* core, PresentMode preferredMode);
 		~PresentQueue();
 
 		FrameData BeginFrame();

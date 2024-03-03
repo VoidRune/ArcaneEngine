@@ -32,9 +32,6 @@ namespace Arc
 		int Height();
 
 		void* GetHandle() { return m_Window; }
-		std::vector<const char*> GetExtensions();
-		void* GetHInstance();
-		void* GetHWnd();
 
 	private:
 		void* m_Window;

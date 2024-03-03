@@ -4,24 +4,25 @@
 #include <set>
 
 /* Needed for surface creation */
-#include <vulkan/vulkan_win32.h>
-
+#define GLFW_INCLUDE_NONE
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
 namespace Arc
 {
 
-	Device::Device(const std::vector<const char*>& extensions, SurfaceDesc windowDesc, uint32_t imageCount)
+	Device::Device(void* windowHandle, uint32_t imageCount)
 	{
         m_ImageCount = imageCount;
 
-        CreateInstance(extensions);
+        CreateInstance();
         CreateDebugUtilsMessenger();
         FindPhysicalDevice();
-        FindQueueFamilyIndices(windowDesc);
+        CreateSurface(windowHandle);
+        FindQueueFamilyIndices();
         CreateLogicalDevice();
         GetDeviceQueue();
         CreateCommandPool();
-        CheckImageCount(windowDesc);
 
         m_GpuProfiler = std::make_unique<GpuProfiler>(m_LogicalDevice, m_PhysicalDevice);
         m_RenderGraph = std::make_unique<RenderGraph>(m_LogicalDevice, m_GpuProfiler.get());
@@ -38,6 +39,7 @@ namespace Arc
         VK_CHECK(vkDeviceWaitIdle(m_LogicalDevice));
         vkDestroyCommandPool(m_LogicalDevice, m_CommandPool, nullptr);
         vkDestroyDevice(m_LogicalDevice, nullptr);
+        vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
 
 #ifdef ARCANE_ENABLE_VALIDATION
         PFN_vkDestroyDebugUtilsMessengerEXT func =
@@ -48,10 +50,10 @@ namespace Arc
         vkDestroyInstance(m_Instance, nullptr);
 	}
 
-    std::unique_ptr<Swapchain> Device::CreateSwapchain(SurfaceDesc windowDesc, PresentMode preferredMode)
+    std::unique_ptr<Swapchain> Device::CreateSwapchain(PresentMode preferredMode)
     {
         std::unique_ptr<Swapchain> swapchain = std::unique_ptr<Swapchain>(new Swapchain(m_Instance, m_LogicalDevice, m_PhysicalDevice,
-            windowDesc, m_QueueFamilyIndices, m_PresentQueue, m_ImageCount, static_cast<VkPresentModeKHR>(preferredMode)));
+            m_Surface, m_QueueFamilyIndices, m_PresentQueue, m_ImageCount, static_cast<VkPresentModeKHR>(preferredMode)));
         return swapchain;
     }
 
@@ -396,7 +398,7 @@ namespace Arc
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
 
-    void Device::CreateInstance(const std::vector<const char*>& extensions)
+    void Device::CreateInstance()
     {
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -414,7 +416,9 @@ namespace Arc
 
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 
-        std::vector<const char*> instanceExtensions(extensions);
+        uint32_t extensionCount = 0;
+        const char** extensions = glfwGetRequiredInstanceExtensions(&extensionCount);
+        std::vector<const char*> instanceExtensions(extensions, extensions + extensionCount);
         std::vector<const char*> instanceLayers;
 
 #ifdef ARCANE_ENABLE_VALIDATION
@@ -510,7 +514,7 @@ namespace Arc
         }
     }
 
-    void Device::FindQueueFamilyIndices(SurfaceDesc windowDesc)
+    void Device::FindQueueFamilyIndices()
     {
         m_QueueFamilyIndices.graphicsFamilyIndex = uint32_t(-1);
         m_QueueFamilyIndices.presentFamilyIndex = uint32_t(-1);
@@ -521,13 +525,6 @@ namespace Arc
         std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, queueFamilies.data());
 
-        VkWin32SurfaceCreateInfoKHR createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-        createInfo.hwnd = (HWND)windowDesc.hWnd;
-        createInfo.hinstance = (HINSTANCE)windowDesc.hInstance;
-        VkSurfaceKHR surface;
-        VK_CHECK(vkCreateWin32SurfaceKHR(m_Instance, &createInfo, nullptr, &surface));
-
         int i = 0;
         for (VkQueueFamilyProperties& queueFamily : queueFamilies)
         {
@@ -536,7 +533,7 @@ namespace Arc
             }
 
             VkBool32 presentSupport = false;
-            VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(m_PhysicalDevice, i, surface, &presentSupport));
+            VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(m_PhysicalDevice, i, m_Surface, &presentSupport));
             if (presentSupport) {
                 m_QueueFamilyIndices.presentFamilyIndex = i;
             }
@@ -548,7 +545,6 @@ namespace Arc
 
             i++;
         }
-        vkDestroySurfaceKHR(m_Instance, surface, nullptr);
 
         if (m_QueueFamilyIndices.graphicsFamilyIndex == uint32_t(-1))
         {
@@ -643,20 +639,14 @@ namespace Arc
         VK_CHECK(vkCreateCommandPool(m_LogicalDevice, &poolInfo, nullptr, &m_CommandPool));
     }
 
-    void Device::CheckImageCount(SurfaceDesc windowDesc)
+    void Device::CreateSurface(void* windowHandle)
     {
-        VkSurfaceKHR tempSurface;
-        VkWin32SurfaceCreateInfoKHR createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-        createInfo.hwnd = (HWND)windowDesc.hWnd;
-        createInfo.hinstance = (HINSTANCE)windowDesc.hInstance;
-        VK_CHECK(vkCreateWin32SurfaceKHR(m_Instance, &createInfo, nullptr, &tempSurface));
+
+        VK_CHECK(glfwCreateWindowSurface(m_Instance, (GLFWwindow*)windowHandle, nullptr, &m_Surface));
 
         VkSurfaceCapabilitiesKHR capabilities;
-        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice, tempSurface, &capabilities));
+        VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice, m_Surface, &capabilities));
         m_ImageCount = std::max(capabilities.minImageCount, std::min(capabilities.maxImageCount, m_ImageCount));
-
-        vkDestroySurfaceKHR(m_Instance, tempSurface, nullptr);
     }
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(

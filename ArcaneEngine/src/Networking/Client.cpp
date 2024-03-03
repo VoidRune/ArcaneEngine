@@ -48,10 +48,13 @@ namespace Arc
 	{
 		s_Instance = this;
 
+		m_ConnectionStatus = ConnectionStatus::Connecting;
+
 		SteamDatagramErrMsg errMsg;
 		if (!GameNetworkingSockets_Init(nullptr, errMsg))
 		{
-			ARC_LOG_ERROR("Failed to init GameNetworkingSockets!");
+			ARC_LOG_ERROR("Failed to initialize GameNetworkingSockets!");
+			m_ConnectionStatus = ConnectionStatus::FailedToConnect;
 			return;
 		}
 
@@ -62,6 +65,7 @@ namespace Arc
 		if (!address.ParseString(m_ServerAddress.c_str()))
 		{
 			ARC_LOG_ERROR("Invalid IP address - could not parse: " + m_ServerAddress);
+			m_ConnectionStatus = ConnectionStatus::FailedToConnect;
 			return;
 		}
 
@@ -71,6 +75,7 @@ namespace Arc
 		if (m_Connection == k_HSteamNetConnection_Invalid)
 		{
 			ARC_LOG_ERROR("Failed to create connection: " + m_ServerAddress);
+			m_ConnectionStatus = ConnectionStatus::FailedToConnect;
 			return;
 		}
 
@@ -83,7 +88,8 @@ namespace Arc
 		}
 
 		m_Interface->CloseConnection(m_Connection, 0, nullptr, false);
-		std::cout << "Disconnected" << std::endl;
+		ARC_LOG("Disconnected");
+		m_ConnectionStatus = ConnectionStatus::Disconnected;
 		GameNetworkingSockets_Kill();
 	}
 
@@ -153,7 +159,7 @@ namespace Arc
 		case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
 		{
 			m_Running = false;
-			//m_ConnectionStatus = ConnectionStatus::FailedToConnect;
+			m_ConnectionStatus = ConnectionStatus::FailedToConnect;
 			//m_ConnectionDebugMessage = info->m_info.m_szEndDebug;
 
 			// Print an appropriate message
@@ -181,7 +187,7 @@ namespace Arc
 			// so we just pass 0s.
 			m_Interface->CloseConnection(status->m_hConn, 0, nullptr, false);
 			m_Connection = k_HSteamNetConnection_Invalid;
-			//m_ConnectionStatus = ConnectionStatus::Disconnected;
+			m_ConnectionStatus = ConnectionStatus::Disconnected;
 			m_ServerDisconnectedCallback();
 			break;
 		}
@@ -192,7 +198,7 @@ namespace Arc
 			break;
 
 		case k_ESteamNetworkingConnectionState_Connected:
-			//m_ConnectionStatus = ConnectionStatus::Connected;
+			m_ConnectionStatus = ConnectionStatus::Connected;
 			m_ServerConnectedCallback();
 			break;
 

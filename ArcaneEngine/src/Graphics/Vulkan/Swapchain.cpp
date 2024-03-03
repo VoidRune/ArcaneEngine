@@ -8,7 +8,7 @@ namespace Arc
 {
 
     Swapchain::Swapchain(VkInstance instance, VkDevice device,
-        VkPhysicalDevice physicalDevice, SurfaceDesc windowDesc,
+        VkPhysicalDevice physicalDevice, VkSurfaceKHR surface,
         QueueFamilyIndices gueueFamilyIndices, VkQueue presentQueue,
         uint32_t imagesCount, VkPresentModeKHR preferredMode)
     {
@@ -16,19 +16,10 @@ namespace Arc
         m_Instance = instance;
         m_LogicalDevice = device;
         m_PresentQueue = presentQueue;
-        CreateSurface(instance, windowDesc);
+        m_Surface = surface;
         CreateSwapchain(device, physicalDevice, gueueFamilyIndices, imagesCount, preferredMode);
         CreateImageViews();
         m_OutOfDate = false;
-    }
-
-    void Swapchain::CreateSurface(VkInstance instance, SurfaceDesc windowDesc)
-    {
-        VkWin32SurfaceCreateInfoKHR createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-        createInfo.hwnd = (HWND)windowDesc.hWnd;
-        createInfo.hinstance = (HINSTANCE)windowDesc.hInstance;
-        VK_CHECK(vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &m_Surface));
     }
 
     void Swapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, QueueFamilyIndices gueueFamilyIndices, uint32_t imagesCount, VkPresentModeKHR preferredMode)
@@ -122,7 +113,6 @@ namespace Arc
         m_ImageViews.clear();
 
         vkDestroySwapchainKHR(m_LogicalDevice, m_Swapchain, nullptr);
-        vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
     }
 
     uint32_t Swapchain::AcquireNextImage(VkSemaphore semaphore)

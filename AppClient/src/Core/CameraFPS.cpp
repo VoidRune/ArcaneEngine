@@ -6,6 +6,7 @@ CameraFPS::CameraFPS(Arc::Window* window)
 {
     Position = { 0.0f, 0.0f, -3.0f };
     Forward = glm::vec3(0.0f, 0.0f, 1.0f);
+    Right = { 1.0f, 0.0f, 0.0f };
     WorldUp = { 0.0f, 1.0f, 0.0f };
 
     this->m_Window = window;
@@ -25,30 +26,6 @@ CameraFPS::~CameraFPS()
 void CameraFPS::Update(double deltaTime)
 {
     HasMoved = false;
-    double mouseX = Arc::Input::GetMouseX();
-    double mouseY = Arc::Input::GetMouseY();
-
-    if (Arc::Input::IsKeyDown(Arc::KeyCode::MouseRight))
-    {
-
-        Yaw -= (mouseX - LastMouseX) * Sensitivity;
-        Pitch -= (mouseY - LastMouseY) * Sensitivity;
-
-        Yaw = fmod(Yaw, 360.0f);
-        Pitch = std::clamp(Pitch, -89.0f, 89.0f);
-        HasMoved = true;
-    }
-    LastMouseX = mouseX;
-    LastMouseY = mouseY;
-
-    Forward = glm::normalize(glm::vec3{
-        cos(glm::radians(Yaw)) * cos(glm::radians(Pitch)),
-        sin(glm::radians(Pitch)),
-        sin(glm::radians(Yaw)) * cos(glm::radians(Pitch))
-        });
-    Right = glm::cross(-Forward, WorldUp);
-    Right = glm::normalize(Right);
-    Up = glm::cross(Forward, Right);
 
     glm::vec3 velocity = { 0.0f, 0.0f, 0.0f };
 
@@ -61,9 +38,6 @@ void CameraFPS::Update(double deltaTime)
     if (velocity != glm::vec3{ 0.0f, 0.0f, 0.0f })
         velocity = glm::normalize(velocity);
 
-    if (Arc::Input::IsKeyDown(Arc::KeyCode::Space)) { velocity.y++; HasMoved = true; }
-    if (Arc::Input::IsKeyDown(Arc::KeyCode::LeftShift)) { velocity.y--; HasMoved = true; }
-
     Velocity = velocity;
 
     float speedBoost = 1.0f;
@@ -71,9 +45,11 @@ void CameraFPS::Update(double deltaTime)
 
     Position += velocity * MovementSpeed * speedBoost * (float)deltaTime;
 
+    glm::vec3 offset = glm::vec3(0, 5, -2);
+
     Projection = glm::perspective(glm::radians(Fov), (float)m_Window->Width() / glm::max((float)m_Window->Height(), 1.0f), NearPlane, FarPlane);
     Projection[1][1] *= -1;
-    View = glm::lookAt(Position, Position + Forward, WorldUp);
+    View = glm::lookAt(Position + offset, Position, WorldUp);
     InverseView = glm::inverse(View);
     InverseProjection = glm::inverse(Projection);
 }

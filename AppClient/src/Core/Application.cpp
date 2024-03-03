@@ -15,15 +15,11 @@ Application::Application()
 	windowDesc.Fullscreen = false;
 	m_Window = std::make_unique<Arc::Window>(windowDesc);
 
-	Arc::SurfaceDesc winDesc = {};
-	winDesc.hInstance = m_Window->GetHInstance();
-	winDesc.hWnd = m_Window->GetHWnd();
-
 	uint32_t inFlightImageCount = 3;
 	Arc::PresentMode presentMode = Arc::PresentMode::Fifo;
 
-	m_Device = std::make_unique<Arc::Device>(m_Window->GetExtensions(), winDesc, inFlightImageCount);
-	m_PresentQueue = std::make_unique<Arc::PresentQueue>(m_Device.get(), winDesc, presentMode);
+	m_Device = std::make_unique<Arc::Device>(m_Window->GetHandle(), inFlightImageCount);
+	m_PresentQueue = std::make_unique<Arc::PresentQueue>(m_Device.get(), presentMode);
 	m_Renderer = std::make_unique<Renderer>(m_Window.get(), m_Device.get(), m_PresentQueue.get());
 	m_AssetCache = std::make_unique<AssetCache>(m_Device.get());
 
@@ -71,12 +67,8 @@ void Application::Run()
 			m_Renderer->WaitForFrameEnd();
 			m_PresentQueue.reset();
 
-			Arc::SurfaceDesc winDesc = {};
-			winDesc.hInstance = m_Window->GetHInstance();
-			winDesc.hWnd = m_Window->GetHWnd();
 			Arc::PresentMode presentMode = Arc::PresentMode::Mailbox;
-
-			m_PresentQueue = std::make_unique<Arc::PresentQueue>(m_Device.get(), winDesc, presentMode);
+			m_PresentQueue = std::make_unique<Arc::PresentQueue>(m_Device.get(), presentMode);
 			ARC_LOG("Swapchain recreated!");
 			m_Renderer->SwapchainResized(m_PresentQueue.get());
 		}
@@ -85,7 +77,7 @@ void Application::Run()
 		float dt = elapsedTime - m_LastTime;
 		m_LastTime = elapsedTime;
 		m_Camera->Update(dt);
-		if (m_Camera->HasMoved)
+		if (m_Client->GetConnectionStatus() == Arc::Client::ConnectionStatus::Connected && m_Camera->HasMoved)
 		{
 			Arc::BufferStreamWriter stream(m_ScratchBuffer);
 			stream.WriteRaw<PacketType>(PacketType::MovePlayer);
@@ -103,6 +95,8 @@ void Application::Run()
 			frameData.Models.push_back(Model(m_Mesh, player.second.Position));
 			//std::cout << player.second.Position.x << " " << player.second.Position.y << " " << player.second.Position.z << std::endl;
 		}
+		frameData.Models.push_back(Model(m_Mesh, m_Camera->Position));
+
 		frameData.Models.push_back(Model(m_Mesh, glm::vec3(0, 0, 0)));
 		m_Renderer->RenderFrame(frameData);
 	}
