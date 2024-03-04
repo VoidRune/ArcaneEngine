@@ -1,12 +1,15 @@
 #include "Renderer.h"
 #include "Graphics/ImGui/ImguiWrapper.h"
-#include "stb/stb_image.h"
 #include "Graphics/Vulkan/ShaderCompiler.h"
 #include "Core/Log.h"
 #include "Core/Timer.h"
 
+
+Renderer* Renderer::s_Instance = nullptr;
+
 Renderer::Renderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* presentQueue)
 {
+	s_Instance = this;
 	m_Window = window;
 	m_Device = core;
 	m_PresentQueue = presentQueue;
@@ -18,17 +21,26 @@ Renderer::Renderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* pr
 
 	/* Prepare global data bound at the start of a frame */
 	/* Camera */
-	m_CameraFrameDataBuffer = std::make_unique<Arc::InFlightGpuBuffer>();
-	m_Device->GetResourceCache()->CreateInFlightBuffer(m_CameraFrameDataBuffer.get(), Arc::GpuBufferDesc()
+	m_CameraFrameDataBuffer = std::make_unique<Arc::GpuBufferSet>();
+	m_Device->GetResourceCache()->CreateBufferSet(m_CameraFrameDataBuffer.get(), Arc::GpuBufferDesc()
 		.SetSize(sizeof(CameraFrameData))
 		.AddBufferUsage(Arc::BufferUsage::UniformBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 		.AddMemoryPropertyFlag(Arc::MemoryProperty::HostVisible));
+
+	m_TransformFrameDataBuffer = std::make_unique<Arc::GpuBufferSet>();
+	m_Device->GetResourceCache()->CreateBufferSet(m_TransformFrameDataBuffer.get(), Arc::GpuBufferDesc()
+		.SetSize(sizeof(glm::mat4) * m_MaxTransforms)
+		.AddBufferUsage(Arc::BufferUsage::StorageBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
+		.AddMemoryPropertyFlag(Arc::MemoryProperty::HostVisible));
+
 	/* Corresponding descriptor */
 	m_GlobalDescriptor = std::make_unique<Arc::InFlightDescriptorSet>();
 	m_Device->GetResourceCache()->AllocateInFlightDescriptorSet(m_GlobalDescriptor.get(), Arc::DescriptorSetLayoutDesc()
-		.AddBinding(1, Arc::DescriptorType::UniformBuffer, Arc::ShaderStage::Vertex));
+		.AddBinding(1, Arc::DescriptorType::UniformBuffer, Arc::ShaderStage::VertexFragment)
+		.AddBinding(1, Arc::DescriptorType::StorageBuffer, Arc::ShaderStage::Vertex));
 	m_Device->UpdateInFlightDescriptorSet(m_GlobalDescriptor.get(), Arc::InFlightDescriptorWriteDesc()
-		.AddBufferWrite(0, Arc::DescriptorType::UniformBuffer, m_CameraFrameDataBuffer->GetHandle(), 0, sizeof(CameraFrameData)));
+		.AddBufferWrite(0, Arc::DescriptorType::UniformBuffer, m_CameraFrameDataBuffer->GetHandle(), 0, sizeof(CameraFrameData))
+		.AddBufferWrite(1, Arc::DescriptorType::StorageBuffer, m_TransformFrameDataBuffer->GetHandle(), 0, sizeof(glm::mat4) * m_MaxTransforms));
 
 	m_ColorAttachment = std::make_unique<Arc::Image>();
 	m_DepthAttachment = std::make_unique<Arc::Image>();
@@ -46,11 +58,11 @@ Renderer::Renderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* pr
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
 
 	m_PointSampler = std::make_unique<Arc::Sampler>();
-	core->GetResourceCache()->CreateSampler(m_PointSampler.get(), Arc::SamplerDesc()
+	m_Device->GetResourceCache()->CreateSampler(m_PointSampler.get(), Arc::SamplerDesc()
 		.SetMinFilter(Arc::Filter::Nearest)
 		.SetMagFilter(Arc::Filter::Nearest));
 	m_LinearSampler = std::make_unique<Arc::Sampler>();
-	core->GetResourceCache()->CreateSampler(m_LinearSampler.get(), Arc::SamplerDesc()
+	m_Device->GetResourceCache()->CreateSampler(m_LinearSampler.get(), Arc::SamplerDesc()
 		.SetMinFilter(Arc::Filter::Linear)
 		.SetMagFilter(Arc::Filter::Linear)
 		.SetAddressMode(Arc::SamplerAddressMode::MirroredRepeat));
@@ -59,15 +71,6 @@ Renderer::Renderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* pr
 	m_Device->GetResourceCache()->AllocateDescriptorSets({ m_BindlessTexturesDescriptor.get() }, Arc::DescriptorSetLayoutDesc()
 		.AddBinding(1024, Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Fragment)
 		.AddFlag(Arc::DescriptorFlags::Bindless));
-
-
-	//m_Device->UpdateDescriptorSet(m_BindlessTexturesDescriptor.get(), Arc::DescriptorWriteDesc()
-	//	.AddImageWrite(0, m_LinearSampler->GetHandle(), texture.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal, 1));
-
-	m_PointSampler = std::make_unique<Arc::Sampler>();
-	core->GetResourceCache()->CreateSampler(m_PointSampler.get(), Arc::SamplerDesc()
-		.SetMinFilter(Arc::Filter::Nearest)
-		.SetMagFilter(Arc::Filter::Nearest));
 
 	m_PostprocessDescriptor = std::make_unique<Arc::DescriptorSet>();
 	m_Device->GetResourceCache()->AllocateDescriptorSets({ m_PostprocessDescriptor.get() }, Arc::DescriptorSetLayoutDesc()
@@ -79,44 +82,33 @@ Renderer::Renderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* pr
 
 	PreparePipelines();
 
-	//m_RenderThreadFuture = std::promise<void>().get_future();
+	m_FrameRenderDataIndex = 0;
+	m_FrameRenderData.resize(m_Device->GetImageCount());
 
-	std::vector<StaticVertex> vertices;
-	vertices.push_back(StaticVertex({-1,-1, 0 }, { 1, 0, 0 }, { 0, 0 }));
-	vertices.push_back(StaticVertex({ 0, 1, 0 }, { 0, 1, 0 }, { 0, 0 }));
-	vertices.push_back(StaticVertex({ 1,-1, 0 }, { 0, 0, 1 }, { 0, 0 }));
-
-	m_Device->GetResourceCache()->CreateBuffer(&m_VertexBuffer, Arc::GpuBufferDesc()
-		.SetSize(vertices.size() * sizeof(StaticVertex))
-		.AddBufferUsage(Arc::BufferUsage::VertexBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
-		.AddMemoryPropertyFlag(Arc::MemoryProperty::DeviceLocal));
-	m_Device->UploadToDeviceLocalBuffer(&m_VertexBuffer, vertices.data(), vertices.size() * sizeof(StaticVertex));
-
-	//m_Device->GetResourceCache()->CreateBuffer(&m_IndexBuffer, Arc::GpuBufferDesc()
-	//	.SetSize(indices.size() * sizeof(uint32_t))
-	//	.AddBufferUsage(Arc::BufferUsage::IndexBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
-	//	.AddMemoryPropertyFlag(Arc::MemoryProperty::DeviceLocal));
-	//m_Device->UploadToDeviceLocalBuffer(&m_IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t));
-
+	m_RenderThreadFuture = std::promise<void>().get_future();
 }
 
 Renderer::~Renderer()
 {
-	//m_RenderThreadFuture.wait();
-	m_Device->WaitIdle();
+	WaitForFrameEnd();
 	Arc::ImGuiShutdown();
 	m_Device->GetResourceCache()->PrintHeapBudgets();
 	m_Device->GetResourceCache()->FreeResources();
 }
 
-void Renderer::RenderFrame(FrameData& frameData)
+void Renderer::RenderFrame()
 {
-	//m_RenderThreadFuture.wait();
+	m_RenderThreadFuture.wait();
+
+	RenderFrameData& frameData = m_FrameRenderData[m_FrameRenderDataIndex];
+	m_FrameRenderDataIndex = (m_FrameRenderDataIndex + 1) % m_FrameRenderData.size();
 
 	Arc::ImGuiBeginFrame();
 
-	m_CameraFrameData.view = frameData.View;
-	m_CameraFrameData.projection = frameData.Projection;
+	m_CameraFrameData.View = frameData.View;
+	m_CameraFrameData.Projection = frameData.Projection;
+	m_CameraFrameData.InvView = frameData.InvView;
+	m_CameraFrameData.InvProjection = frameData.InvProjection;
 
 	ImGui::Begin("Profiling", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 	auto res = m_Device->GetGpuProfiler()->GetResults();
@@ -127,45 +119,59 @@ void Renderer::RenderFrame(FrameData& frameData)
 	}
 	ImGui::End();
 
-	//m_RenderThreadFuture = std::async([&]() {
+	m_RenderThreadFuture = std::async([&]() {
 
-	Arc::FrameData fd = m_PresentQueue->BeginFrame();
+		Arc::FrameData fd = m_PresentQueue->BeginFrame();
 
-	void* copyData = m_Device->GetResourceCache()->MapMemory(m_CameraFrameDataBuffer.get(), fd.FrameIndex);
-	memcpy(copyData, &m_CameraFrameData, sizeof(CameraFrameData));
-	m_Device->GetResourceCache()->UnmapMemory(m_CameraFrameDataBuffer.get(), fd.FrameIndex);
+		void* copyData = m_Device->GetResourceCache()->MapMemory(m_CameraFrameDataBuffer.get(), fd.FrameIndex);
+		memcpy(copyData, &m_CameraFrameData, sizeof(CameraFrameData));
+		m_Device->GetResourceCache()->UnmapMemory(m_CameraFrameDataBuffer.get(), fd.FrameIndex);
 
-	fd.CommandBuffer->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_MeshPipeline->GetLayout(), 0, { m_GlobalDescriptor->GetHandle(fd.FrameIndex) });
+		copyData = m_Device->GetResourceCache()->MapMemory(m_TransformFrameDataBuffer.get(), fd.FrameIndex);
+		memcpy(copyData, frameData.Transformations.data(), frameData.Transformations.size() * sizeof(glm::mat4));
+		m_Device->GetResourceCache()->UnmapMemory(m_TransformFrameDataBuffer.get(), fd.FrameIndex);
 
-	m_Device->GetRenderGraph()->SetRecordFunc(m_GeometryPassProxy,
-		[=](Arc::CommandBuffer* cb, uint32_t frameIndex) {
-			cb->BindPipeline(Arc::PipelineBindPoint::Graphics, m_MeshPipeline->GetHandle());
-			//cb->BindVertexBuffers({ m_VertexBuffer.GetHandle() });
-			//cb->Draw(3, 1, 0, 0);
+		fd.CommandBuffer->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_MeshPipeline->GetLayout(), 0, { m_GlobalDescriptor->GetHandle(fd.FrameIndex) });
 
-			for (size_t i = 0; i < frameData.Models.size(); i++)
-			{
-				Mesh m = frameData.Models[i].Mesh;
-				cb->BindVertexBuffers({ m.VertexBuffer.GetHandle() });
-				cb->BindIndexBuffer(m.IndexBuffer.GetHandle(), Arc::IndexType::Uint32);
-				cb->PushConstants(m_MeshPipeline->GetLayout(), Arc::ShaderStage::VertexFragment, 64, &frameData.Models[i].Transform);
-				cb->DrawIndexed(m.IndexCount, 1, 0, 0, 0);
-			}
+		m_Device->GetRenderGraph()->SetRecordFunc(m_GeometryPassProxy,
+			[=](Arc::CommandBuffer* cb, uint32_t frameIndex) {
+				cb->BindPipeline(Arc::PipelineBindPoint::Graphics, m_MeshPipeline->GetHandle());
+				cb->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_MeshPipeline->GetLayout(), 1, { m_BindlessTexturesDescriptor->GetHandle() });
+				//cb->BindVertexBuffers({ m_VertexBuffer.GetHandle() });
+				//cb->Draw(3, 1, 0, 0);
+
+				for (auto& drawCall : frameData.DrawCalls)
+				{
+					if (drawCall.InstanceCount == 0)
+						continue;
+					Mesh m = drawCall.Model.Mesh;
+					cb->BindVertexBuffers({ m.VertexBuffer.GetHandle() });
+					cb->BindIndexBuffer(m.IndexBuffer.GetHandle(), Arc::IndexType::Uint32);
+					uint32_t imageIndices[2] = { drawCall.Model.BaseColorTexture.ArrayIndex, drawCall.Model.NormalTexture.ArrayIndex };
+					cb->PushConstants(m_MeshPipeline->GetLayout(), Arc::ShaderStage::VertexFragment, sizeof(imageIndices), &imageIndices);
+					cb->DrawIndexed(m.IndexCount, drawCall.InstanceCount, 0, 0, drawCall.InstanceIndex);
+				}
+			});
+
+		m_Device->GetRenderGraph()->SetRecordFunc(m_PresentPassProxy,
+			[&](Arc::CommandBuffer* cb, uint32_t frameIndex) {
+				cb->BindPipeline(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetHandle());
+				cb->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, { m_PostprocessDescriptor->GetHandle() });
+				cb->Draw(6, 1, 0, 0);
+
+				Arc::ImGuiEndFrame(cb->GetHandle());
+			});
+
+		m_Device->GetRenderGraph()->Execute(fd, m_PresentQueue->GetSwapchain()->GetExtent());
+		m_PresentQueue->EndFrame();
+
 		});
+}
 
-	m_Device->GetRenderGraph()->SetRecordFunc(m_PresentPassProxy,
-		[&](Arc::CommandBuffer* cb, uint32_t frameIndex) {
-			cb->BindPipeline(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetHandle());
-			cb->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, { m_PostprocessDescriptor->GetHandle() });
-			cb->Draw(6, 1, 0, 0);
-
-			Arc::ImGuiEndFrame(cb->GetHandle());
-		});
-
-	m_Device->GetRenderGraph()->Execute(fd, m_PresentQueue->GetSwapchain()->GetExtent());
-	m_PresentQueue->EndFrame();
-
-	//	});
+void Renderer::BindBindlessTexture(uint32_t arrayIndex, Arc::Image image)
+{
+	m_Device->UpdateDescriptorSet(m_BindlessTexturesDescriptor.get(), Arc::DescriptorWriteDesc()
+		.AddImageWrite(0, m_LinearSampler->GetHandle(), image.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal, arrayIndex));
 }
 
 void Renderer::CompileShaders()
@@ -194,6 +200,7 @@ void Renderer::PreparePipelines()
 		{
 			{ Arc::Format::R32G32B32_Sfloat, offsetof(StaticVertex, Position) },
 			{ Arc::Format::R32G32B32_Sfloat, offsetof(StaticVertex, Normal) },
+			{ Arc::Format::R32G32B32_Sfloat, offsetof(StaticVertex, Tangent) },
 			{ Arc::Format::R32G32_Sfloat, offsetof(StaticVertex, TexCoord) },
 		}, sizeof(StaticVertex));
 
@@ -238,7 +245,7 @@ void Renderer::BuildRenderGraph()
 
 void Renderer::WaitForFrameEnd()
 {
-	//m_RenderThreadFuture.wait();
+	m_RenderThreadFuture.wait();
 	m_Device->WaitIdle();
 }
 

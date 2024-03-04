@@ -1,5 +1,7 @@
 #include "AssetCache.h"
 #include "tiny_obj_loader.h"
+#include "stb/stb_image.h"
+#include "Renderer/Renderer.h"
 
 AssetCache::AssetCache(Arc::Device* device)
 {
@@ -56,6 +58,27 @@ void AssetCache::LoadMesh(Mesh* mesh, std::string filePath)
 				vertices.push_back(vertex);
 				indices.push_back(indices.size());
 			}
+
+			StaticVertex& v1 = vertices[vertices.size() - 1];
+			StaticVertex& v2 = vertices[vertices.size() - 2];
+			StaticVertex& v3 = vertices[vertices.size() - 3];
+
+			glm::vec3 edge1 = v2.Position - v1.Position;
+			glm::vec3 edge2 = v3.Position - v1.Position;
+			glm::vec2 deltaUV1 = v2.TexCoord - v1.TexCoord;
+			glm::vec2 deltaUV2 = v3.TexCoord - v1.TexCoord;
+
+			float mu = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+			glm::vec3 tangent;
+			tangent.x = mu * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+			tangent.y = mu * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+			tangent.z = mu * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+			v1.Tangent = tangent;
+			v2.Tangent = tangent;
+			v3.Tangent = tangent;
+
 			index_offset += fv;
 
 			// per-face material
@@ -78,4 +101,26 @@ void AssetCache::LoadMesh(Mesh* mesh, std::string filePath)
 		.AddMemoryPropertyFlag(Arc::MemoryProperty::DeviceLocal));
 	m_Device->UploadToDeviceLocalBuffer(&mesh->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t));
 
+}
+
+void AssetCache::LoadImage(Texture* texture, std::string filePath)
+{
+	stbi_set_flip_vertically_on_load(true);
+	int w, h, c;
+
+	unsigned char* data = stbi_load(filePath.c_str(), &w, &h, &c, 4);
+	Arc::Image image;
+	m_Device->GetResourceCache()->CreateImage(&image, Arc::ImageDesc()
+		.SetExtent({ (uint32_t)w, (uint32_t)h })
+		.SetFormat(Arc::Format::R8G8B8A8_Unorm)
+		.AddUsageFlag(Arc::ImageUsage::TransferDst)
+		.AddUsageFlag(Arc::ImageUsage::Sampled)
+		.SetEnableMipLevels(true));
+	m_Device->SetImageData(&image, data, w * h * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
+	stbi_image_free(data);
+
+	Renderer::Get()->BindBindlessTexture(m_BindlessTextureIndex, image);
+	texture->ArrayIndex = m_BindlessTextureIndex;
+
+	m_BindlessTextureIndex++;
 }

@@ -8,4 +8,5 @@ enum class PacketType : uint16_t
 	RemovePlayer,
 	MovePlayer,
 	RequestPlayerInfo,
+	ShootProjectile,
 };

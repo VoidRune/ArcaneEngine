@@ -25,6 +25,7 @@ namespace Arc
         VkShaderStageFlagBits m_ShaderStage;
         std::string m_EntryPoint;
         uint32_t m_StageOutputs;
+        uint32_t m_PushConstantSize;
 
         struct DescriptorLayoutBinding
         {

@@ -5,7 +5,7 @@
 #include "Graphics/PresentQueue.h"
 
 #include "Asset/AssetCache.h"
-#include <glm.hpp>
+#include "RenderFrameData.h"
 #include <future>
 
 class Renderer
@@ -15,18 +15,16 @@ public:
 	Renderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* presentQueue);
 	~Renderer();
 
-	struct FrameData
-	{
-		glm::mat4 View;
-		glm::mat4 Projection;
-		std::vector<Model> Models;
-	};
-
-	void RenderFrame(FrameData& frameData);
+	void RenderFrame();
 	void SwapchainResized(void* presentQueue);
 	void RecompileShaders();
 	void WaitForFrameEnd();
 
+	void BindBindlessTexture(uint32_t arrayIndex, Arc::Image image);
+
+	RenderFrameData& GetFrameRenderData() { return m_FrameRenderData[m_FrameRenderDataIndex]; }
+
+	static Renderer* Get() { return s_Instance; }
 private:
 
 	void CompileShaders();
@@ -37,19 +35,25 @@ private:
 	Arc::Device* m_Device;
 	Arc::PresentQueue* m_PresentQueue;
 	VkExtent2D m_WindowSize;
+	std::future<void> m_RenderThreadFuture{};
 
-	Arc::GpuBuffer m_VertexBuffer;
-	Arc::GpuBuffer m_IndexBuffer;
+	uint32_t m_FrameRenderDataIndex;
+	std::vector<RenderFrameData> m_FrameRenderData;
 
 	/* Per frame descriptor */
 	struct CameraFrameData
 	{
-		glm::mat4 view;
-		glm::mat4 projection;
+		glm::mat4 View;
+		glm::mat4 Projection;
+		glm::mat4 InvView;
+		glm::mat4 InvProjection;
 	} m_CameraFrameData;
-	std::unique_ptr<Arc::InFlightGpuBuffer> m_CameraFrameDataBuffer;
+	std::unique_ptr<Arc::GpuBufferSet> m_CameraFrameDataBuffer;
 	std::unique_ptr<Arc::InFlightDescriptorSet> m_GlobalDescriptor;
 	std::unique_ptr<Arc::DescriptorSet> m_BindlessTexturesDescriptor;
+
+	uint32_t m_MaxTransforms = 4096;
+	std::unique_ptr<Arc::GpuBufferSet> m_TransformFrameDataBuffer;
 
 	std::unique_ptr<Arc::Sampler> m_PointSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
@@ -70,4 +74,6 @@ private:
 	std::unique_ptr<Arc::Image> m_DepthAttachment;
 	Arc::RenderPassProxy m_GeometryPassProxy;
 	Arc::PresentPassProxy m_PresentPassProxy;
+
+	static Renderer* s_Instance;
 };

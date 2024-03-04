@@ -35,7 +35,7 @@ namespace Arc
 		friend class ResourceCache;
 	};
 
-	class InFlightGpuBuffer
+	class GpuBufferSet
 	{
 	public:
 

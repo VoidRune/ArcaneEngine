@@ -1,6 +1,7 @@
 #include "ResourceCache.h"
 #include "Core/Log.h"
 #include <filesystem>
+#include <map>
 
 #include "spirv_cross/spirv_cross.hpp"
 #ifdef _DEBUG
@@ -82,7 +83,7 @@ namespace Arc
         };
     }
 
-    void ResourceCache::CreateInFlightBuffer(InFlightGpuBuffer* buffer, const GpuBufferDesc& bufferDescription)
+    void ResourceCache::CreateBufferSet(GpuBufferSet* buffer, const GpuBufferDesc& bufferDescription)
     {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -369,6 +370,15 @@ namespace Arc
             inputBinding.push_back(binding);
         }*/
 
+
+        for (const auto& resource : resources.push_constant_buffers)
+        {
+            // Should be maximum one push constant
+            const auto& bufferType = comp.get_type(resource.base_type_id);
+            uint32_t size = comp.get_declared_struct_size(bufferType);
+            shader->m_PushConstantSize = size;
+        }
+
         shader->m_StageOutputs = 0;
         for (const auto& output : resources.stage_outputs)
             shader->m_StageOutputs++;
@@ -579,10 +589,13 @@ namespace Arc
         depthStencilInfo.back = {};
 
         uint32_t colorAttachmentCount = 0;
+        uint32_t pushConstantSize = 0;
         for (const auto& shader : pipelineDesc.ShaderStages)
         {
             if (shader->m_ShaderStage == VK_SHADER_STAGE_FRAGMENT_BIT)
                 colorAttachmentCount = shader->m_StageOutputs;
+            if (shader->m_PushConstantSize > pushConstantSize)
+                pushConstantSize = shader->m_PushConstantSize;
         }
 
         std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachment;
@@ -614,40 +627,48 @@ namespace Arc
         VkPushConstantRange pushConstantRange{};
         pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         pushConstantRange.offset = 0;
-        pushConstantRange.size = 128;
+        pushConstantRange.size = pushConstantSize;
 
-        std::array<std::vector<VkDescriptorSetLayoutBinding>, 32> layoutBindings;
-        int32_t maxSetIndex = -1;
+        std::map<uint32_t, std::map<uint32_t, VkDescriptorSetLayoutBinding>> bindings;
         for (const auto& shader : pipelineDesc.ShaderStages)
         {
             for (auto& b : shader->m_LayoutBindings)
             {
-                layoutBindings[b.setIndex].push_back(b.binding);
-                if (b.setIndex > maxSetIndex)
-                    maxSetIndex = b.setIndex;
+                if (bindings[b.setIndex].contains(b.binding.binding))
+                {
+                    bindings[b.setIndex][b.binding.binding].stageFlags |= b.binding.stageFlags;
+                }
+                else
+                {
+                    bindings[b.setIndex][b.binding.binding] = b.binding;
+                }
             }
         }
 
-        std::vector<VkDescriptorSetLayoutCreateInfo> descriptorSetLayoutInfo(maxSetIndex + 1);
-        std::vector<VkDescriptorSetLayout> layouts(maxSetIndex + 1);
-        for (size_t i = 0; i < descriptorSetLayoutInfo.size(); i++)
+        std::vector<VkDescriptorSetLayout> layouts;
+        for (auto& set : bindings)
         {
             uint32_t flags = 0;
-            for (auto& b : layoutBindings[i])
+            std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+            for (auto& binding : set.second)
             {
-                if (b.descriptorCount >= MAX_BINDLESS_DESCRIPTOR_COUNT)
+                layoutBindings.push_back(binding.second);
+                if (binding.second.descriptorCount >= MAX_BINDLESS_DESCRIPTOR_COUNT)
                     flags |= (uint32_t)DescriptorFlags::Bindless;
             }
 
-            layouts[i] = GetDescriptorSetLayout(layoutBindings[i], flags);
+            layouts.push_back(GetDescriptorSetLayout(layoutBindings, flags));
         }
 
         VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = layouts.size();
         pipelineLayoutInfo.pSetLayouts = layouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = 1;
-        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        if (pushConstantSize > 0)
+        {
+            pipelineLayoutInfo.pushConstantRangeCount = 1;
+            pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        }
 
         VK_CHECK(vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &pipeline->m_PipelineLayout));
 
@@ -696,10 +717,11 @@ namespace Arc
 
     void ResourceCache::CreateComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& pipelineDesc)
     {
+
         VkPushConstantRange pushConstantRange{};
         pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         pushConstantRange.offset = 0;
-        pushConstantRange.size = 128;
+        pushConstantRange.size = pipelineDesc.ShaderStage->m_PushConstantSize;
 
         std::array<std::vector<VkDescriptorSetLayoutBinding>, 32> layoutBindings;
         int32_t maxSetIndex = -1;
@@ -720,8 +742,11 @@ namespace Arc
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = layouts.size();
         pipelineLayoutInfo.pSetLayouts = layouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = 1;
-        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        if (pipelineDesc.ShaderStage->m_PushConstantSize > 0)
+        {
+            pipelineLayoutInfo.pushConstantRangeCount = 1;
+            pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        }
 
         VK_CHECK(vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &pipeline->m_PipelineLayout));
 
@@ -811,14 +836,14 @@ namespace Arc
         vmaUnmapMemory(m_MemoryAllocator, buffer->m_Allocation);
     }
 
-    void* ResourceCache::MapMemory(InFlightGpuBuffer* buffer, uint32_t frameIndex)
+    void* ResourceCache::MapMemory(GpuBufferSet* buffer, uint32_t frameIndex)
     {
         void* data;
         vmaMapMemory(m_MemoryAllocator, buffer->m_Allocation[frameIndex], &data);
         return data;
     }
 
-    void ResourceCache::UnmapMemory(InFlightGpuBuffer* buffer, uint32_t frameIndex)
+    void ResourceCache::UnmapMemory(GpuBufferSet* buffer, uint32_t frameIndex)
     {
         vmaUnmapMemory(m_MemoryAllocator, buffer->m_Allocation[frameIndex]);
     }
@@ -830,7 +855,7 @@ namespace Arc
         m_ResourceReleaseFuctions.erase(key);
     }
 
-    void ResourceCache::ReleaseResource(InFlightGpuBuffer* buffer)
+    void ResourceCache::ReleaseResource(GpuBufferSet* buffer)
     {
         void* key = buffer->m_Buffer[0];
         m_ResourceReleaseFuctions[key]();

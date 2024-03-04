@@ -9,11 +9,12 @@ struct StaticVertex
 {
 	StaticVertex() { }
 
-	StaticVertex(glm::vec3 position, glm::vec3 normal, glm::vec2 texCoord)
-		: Position(position), Normal(normal), TexCoord(texCoord) { }
+	StaticVertex(glm::vec3 position, glm::vec3 normal, glm::vec3 tangent, glm::vec2 texCoord)
+		: Position(position), Normal(normal), Tangent(tangent), TexCoord(texCoord) { }
 
 	glm::vec3 Position;
 	glm::vec3 Normal;
+	glm::vec3 Tangent;
 	glm::vec2 TexCoord;
 };
 
@@ -25,22 +26,26 @@ struct Mesh
 	uint32_t IndexCount = 0;
 };
 
+struct Texture
+{
+	Arc::Image Image;
+	uint32_t ArrayIndex;
+};
+
 struct Model
 {
-	Model(Mesh mesh)
-	{
-		Mesh = mesh;
-		Transform = glm::mat4(1.0f);
-	}
+	Model() { };
 
-	Model(Mesh mesh, glm::vec3 translation)
+	Model(Mesh mesh, Texture baseColorTexture, Texture normalTexture)
 	{
 		Mesh = mesh;
-		Transform = glm::translate(glm::mat4(1.0f), translation);
+		BaseColorTexture = baseColorTexture;
+		NormalTexture = normalTexture;
 	}
 
 	Mesh Mesh;
-	glm::mat4 Transform;
+	Texture BaseColorTexture;
+	Texture NormalTexture;
 };
 
 class AssetCache
@@ -50,6 +55,9 @@ public:
 	~AssetCache();
 
 	void LoadMesh(Mesh* mesh, std::string filePath);
+	void LoadImage(Texture* texture, std::string filePath);
+
 private:
 	Arc::Device* m_Device;
+	uint32_t m_BindlessTextureIndex = 0;
 };

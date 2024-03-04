@@ -17,7 +17,7 @@ namespace Arc
 		~ResourceCache();
 
 		void CreateBuffer(GpuBuffer* buffer, const GpuBufferDesc& bufferDescription);
-		void CreateInFlightBuffer(InFlightGpuBuffer* buffer, const GpuBufferDesc& bufferDescription);
+		void CreateBufferSet(GpuBufferSet* buffer, const GpuBufferDesc& bufferDescription);
 		void CreateImage(Image* image, const ImageDesc& imageDescription);
 		void CreateSampler(Sampler* sampler, const SamplerDesc& samplerDescription);
 		void AllocateDescriptorSets(const std::vector<DescriptorSet*> descriptorSet, const DescriptorSetLayoutDesc& layoutDescription);
@@ -28,11 +28,11 @@ namespace Arc
 
 		void* MapMemory(GpuBuffer* buffer);
 		void UnmapMemory(GpuBuffer* buffer);
-		void* MapMemory(InFlightGpuBuffer* buffer, uint32_t frameIndex);
-		void UnmapMemory(InFlightGpuBuffer* buffer, uint32_t frameIndex);
+		void* MapMemory(GpuBufferSet* buffer, uint32_t frameIndex);
+		void UnmapMemory(GpuBufferSet* buffer, uint32_t frameIndex);
 
 		void ReleaseResource(GpuBuffer* buffer);
-		void ReleaseResource(InFlightGpuBuffer* buffer);
+		void ReleaseResource(GpuBufferSet* buffer);
 		void ReleaseResource(Image* image);
 		void ReleaseResource(Sampler* sampler);
 		void ReleaseResource(Shader* shader);

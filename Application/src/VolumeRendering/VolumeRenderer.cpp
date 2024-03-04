@@ -19,8 +19,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 
 	/* Prepare global data bound at the start of a frame */
 	/* Camera */
-	m_CameraFrameDataBuffer = std::make_unique<Arc::InFlightGpuBuffer>();
-	m_Device->GetResourceCache()->CreateInFlightBuffer(m_CameraFrameDataBuffer.get(), Arc::GpuBufferDesc()
+	m_CameraFrameDataBuffer = std::make_unique<Arc::GpuBufferSet>();
+	m_Device->GetResourceCache()->CreateBufferSet(m_CameraFrameDataBuffer.get(), Arc::GpuBufferDesc()
 		.SetSize(sizeof(CameraFrameData))
 		.AddBufferUsage(Arc::BufferUsage::UniformBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 		.AddMemoryPropertyFlag(Arc::MemoryProperty::HostVisible));
