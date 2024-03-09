@@ -68,7 +68,7 @@ namespace Arc
 		return *this;
 	}
 
-	InFlightDescriptorWriteDesc& InFlightDescriptorWriteDesc::AddBufferWrite(uint32_t binding, DescriptorType type, std::vector<VkBuffer> buffer, uint32_t offset, uint32_t range)
+	DescriptorArrayWriteDesc& DescriptorArrayWriteDesc::AddBufferWrite(uint32_t binding, DescriptorType type, std::vector<VkBuffer> buffer, uint32_t offset, uint32_t range)
 	{
 		for (size_t i = 0; i < buffer.size(); i++)
 		{

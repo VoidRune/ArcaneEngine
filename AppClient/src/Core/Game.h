@@ -25,7 +25,7 @@ public:
 	Game(Arc::Window* window, AssetCache* assetCache);
 	~Game();
 
-	void Update(float deltaTime, RenderFrameData& frameData);
+	void Update(float deltaTime, float elapsedTime, RenderFrameData& frameData);
 
 private:
 	void OnConnected();
@@ -35,7 +35,6 @@ private:
 private:
 	Arc::Window* m_Window;
 	AssetCache* m_AssetCache;
-	std::unique_ptr<Arc::AudioEngine> m_AudioEngine;
 	std::unique_ptr<Arc::AudioSource> m_ShootSound;
 
 	Arc::Buffer m_ScratchBuffer;
@@ -48,6 +47,8 @@ private:
 	std::vector<Projectile> m_Projectiles;
 
 	Mesh m_PlayerMesh;
+	AnimationSet animSet;
+
 	Mesh m_ProjectileMesh;
 	Texture m_BaseColorTexture;
 	Texture m_NormalTexture;

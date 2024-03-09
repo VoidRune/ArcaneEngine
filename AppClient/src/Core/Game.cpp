@@ -7,9 +7,8 @@ Game::Game(Arc::Window* window, AssetCache* assetCache)
 {
 	m_Window = window;
 	m_AssetCache = assetCache;
-	m_AudioEngine = std::make_unique<Arc::AudioEngine>();
 	m_ShootSound = std::make_unique<Arc::AudioSource>();
-	m_AudioEngine->LoadFromFile(m_ShootSound.get(), "res/Audio/blaster_arcana_shoot.ogg");
+	Arc::AudioEngine::LoadFromFile(m_ShootSound.get(), "res/Audio/blaster_arcana_shoot.ogg");
 
 	std::string ip = "127.0.0.1:60000";
 
@@ -24,10 +23,12 @@ Game::Game(Arc::Window* window, AssetCache* assetCache)
 	m_PlayerController->SetPosition({3, 0, 3});
 	m_PlayerController->SetMovementSpeed(4.0f);
 
-	m_AssetCache->LoadMesh(&m_PlayerMesh, "res/Meshes/cylinder.obj");
-	m_AssetCache->LoadMesh(&m_ProjectileMesh, "res/Meshes/projectile.obj");
+	m_AssetCache->LoadObj(&m_ProjectileMesh, "res/Meshes/projectile.obj");
 	m_AssetCache->LoadImage(&m_BaseColorTexture, "res/Textures/Sandstone/albedo.png");
 	m_AssetCache->LoadImage(&m_NormalTexture, "res/Textures/Sandstone/normal.png");
+
+	//m_AssetCache->LoadGltf(&m_FoxMesh, &gltfModel, "res/Meshes/character.glb");
+	m_AssetCache->LoadGltf(&m_PlayerMesh, &animSet, "res/Meshes/test.glb");
 
 	m_ScratchBuffer.Allocate(4096);
 }
@@ -37,9 +38,9 @@ Game::~Game()
 	m_Client->Disconnect();
 }
 
-void Game::Update(float deltaTime, RenderFrameData& frameData)
+void Game::Update(float deltaTime, float elapsedTime, RenderFrameData& frameData)
 {
-	m_PlayerController->UpdateVelocity(deltaTime);
+	m_PlayerController->Update(deltaTime);
 	m_World->Collide(m_PlayerController->GetPosition(), m_PlayerController->GetVelocity() * deltaTime, 0.4f);
 	m_PlayerController->UpdateCamera();
 
@@ -77,7 +78,7 @@ void Game::Update(float deltaTime, RenderFrameData& frameData)
 	}
 	m_Projectiles = newProjectiles;
 
-	if (Arc::Input::IsKeyPressed(Arc::KeyCode::MouseLeft))
+	if (Arc::Input::IsKeyPressed(Arc::KeyCode::MouseLeft) && m_PlayerController->SpendMana(35.0f))
 	{
 		glm::vec3 rayDirection = m_PlayerController->GetCamera().ProjectRay(Arc::Input::GetMouseX() / (float)m_Window->Width(), Arc::Input::GetMouseY() / (float)m_Window->Height());
 
@@ -98,7 +99,7 @@ void Game::Update(float deltaTime, RenderFrameData& frameData)
 		p.Deadly = false;
 		m_Projectiles.push_back(p);
 
-		m_AudioEngine->Play(m_ShootSound.get());
+		Arc::AudioEngine::Play(m_ShootSound.get());
 		if (m_Client->GetConnectionStatus() == Arc::Client::ConnectionStatus::Connected)
 		{
 			Arc::BufferStreamWriter stream(m_ScratchBuffer);
@@ -120,8 +121,15 @@ void Game::Update(float deltaTime, RenderFrameData& frameData)
 	{
 		playerPositions.push_back(glm::translate(glm::mat4(1.0f), player.second.Position));
 	}
-	playerPositions.push_back(glm::translate(glm::mat4(1.0f), m_PlayerController->GetPosition()));
-	frameData.AddDrawCall(Model(m_PlayerMesh, m_BaseColorTexture, m_NormalTexture), playerPositions);
+
+	glm::mat4 playerTransform = glm::mat4(1.0f);
+	playerTransform = glm::translate(playerTransform, m_PlayerController->GetPosition());
+	playerTransform *= glm::mat4(m_PlayerController->GetRotation());
+	frameData.AddAnimatedModel(Model(m_PlayerMesh, m_BaseColorTexture, m_NormalTexture), playerTransform);
+	if(m_PlayerController->HasMoved())
+		animSet.UpdateAnimation("FastRun", elapsedTime, frameData.BoneMatrices);
+	else
+		animSet.UpdateAnimation("Idle", elapsedTime, frameData.BoneMatrices);
 
 	m_World->RenderWorld(frameData);
 

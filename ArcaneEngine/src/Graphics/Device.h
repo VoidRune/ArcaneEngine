@@ -32,7 +32,7 @@ namespace Arc
 			VkDescriptorImageInfo imageInfo;
 		};
 		void UpdateDescriptorSet(DescriptorSet* descriptorSet, const DescriptorWriteDesc& writeDesc);
-		void UpdateInFlightDescriptorSet(InFlightDescriptorSet* descriptorSet, const InFlightDescriptorWriteDesc& writeDesc);
+		void UpdateDescriptorSetArray(DescriptorSetArray* descriptorSet, const DescriptorArrayWriteDesc& writeDesc);
 		void SetImageData(Image* image, const void* data, uint32_t size, ImageLayout newLayout);
 		void UploadToDeviceLocalBuffer(GpuBuffer* buffer, void* data, uint32_t size);
 		void TransitionImageLayout(Image* image, ImageLayout newLayout);

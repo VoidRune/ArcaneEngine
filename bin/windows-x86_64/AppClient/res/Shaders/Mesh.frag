@@ -40,7 +40,7 @@ void main()
 
     vec3 cameraPosition = vec3(data.InvView[3][0], data.InvView[3][1], data.InvView[3][2]);
     //vec3 cameraPosition = vec3(data.InvView[0][3], data.InvView[1][3], data.InvView[2][3]);
-    vec3 lightDir   = normalize(vec3(1, 3, -0.5));
+    vec3 lightDir   = normalize(vec3(0.5, 1, -0.3));
     vec3 viewDir    = normalize(cameraPosition - iPosition);
     float diff = max(dot(lightDir, normal), 0.0);
     vec3 diffuse = diff * sampledColor.rgb;

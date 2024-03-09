@@ -2,6 +2,7 @@
 #include <memory>
 #include "Renderer/Renderer.h"
 #include "Core/Game.h"
+#include "Audio/AudioEngine.h"
 
 class Application
 {

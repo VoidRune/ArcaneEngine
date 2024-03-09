@@ -52,7 +52,7 @@ private:
 		alignas(16) glm::vec3 backgroundColor = { 1, 1, 1 };
 	} m_CameraFrameData;
 	std::unique_ptr<Arc::GpuBufferSet> m_CameraFrameDataBuffer;
-	std::unique_ptr<Arc::InFlightDescriptorSet> m_GlobalDescriptor;
+	std::unique_ptr<Arc::DescriptorSetArray> m_GlobalDescriptor;
 	std::unique_ptr<Arc::DescriptorSet> m_BindlessTexturesDescriptor;
 
 	/* Shaders */

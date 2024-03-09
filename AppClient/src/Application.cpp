@@ -3,6 +3,8 @@
 #include "Core/Timer.h"
 
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 Application::Application()
 {
@@ -14,18 +16,20 @@ Application::Application()
 	m_Window = std::make_unique<Arc::Window>(windowDesc);
 
 	uint32_t inFlightImageCount = 3;
-	Arc::PresentMode presentMode = Arc::PresentMode::Fifo;
+	Arc::PresentMode presentMode = Arc::PresentMode::Mailbox;
 
 	m_Device = std::make_unique<Arc::Device>(m_Window->GetHandle(), inFlightImageCount);
 	m_PresentQueue = std::make_unique<Arc::PresentQueue>(m_Device.get(), presentMode);
 	m_Renderer = std::make_unique<Renderer>(m_Window.get(), m_Device.get(), m_PresentQueue.get());
 	m_AssetCache = std::make_unique<AssetCache>(m_Device.get());
 	m_Game = std::make_unique<Game>(m_Window.get(), m_AssetCache.get());
+
+	Arc::AudioEngine::Initialize();
 }
 
 Application::~Application()
 {
-
+	Arc::AudioEngine::DeInitialize();
 }
 
 void Application::Run()
@@ -61,8 +65,10 @@ void Application::Run()
 		float deltaTime = elapsedTime - lastTime;
 		lastTime = elapsedTime;
 
-		m_Game->Update(deltaTime, m_Renderer->GetFrameRenderData());
+		m_Game->Update(deltaTime, elapsedTime, m_Renderer->GetFrameRenderData());
 		m_Renderer->RenderFrame();
+		// TODO remove
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 	m_Renderer->WaitForFrameEnd();
 }

@@ -27,7 +27,7 @@ namespace Arc
 		friend class ResourceCache;
 	};
 
-	class InFlightDescriptorSet
+	class DescriptorSetArray
 	{
 	public:
 		VkDescriptorSet& GetHandle(uint32_t inFlightIndex) { return m_DescriptorSets[inFlightIndex]; }
@@ -48,10 +48,10 @@ namespace Arc
 		std::vector<VkWriteDescriptorSet> WriteInfo;
 	};
 
-	class InFlightDescriptorWriteDesc
+	class DescriptorArrayWriteDesc
 	{
 	public:
-		InFlightDescriptorWriteDesc& AddBufferWrite(uint32_t binding, DescriptorType type, std::vector<VkBuffer> buffer, uint32_t offset, uint32_t range);
+		DescriptorArrayWriteDesc& AddBufferWrite(uint32_t binding, DescriptorType type, std::vector<VkBuffer> buffer, uint32_t offset, uint32_t range);
 		//InFlightDescriptorWriteDesc& AddImageWrite(uint32_t binding, DescriptorType type, VkSampler sampler, VkImageView imageView, ImageLayout imageLayout);
 
 		std::list<VkDescriptorBufferInfo> BufferInfos;

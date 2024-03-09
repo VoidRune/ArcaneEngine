@@ -49,11 +49,13 @@ private:
 		glm::mat4 InvProjection;
 	} m_CameraFrameData;
 	std::unique_ptr<Arc::GpuBufferSet> m_CameraFrameDataBuffer;
-	std::unique_ptr<Arc::InFlightDescriptorSet> m_GlobalDescriptor;
+	std::unique_ptr<Arc::DescriptorSetArray> m_GlobalDescriptor;
 	std::unique_ptr<Arc::DescriptorSet> m_BindlessTexturesDescriptor;
 
 	uint32_t m_MaxTransforms = 4096;
-	std::unique_ptr<Arc::GpuBufferSet> m_TransformFrameDataBuffer;
+	std::unique_ptr<Arc::GpuBufferSet> m_TransformMatricesBuffer;
+	uint32_t m_MaxBoneMatrices = 4096;
+	std::unique_ptr<Arc::GpuBufferSet> m_BoneMatricesBuffer;
 
 	std::unique_ptr<Arc::Sampler> m_PointSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
@@ -62,11 +64,13 @@ private:
 	/* Shaders */
 	std::unique_ptr<Arc::Shader> m_MeshVertexShader;
 	std::unique_ptr<Arc::Shader> m_MeshFragmentShader;
+	std::unique_ptr<Arc::Shader> m_DynamicMeshVertexShader;
 	std::unique_ptr<Arc::Shader> m_PresentVertexShader;
 	std::unique_ptr<Arc::Shader> m_PresentFragmentShader;
 
 	/* Pipelines */
 	std::unique_ptr<Arc::Pipeline> m_MeshPipeline;
+	std::unique_ptr<Arc::Pipeline> m_DynamicMeshPipeline;
 	std::unique_ptr<Arc::Pipeline> m_PresentPipeline;
 
 	/* Render pass data*/

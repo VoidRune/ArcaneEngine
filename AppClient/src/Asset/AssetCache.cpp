@@ -1,7 +1,8 @@
 #include "AssetCache.h"
-#include "tiny_obj_loader.h"
-#include "stb/stb_image.h"
 #include "Renderer/Renderer.h"
+#include "stb/stb_image.h"
+#include "tinyobj/tiny_obj_loader.h"
+#include "Core/Log.h"
 
 AssetCache::AssetCache(Arc::Device* device)
 {
@@ -13,7 +14,7 @@ AssetCache::~AssetCache()
 
 }
 
-void AssetCache::LoadMesh(Mesh* mesh, std::string filePath)
+void AssetCache::LoadObj(Mesh* mesh, std::string filePath)
 {
 	tinyobj::ObjReaderConfig reader_config;
 	reader_config.mtl_search_path = ""; // Path to material files
@@ -102,6 +103,7 @@ void AssetCache::LoadMesh(Mesh* mesh, std::string filePath)
 	m_Device->UploadToDeviceLocalBuffer(&mesh->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t));
 
 }
+
 
 void AssetCache::LoadImage(Texture* texture, std::string filePath)
 {

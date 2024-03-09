@@ -90,7 +90,7 @@ namespace Arc
         }
     }
     
-    AudioEngine::AudioEngine(uint32_t maxConcurrentSounds)
+    void AudioEngine::Initialize(uint32_t maxConcurrentSounds)
     {
         if (ma_context_init(NULL, 0, NULL, &s_Context) != MA_SUCCESS) {
             ARC_LOG("Failed to initialize audio context!");
@@ -139,7 +139,7 @@ namespace Arc
         }
     }
 
-    AudioEngine::~AudioEngine()
+    void AudioEngine::DeInitialize()
     {
         ma_device_uninit(&s_PlaybackDevice);
         ma_context_uninit(&s_Context);

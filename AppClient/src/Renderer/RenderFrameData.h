@@ -16,6 +16,17 @@ struct RenderFrameData
 	glm::mat4 InvProjection;
 	std::vector<DrawCall> DrawCalls;
 	std::vector<glm::mat4> Transformations;
+	std::vector<glm::mat4> BoneMatrices;
+
+	Model AnimatedModel;
+	uint32_t AnimatedInstanceIndex = 0;
+
+	void AddAnimatedModel(Model model, glm::mat4 transformation)
+	{
+		AnimatedModel = model;
+		AnimatedInstanceIndex = Transformations.size();
+		Transformations.push_back(transformation);
+	}
 
 	void AddDrawCall(Model model, glm::mat4 transformation)
 	{
@@ -48,5 +59,6 @@ struct RenderFrameData
 	{
 		DrawCalls.clear();
 		Transformations.clear();
+		BoneMatrices.clear();
 	}
 };

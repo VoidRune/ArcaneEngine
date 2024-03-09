@@ -36,24 +36,24 @@ namespace Arc
 	class AudioEngine
 	{
 	public:
-		AudioEngine(uint32_t maxConcurrentSounds = 64);
-		~AudioEngine();
+		static void Initialize(uint32_t maxConcurrentSounds = 64);
+		static void DeInitialize();
 
-		SoundInstance Play(AudioSource* audioSource, SoundGroup* soundGroup = nullptr);
-		void Stop(SoundInstance* soundInstance);
+		static SoundInstance Play(AudioSource* audioSource, SoundGroup* soundGroup = nullptr);
+		static void Stop(SoundInstance* soundInstance);
 
-		void SetSpatialization(SoundInstance* soundInstance, float x, float y);
-		void SetLooping(SoundInstance* soundInstance, bool looping);
+		static void SetSpatialization(SoundInstance* soundInstance, float x, float y);
+		static void SetLooping(SoundInstance* soundInstance, bool looping);
 
-		void SeekToTime(SoundInstance* soundInstance, float timeInSeconds);
-		void SeekToFrame(SoundInstance* soundInstance, uint32_t frame);
+		static void SeekToTime(SoundInstance* soundInstance, float timeInSeconds);
+		static void SeekToFrame(SoundInstance* soundInstance, uint32_t frame);
 
-		void SetMasterVolume(float volume);
-		void SetVolume(SoundGroup* soundGroup, float volume);
-		void SetVolume(SoundInstance* soundInstance, float volume);
+		static void SetMasterVolume(float volume);
+		static void SetVolume(SoundGroup* soundGroup, float volume);
+		static void SetVolume(SoundInstance* soundInstance, float volume);
 
-		void CreateSoundGroup(SoundGroup* soundGroup, float volume = 1.0f);
-		void LoadFromFile(AudioSource* sound, const std::string& filename);
+		static void CreateSoundGroup(SoundGroup* soundGroup, float volume = 1.0f);
+		static void LoadFromFile(AudioSource* sound, const std::string& filename);
 	private:
 
 	};

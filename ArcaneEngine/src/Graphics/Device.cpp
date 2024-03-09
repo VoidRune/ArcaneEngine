@@ -123,7 +123,7 @@ namespace Arc
         vkUpdateDescriptorSets(m_LogicalDevice, static_cast<uint32_t>(writeDescriptorSet.size()), writeDescriptorSet.data(), 0, NULL);
     }
 
-    void Device::UpdateInFlightDescriptorSet(InFlightDescriptorSet* descriptorSet, const InFlightDescriptorWriteDesc& writeDesc)
+    void Device::UpdateDescriptorSetArray(DescriptorSetArray* descriptorSet, const DescriptorArrayWriteDesc& writeDesc)
     {
         std::vector<VkWriteDescriptorSet> writeDescriptorSet(writeDesc.WriteInfo.size());
 

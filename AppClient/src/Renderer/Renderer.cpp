@@ -27,20 +27,28 @@ Renderer::Renderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* pr
 		.AddBufferUsage(Arc::BufferUsage::UniformBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 		.AddMemoryPropertyFlag(Arc::MemoryProperty::HostVisible));
 
-	m_TransformFrameDataBuffer = std::make_unique<Arc::GpuBufferSet>();
-	m_Device->GetResourceCache()->CreateBufferSet(m_TransformFrameDataBuffer.get(), Arc::GpuBufferDesc()
+	m_TransformMatricesBuffer = std::make_unique<Arc::GpuBufferSet>();
+	m_Device->GetResourceCache()->CreateBufferSet(m_TransformMatricesBuffer.get(), Arc::GpuBufferDesc()
 		.SetSize(sizeof(glm::mat4) * m_MaxTransforms)
 		.AddBufferUsage(Arc::BufferUsage::StorageBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 		.AddMemoryPropertyFlag(Arc::MemoryProperty::HostVisible));
 
+	m_BoneMatricesBuffer = std::make_unique<Arc::GpuBufferSet>();
+	m_Device->GetResourceCache()->CreateBufferSet(m_BoneMatricesBuffer.get(), Arc::GpuBufferDesc()
+		.SetSize(sizeof(glm::mat4) * m_MaxBoneMatrices)
+		.AddBufferUsage(Arc::BufferUsage::StorageBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
+		.AddMemoryPropertyFlag(Arc::MemoryProperty::HostVisible));
+
 	/* Corresponding descriptor */
-	m_GlobalDescriptor = std::make_unique<Arc::InFlightDescriptorSet>();
+	m_GlobalDescriptor = std::make_unique<Arc::DescriptorSetArray>();
 	m_Device->GetResourceCache()->AllocateInFlightDescriptorSet(m_GlobalDescriptor.get(), Arc::DescriptorSetLayoutDesc()
 		.AddBinding(1, Arc::DescriptorType::UniformBuffer, Arc::ShaderStage::VertexFragment)
+		.AddBinding(1, Arc::DescriptorType::StorageBuffer, Arc::ShaderStage::Vertex)
 		.AddBinding(1, Arc::DescriptorType::StorageBuffer, Arc::ShaderStage::Vertex));
-	m_Device->UpdateInFlightDescriptorSet(m_GlobalDescriptor.get(), Arc::InFlightDescriptorWriteDesc()
+	m_Device->UpdateDescriptorSetArray(m_GlobalDescriptor.get(), Arc::DescriptorArrayWriteDesc()
 		.AddBufferWrite(0, Arc::DescriptorType::UniformBuffer, m_CameraFrameDataBuffer->GetHandle(), 0, sizeof(CameraFrameData))
-		.AddBufferWrite(1, Arc::DescriptorType::StorageBuffer, m_TransformFrameDataBuffer->GetHandle(), 0, sizeof(glm::mat4) * m_MaxTransforms));
+		.AddBufferWrite(1, Arc::DescriptorType::StorageBuffer, m_TransformMatricesBuffer->GetHandle(), 0, sizeof(glm::mat4) * m_MaxTransforms)
+		.AddBufferWrite(2, Arc::DescriptorType::StorageBuffer, m_BoneMatricesBuffer->GetHandle(), 0, sizeof(glm::mat4) * m_MaxBoneMatrices));
 
 	m_ColorAttachment = std::make_unique<Arc::Image>();
 	m_DepthAttachment = std::make_unique<Arc::Image>();
@@ -127,9 +135,14 @@ void Renderer::RenderFrame()
 		memcpy(copyData, &m_CameraFrameData, sizeof(CameraFrameData));
 		m_Device->GetResourceCache()->UnmapMemory(m_CameraFrameDataBuffer.get(), fd.FrameIndex);
 
-		copyData = m_Device->GetResourceCache()->MapMemory(m_TransformFrameDataBuffer.get(), fd.FrameIndex);
+		copyData = m_Device->GetResourceCache()->MapMemory(m_TransformMatricesBuffer.get(), fd.FrameIndex);
 		memcpy(copyData, frameData.Transformations.data(), frameData.Transformations.size() * sizeof(glm::mat4));
-		m_Device->GetResourceCache()->UnmapMemory(m_TransformFrameDataBuffer.get(), fd.FrameIndex);
+		m_Device->GetResourceCache()->UnmapMemory(m_TransformMatricesBuffer.get(), fd.FrameIndex);
+
+		copyData = m_Device->GetResourceCache()->MapMemory(m_BoneMatricesBuffer.get(), fd.FrameIndex);
+		memcpy(copyData, frameData.BoneMatrices.data(), frameData.BoneMatrices.size() * sizeof(glm::mat4));
+		m_Device->GetResourceCache()->UnmapMemory(m_BoneMatricesBuffer.get(), fd.FrameIndex);
+
 
 		fd.CommandBuffer->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_MeshPipeline->GetLayout(), 0, { m_GlobalDescriptor->GetHandle(fd.FrameIndex) });
 
@@ -137,8 +150,6 @@ void Renderer::RenderFrame()
 			[=](Arc::CommandBuffer* cb, uint32_t frameIndex) {
 				cb->BindPipeline(Arc::PipelineBindPoint::Graphics, m_MeshPipeline->GetHandle());
 				cb->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_MeshPipeline->GetLayout(), 1, { m_BindlessTexturesDescriptor->GetHandle() });
-				//cb->BindVertexBuffers({ m_VertexBuffer.GetHandle() });
-				//cb->Draw(3, 1, 0, 0);
 
 				for (auto& drawCall : frameData.DrawCalls)
 				{
@@ -151,6 +162,13 @@ void Renderer::RenderFrame()
 					cb->PushConstants(m_MeshPipeline->GetLayout(), Arc::ShaderStage::VertexFragment, sizeof(imageIndices), &imageIndices);
 					cb->DrawIndexed(m.IndexCount, drawCall.InstanceCount, 0, 0, drawCall.InstanceIndex);
 				}
+
+				Mesh m = frameData.AnimatedModel.Mesh;
+				cb->BindPipeline(Arc::PipelineBindPoint::Graphics, m_DynamicMeshPipeline->GetHandle());
+				cb->BindVertexBuffers({ m.VertexBuffer.GetHandle() });
+				cb->BindIndexBuffer(m.IndexBuffer.GetHandle(), Arc::IndexType::Uint32);
+				cb->DrawIndexed(m.IndexCount, 1, 0, 0, frameData.AnimatedInstanceIndex);
+
 			});
 
 		m_Device->GetRenderGraph()->SetRecordFunc(m_PresentPassProxy,
@@ -178,6 +196,7 @@ void Renderer::CompileShaders()
 {
 	m_MeshVertexShader = std::make_unique<Arc::Shader>();
 	m_MeshFragmentShader = std::make_unique<Arc::Shader>();
+	m_DynamicMeshVertexShader = std::make_unique<Arc::Shader>();
 	m_PresentVertexShader = std::make_unique<Arc::Shader>();
 	m_PresentFragmentShader = std::make_unique<Arc::Shader>();
 
@@ -187,6 +206,8 @@ void Renderer::CompileShaders()
 	m_Device->GetResourceCache()->CreateShader(m_MeshVertexShader.get(), shaderDesc);
 	Arc::ShaderCompiler::Compile("res/Shaders/Mesh.frag", shaderDesc);
 	m_Device->GetResourceCache()->CreateShader(m_MeshFragmentShader.get(), shaderDesc);
+	Arc::ShaderCompiler::Compile("res/Shaders/DynamicMesh.vert", shaderDesc);
+	m_Device->GetResourceCache()->CreateShader(m_DynamicMeshVertexShader.get(), shaderDesc);
 	Arc::ShaderCompiler::Compile("res/Shaders/Present.vert", shaderDesc);
 	m_Device->GetResourceCache()->CreateShader(m_PresentVertexShader.get(), shaderDesc);
 	Arc::ShaderCompiler::Compile("res/Shaders/Present.frag", shaderDesc);
@@ -204,6 +225,16 @@ void Renderer::PreparePipelines()
 			{ Arc::Format::R32G32_Sfloat, offsetof(StaticVertex, TexCoord) },
 		}, sizeof(StaticVertex));
 
+	Arc::VertexAttributes dynamicMeshAttributes(
+		{
+			{ Arc::Format::R32G32B32_Sfloat, offsetof(DynamicVertex, Position) },
+			{ Arc::Format::R32G32B32_Sfloat, offsetof(DynamicVertex, Normal) },
+			{ Arc::Format::R32G32B32_Sfloat, offsetof(DynamicVertex, Tangent) },
+			{ Arc::Format::R32G32_Sfloat, offsetof(DynamicVertex, TexCoord) },
+			{ Arc::Format::R32G32B32A32_Sfloat, offsetof(DynamicVertex, BoneIndices) },
+			{ Arc::Format::R32G32B32A32_Sfloat, offsetof(DynamicVertex, BoneWeights) },
+		}, sizeof(DynamicVertex));
+
 	Arc::VertexAttributes emptyAttributes({ }, 0);
 
 	m_MeshPipeline = std::make_unique<Arc::Pipeline>();
@@ -213,6 +244,14 @@ void Renderer::PreparePipelines()
 		.SetPrimitiveTopology(Arc::PrimitiveTopology::TriangleList)
 		.SetRenderPass(m_Device->GetRenderGraph()->GetRenderPassHandle(m_GeometryPassProxy))
 		.SetVertexAttributes(meshAttributes));
+
+	m_DynamicMeshPipeline = std::make_unique<Arc::Pipeline>();
+	m_Device->GetResourceCache()->CreatePipeline(m_DynamicMeshPipeline.get(), Arc::PipelineDesc()
+		.AddShaderStage(m_DynamicMeshVertexShader.get())
+		.AddShaderStage(m_MeshFragmentShader.get())
+		.SetPrimitiveTopology(Arc::PrimitiveTopology::TriangleList)
+		.SetRenderPass(m_Device->GetRenderGraph()->GetRenderPassHandle(m_GeometryPassProxy))
+		.SetVertexAttributes(dynamicMeshAttributes));
 
 	m_PresentPipeline = std::make_unique<Arc::Pipeline>();
 	m_Device->GetResourceCache()->CreatePipeline(m_PresentPipeline.get(), Arc::PipelineDesc()

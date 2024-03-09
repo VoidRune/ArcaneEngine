@@ -21,14 +21,18 @@ layout(set = 0, binding = 0) uniform PerFrameData {
 	mat4 InvProjection;
 } data;
 
-//all object matrices
-layout(std140,set = 0, binding = 1) readonly buffer MeshMatrices{
-    mat4 matrix[];
-} meshMatrices;
+layout(std140,set = 0, binding = 1) readonly buffer TransformMatrices{
+    mat4 transformMatrices[];
+};
+
+layout(std140,set = 0, binding = 2) readonly buffer BoneMatrices{
+    mat4 boneMatrices[];
+};
+
 
 void main() 
 {
-	mat4 transform = meshMatrices.matrix[gl_InstanceIndex];
+	mat4 transform = transformMatrices[gl_InstanceIndex];
 	vec3 T = normalize(vec3(transform * vec4(iTangent, 0.0)));
 	vec3 N = normalize(vec3(transform * vec4(iNormal, 0.0)));
 	vec3 B = cross(N, T);

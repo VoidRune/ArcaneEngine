@@ -277,7 +277,7 @@ namespace Arc
         }
     }
 
-    void ResourceCache::AllocateInFlightDescriptorSet(InFlightDescriptorSet* frameDescriptorSet, const DescriptorSetLayoutDesc& layoutDescription)
+    void ResourceCache::AllocateInFlightDescriptorSet(DescriptorSetArray* frameDescriptorSet, const DescriptorSetLayoutDesc& layoutDescription)
     {
         // TODO: support bindles model for InFlight Descriptor sets
         VkDescriptorSetLayout layout = GetDescriptorSetLayout(layoutDescription.LayoutBindings, layoutDescription.Flags);

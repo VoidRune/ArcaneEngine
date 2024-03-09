@@ -1,15 +1,6 @@
 #pragma once
 #include "Window/Window.h"
-
-#define GLM_FORCE_LEFT_HANDED
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <glm/gtx/hash.hpp>
-#include <glm/gtx/norm.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include "Math/Math.h"
 
 class Camera
 {
@@ -27,7 +18,7 @@ public:
 	float Pitch = 0.0f;
 	float Yaw = 90.0f;
 	float Roll = 0.0f;
-	float Fov = 70.0f;
+	float Fov = 60.0f;
 	float NearPlane = 0.1f;
 	float FarPlane = 1000.0f;
 
