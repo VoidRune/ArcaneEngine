@@ -13,6 +13,7 @@ project "ArcaneEngine"
 	{ 
 		"src/**.h", 
 		"src/**.cpp",
+		"src/**.c",
 		"dependencies/imgui-master/**.h",
 		"dependencies/imgui-master/**.cpp",
 	}

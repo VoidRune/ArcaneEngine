@@ -21,7 +21,7 @@ namespace Arc
 		void CreateImage(Image* image, const ImageDesc& imageDescription);
 		void CreateSampler(Sampler* sampler, const SamplerDesc& samplerDescription);
 		void AllocateDescriptorSets(const std::vector<DescriptorSet*> descriptorSet, const DescriptorSetLayoutDesc& layoutDescription);
-		void AllocateInFlightDescriptorSet(DescriptorSetArray* frameDescriptorSet, const DescriptorSetLayoutDesc& layoutDescription);
+		void AllocateDescriptorSetArray(DescriptorSetArray* frameDescriptorSet, const DescriptorSetLayoutDesc& layoutDescription);
 		void CreateShader(Shader* shader, const ShaderDesc& shaderDesc);
 		void CreatePipeline(Pipeline* pipeline, const PipelineDesc& pipelineDesc);
 		void CreateComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& pipelineDesc);

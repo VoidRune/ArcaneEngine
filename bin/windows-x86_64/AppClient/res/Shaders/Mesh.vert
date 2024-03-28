@@ -7,9 +7,10 @@ layout(location = 2) in vec3 iTangent;
 layout(location = 3) in vec2 iTexCoord;
 
 layout(location = 0) out vec3 oPosition;
-layout(location = 1) out vec3 oNormal;
-layout(location = 2) out vec2 oTexCoord;
-layout(location = 3) out mat3 oTBN;
+layout(location = 1) out vec4 oLightPosition;
+layout(location = 2) out vec3 oNormal;
+layout(location = 3) out vec2 oTexCoord;
+layout(location = 4) out mat3 oTBN;
 
 //layout(location = 5) out vec3 camPos;
 //layout(location = 6) out vec3 lightDir;
@@ -19,16 +20,23 @@ layout(set = 0, binding = 0) uniform PerFrameData {
 	mat4 Projection;
 	mat4 InvView;
 	mat4 InvProjection;
-} data;
+	mat4 OrthoProjection;
+	mat4 ShadowViewProj;
+};
 
-layout(std140,set = 0, binding = 1) readonly buffer TransformMatrices{
+layout(std140,set = 1, binding = 0) readonly buffer TransformMatrices{
     mat4 transformMatrices[];
 };
 
-layout(std140,set = 0, binding = 2) readonly buffer BoneMatrices{
+layout(std140,set = 1, binding = 1) readonly buffer BoneMatrices{
     mat4 boneMatrices[];
 };
 
+const mat4 biasMat = mat4( 
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 1.0, 0.0,
+	0.5, 0.5, 0.0, 1.0 );
 
 void main() 
 {
@@ -39,8 +47,11 @@ void main()
 
 	vec4 pos = transform * vec4(iPosition, 1.0);
 	oPosition = pos.xyz;
+
+	vec4 posFromLight = biasMat * ShadowViewProj * pos;
+	oLightPosition = biasMat * ShadowViewProj * pos;
 	oNormal = iNormal;
 	oTexCoord = iTexCoord;
 	oTBN = mat3(T, B, N);
-	gl_Position = data.Projection * data.View * pos;
+	gl_Position = Projection * View * pos;
 }

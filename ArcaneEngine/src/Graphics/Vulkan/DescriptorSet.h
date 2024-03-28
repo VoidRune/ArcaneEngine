@@ -24,6 +24,7 @@ namespace Arc
 		std::vector<VkDescriptorType> m_BindingTypes;
 		uint32_t m_InFlight = 0;
 
+		friend class Device;
 		friend class ResourceCache;
 	};
 
@@ -31,9 +32,12 @@ namespace Arc
 	{
 	public:
 		VkDescriptorSet& GetHandle(uint32_t inFlightIndex) { return m_DescriptorSets[inFlightIndex]; }
+		VkDescriptorType GetBindingType(uint32_t binding) { return m_BindingTypes[binding]; }
 	private:
 		std::vector<VkDescriptorSet> m_DescriptorSets;
+		std::vector<VkDescriptorType> m_BindingTypes;
 
+		friend class Device;
 		friend class ResourceCache;
 	};
 
@@ -51,11 +55,10 @@ namespace Arc
 	class DescriptorArrayWriteDesc
 	{
 	public:
-		DescriptorArrayWriteDesc& AddBufferWrite(uint32_t binding, DescriptorType type, std::vector<VkBuffer> buffer, uint32_t offset, uint32_t range);
-		//InFlightDescriptorWriteDesc& AddImageWrite(uint32_t binding, DescriptorType type, VkSampler sampler, VkImageView imageView, ImageLayout imageLayout);
+		DescriptorArrayWriteDesc& AddBufferWrite(uint32_t binding, std::vector<VkBuffer> buffer, uint32_t offset, uint32_t range);
+		DescriptorArrayWriteDesc& AddImageWrite(uint32_t binding, VkSampler sampler, VkImageView imageView, ImageLayout imageLayout);
 
-		std::list<VkDescriptorBufferInfo> BufferInfos;
-		//std::list<VkDescriptorImageInfo> imageInfos;
-		std::vector<VkWriteDescriptorSet> WriteInfo;
+		std::unordered_map<int32_t, std::vector<VkDescriptorBufferInfo>> BufferInfos;
+		std::unordered_map<int32_t, std::vector<VkDescriptorImageInfo>> ImageInfos;
 	};
 }

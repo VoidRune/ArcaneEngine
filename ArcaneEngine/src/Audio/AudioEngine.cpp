@@ -139,7 +139,7 @@ namespace Arc
         }
     }
 
-    void AudioEngine::DeInitialize()
+    void AudioEngine::Shutdown()
     {
         ma_device_uninit(&s_PlaybackDevice);
         ma_context_uninit(&s_Context);

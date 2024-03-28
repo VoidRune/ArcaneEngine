@@ -1,39 +1,9 @@
 #pragma once
 #include "Graphics/Device.h"
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include "Renderer/VertexDefinitions.h"
 #include <string>
 #include <unordered_map>
 
-
-struct StaticVertex
-{
-	StaticVertex() { }
-
-	StaticVertex(glm::vec3 position, glm::vec3 normal, glm::vec3 tangent, glm::vec2 texCoord)
-		: Position(position), Normal(normal), Tangent(tangent), TexCoord(texCoord) { }
-
-	glm::vec3 Position;
-	glm::vec3 Normal;
-	glm::vec3 Tangent;
-	glm::vec2 TexCoord;
-};
-
-struct DynamicVertex
-{
-	DynamicVertex() { }
-
-	DynamicVertex(glm::vec3 position, glm::vec3 normal, glm::vec3 tangent, glm::vec2 texCoord)
-		: Position(position), Normal(normal), Tangent(tangent), TexCoord(texCoord) { }
-
-	glm::vec3 Position;
-	glm::vec3 Normal;
-	glm::vec3 Tangent;
-	glm::vec2 TexCoord;
-	glm::vec4 BoneIndices;
-	glm::vec4 BoneWeights;
-};
 
 struct Mesh
 {
@@ -46,7 +16,7 @@ struct Mesh
 struct Texture
 {
 	Arc::Image Image;
-	uint32_t ArrayIndex;
+	uint32_t TextureBinding;
 };
 
 struct Model
@@ -129,8 +99,8 @@ public:
 	void LoadImage(Texture* texture, std::string filePath);
 
 	void LoadGltf(Mesh* mesh, AnimationSet* animSet, std::string filePath);
+	void LoadGltf(Mesh* mesh, std::string filePath);
 
 private:
 	Arc::Device* m_Device;
-	uint32_t m_BindlessTextureIndex = 0;
 };

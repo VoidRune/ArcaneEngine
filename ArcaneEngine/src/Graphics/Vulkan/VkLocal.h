@@ -24,6 +24,7 @@
 #endif
 
 #include <vector>
+#include <map>
 #include <array>
 #include <string>
 #include <memory>

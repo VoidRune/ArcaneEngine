@@ -18,7 +18,7 @@ namespace Arc
             m_ImageViews.push_back(attachments[i].proxy.imageView);
 
             VkClearValue clearValue = {};
-            clearValue.color = { 1.0f, 0.0f, 1.0f, 1.0f };
+            clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
             m_ClearValues.push_back(clearValue);
         }
         return *this;
@@ -70,7 +70,7 @@ namespace Arc
         m_ImageViews = imageViews;
 
         VkClearValue clearValue = {};
-        clearValue.color = { 1.0f, 0.0f, 1.0f, 1.0f };
+        clearValue.color = { 0.0f, 0.0f, 0.0f, 0.0f };
         m_ClearValues.push_back(clearValue);
 
         return *this;

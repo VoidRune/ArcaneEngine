@@ -1,10 +1,10 @@
 #pragma once
 #include "Renderer/Renderer.h"
-#include "Renderer/RenderFrameData.h"
 #include "Audio/AudioEngine.h"
 #include "Networking/Client.h"
 #include "World.h"
 #include "PlayerController.h"
+#include "Gui/TextBuilder.h"
 
 struct PlayerInfo
 {
@@ -40,11 +40,15 @@ private:
 	Arc::Buffer m_ScratchBuffer;
 	std::unique_ptr<Arc::Client> m_Client;
 
+	int32_t m_TileIndex = 0;
 	std::unique_ptr<World> m_World;
 
 	std::unique_ptr<PlayerController> m_PlayerController;
 	std::unordered_map<uint32_t, PlayerInfo> m_Players;
 	std::vector<Projectile> m_Projectiles;
+
+
+	Texture m_FontTexture;
 
 	Mesh m_PlayerMesh;
 	AnimationSet animSet;

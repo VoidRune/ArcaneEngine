@@ -1,11 +1,23 @@
 #pragma once
-#include <glm.hpp>
+#include "Math/Math.h"
+#include "VertexDefinitions.h"
+#include "Asset/AssetCache.h"
 
-struct DrawCall
+struct StaticDrawData
 {
 	Model Model;
 	uint32_t InstanceIndex = 0;
 	uint32_t InstanceCount = 0;
+};
+
+struct DynamicDrawData
+{
+	Model Model;
+	uint32_t InstanceIndex = 0;
+	uint32_t InstanceCount = 0;
+
+	uint32_t BoneDataStart = 0;
+	uint32_t BoneDataCount = 0;
 };
 
 struct RenderFrameData
@@ -14,51 +26,66 @@ struct RenderFrameData
 	glm::mat4 Projection;
 	glm::mat4 InvView;
 	glm::mat4 InvProjection;
-	std::vector<DrawCall> DrawCalls;
+	glm::mat4 ShadowViewProj;
+	glm::mat4 OrthoProjection;
+
 	std::vector<glm::mat4> Transformations;
 	std::vector<glm::mat4> BoneMatrices;
+	std::vector<StaticDrawData> StaticDrawCalls;
+	std::vector<DynamicDrawData> DynamicDrawCalls;
 
-	Model AnimatedModel;
-	uint32_t AnimatedInstanceIndex = 0;
+	std::vector<GuiVertex> GuiVertexData;
+	std::vector<GuiVertex> GuiFontVertexData;
+	uint32_t FontTextureBinding;
 
-	void AddAnimatedModel(Model model, glm::mat4 transformation)
+	void AddDynamicDrawData(Model model, const std::vector<glm::mat4>& transformations, const std::vector<glm::mat4>& boneMatrices)
 	{
-		AnimatedModel = model;
-		AnimatedInstanceIndex = Transformations.size();
-		Transformations.push_back(transformation);
+		DynamicDrawData drawCall;
+		drawCall.Model = model;
+		drawCall.InstanceIndex = Transformations.size();
+		drawCall.InstanceCount = transformations.size();
+		drawCall.BoneDataStart = BoneMatrices.size();
+		drawCall.BoneDataCount = boneMatrices.size();
+
+		for (auto& t : transformations)
+			Transformations.push_back(t);
+		for (auto& b : boneMatrices)
+			BoneMatrices.push_back(b);
+
+		DynamicDrawCalls.push_back(drawCall);
 	}
 
-	void AddDrawCall(Model model, glm::mat4 transformation)
+	void AddStaticDrawData(Model model, glm::mat4 transformation)
 	{
-		DrawCall drawCall;
+		StaticDrawData drawCall;
 		drawCall.Model = model;
 		drawCall.InstanceIndex = Transformations.size();
 		drawCall.InstanceCount = 1;
 
 		Transformations.push_back(transformation);
 
-		DrawCalls.push_back(drawCall);
+		StaticDrawCalls.push_back(drawCall);
 	}
 
-	void AddDrawCall(Model model, const std::vector<glm::mat4>& transformations)
+	void AddStaticDrawData(Model model, const std::vector<glm::mat4>& transformations)
 	{
-		DrawCall drawCall;
+		StaticDrawData drawCall;
 		drawCall.Model = model;
 		drawCall.InstanceIndex = Transformations.size();
 		drawCall.InstanceCount = transformations.size();
 
 		for (auto& t : transformations)
-		{
 			Transformations.push_back(t);
-		}
 
-		DrawCalls.push_back(drawCall);
+		StaticDrawCalls.push_back(drawCall);
 	}
 
 	void Clear()
 	{
-		DrawCalls.clear();
+		StaticDrawCalls.clear();
+		DynamicDrawCalls.clear();
 		Transformations.clear();
 		BoneMatrices.clear();
+		GuiVertexData.clear();
 	}
 };

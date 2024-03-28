@@ -37,7 +37,7 @@ namespace Arc
 	{
 	public:
 		static void Initialize(uint32_t maxConcurrentSounds = 64);
-		static void DeInitialize();
+		static void Shutdown();
 
 		static SoundInstance Play(AudioSource* audioSource, SoundGroup* soundGroup = nullptr);
 		static void Stop(SoundInstance* soundInstance);

@@ -125,21 +125,51 @@ namespace Arc
 
     void Device::UpdateDescriptorSetArray(DescriptorSetArray* descriptorSet, const DescriptorArrayWriteDesc& writeDesc)
     {
-        std::vector<VkWriteDescriptorSet> writeDescriptorSet(writeDesc.WriteInfo.size());
+        std::vector<VkWriteDescriptorSet> writeDescriptorSet;
 
-        for (int i = 0; i < writeDesc.WriteInfo.size(); i++)
+        // Using std::list so we don't unvalidate the pointer
+        std::list<VkDescriptorBufferInfo> bufferInfos;
+        for (auto& info : writeDesc.BufferInfos)
         {
-            int frame = i % m_ImageCount;
+            int32_t binding = info.first;
+            std::vector<VkDescriptorBufferInfo> bufferInfo = info.second;
+            for (size_t i = 0; i < descriptorSet->m_DescriptorSets.size(); i++)
+            {
+                VkWriteDescriptorSet write{};
+                write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                write.dstSet = descriptorSet->m_DescriptorSets[i];
+                write.dstBinding = binding;
+                write.dstArrayElement = 0;
+                write.descriptorType = descriptorSet->m_BindingTypes[binding];
+                write.descriptorCount = 1;
+                bufferInfos.push_back(bufferInfo[i % bufferInfo.size()]);
+                write.pBufferInfo = &bufferInfos.back();
+                write.pImageInfo = nullptr;
+                write.pTexelBufferView = nullptr;
+                writeDescriptorSet.push_back(write);
+            }
+        }
 
-            writeDescriptorSet[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writeDescriptorSet[i].dstSet = descriptorSet->GetHandle(frame);
-            writeDescriptorSet[i].dstBinding = writeDesc.WriteInfo[i].dstBinding;
-            writeDescriptorSet[i].dstArrayElement = writeDesc.WriteInfo[i].dstArrayElement;
-            writeDescriptorSet[i].descriptorType = writeDesc.WriteInfo[i].descriptorType;
-            writeDescriptorSet[i].descriptorCount = writeDesc.WriteInfo[i].descriptorCount;
-            writeDescriptorSet[i].pBufferInfo = writeDesc.WriteInfo[i].pBufferInfo;
-            writeDescriptorSet[i].pImageInfo = writeDesc.WriteInfo[i].pImageInfo;
-            writeDescriptorSet[i].pTexelBufferView = writeDesc.WriteInfo[i].pTexelBufferView;
+        std::list<VkDescriptorImageInfo> imageInfos;
+        for (auto& info : writeDesc.ImageInfos)
+        {
+            int32_t binding = info.first;
+            std::vector<VkDescriptorImageInfo> imageInfo = info.second;
+            for (size_t i = 0; i < descriptorSet->m_DescriptorSets.size(); i++)
+            {
+                VkWriteDescriptorSet write{};
+                write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                write.dstSet = descriptorSet->m_DescriptorSets[i];
+                write.dstBinding = binding;
+                write.dstArrayElement = 0;
+                write.descriptorType = descriptorSet->m_BindingTypes[binding];
+                write.descriptorCount = 1;
+                write.pBufferInfo = nullptr;
+                imageInfos.push_back(imageInfo[i % imageInfo.size()]);
+                write.pImageInfo = &imageInfos.back();
+                write.pTexelBufferView = nullptr;
+                writeDescriptorSet.push_back(write);
+            }
         }
 
         vkUpdateDescriptorSets(m_LogicalDevice, static_cast<uint32_t>(writeDescriptorSet.size()), writeDescriptorSet.data(), 0, NULL);

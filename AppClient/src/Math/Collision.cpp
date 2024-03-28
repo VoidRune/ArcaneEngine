@@ -85,3 +85,16 @@ bool CollisionResolution(Circle& circle1, const Circle& circle2)
 
 	return false;
 }
+
+bool Inside(const Rectangle& r1, const Rectangle& r2)
+{
+	glm::vec2 TL1 = r1.Position + glm::vec2{-r1.Width, r1.Height} / 2.0f;
+	glm::vec2 BR1 = r1.Position + glm::vec2{ r1.Width, r1.Height} / 2.0f;
+	glm::vec2 TL2 = r2.Position + glm::vec2{-r2.Width,-r2.Height} / 2.0f;
+	glm::vec2 BR2 = r2.Position + glm::vec2{ r2.Width,-r2.Height} / 2.0f;
+
+	return  TL1.x >= TL2.x &&
+			TL1.y >= TL2.y &&
+			BR1.x <= BR2.x &&
+			BR1.y <= BR2.y;
+}

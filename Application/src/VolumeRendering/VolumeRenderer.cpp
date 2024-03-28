@@ -26,10 +26,10 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 		.AddMemoryPropertyFlag(Arc::MemoryProperty::HostVisible));
 	/* Corresponding descriptor */
 	m_GlobalDescriptor = std::make_unique<Arc::DescriptorSetArray>();
-	m_Device->GetResourceCache()->AllocateInFlightDescriptorSet(m_GlobalDescriptor.get(), Arc::DescriptorSetLayoutDesc()
+	m_Device->GetResourceCache()->AllocateDescriptorSetArray(m_GlobalDescriptor.get(), Arc::DescriptorSetLayoutDesc()
 		.AddBinding(1, Arc::DescriptorType::UniformBuffer, Arc::ShaderStage::VertexCompute));
 	m_Device->UpdateDescriptorSetArray(m_GlobalDescriptor.get(), Arc::DescriptorArrayWriteDesc()
-		.AddBufferWrite(0, Arc::DescriptorType::UniformBuffer, m_CameraFrameDataBuffer->GetHandle(), 0, sizeof(CameraFrameData)));
+		.AddBufferWrite(0, m_CameraFrameDataBuffer->GetHandle(), 0, sizeof(CameraFrameData)));
 
 	m_PointSampler = std::make_unique<Arc::Sampler>();
 	core->GetResourceCache()->CreateSampler(m_PointSampler.get(), Arc::SamplerDesc()

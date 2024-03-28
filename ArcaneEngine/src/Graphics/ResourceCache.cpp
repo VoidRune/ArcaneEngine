@@ -210,7 +210,9 @@ namespace Arc
         samplerInfo.maxAnisotropy = 1.0f;
         samplerInfo.unnormalizedCoordinates = VK_FALSE;
         samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-        samplerInfo.compareEnable = VK_TRUE;
+        // Do not change compareEnable, it breaks the shadow mapping
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
 
         VK_CHECK(vkCreateSampler(m_Device, &samplerInfo, nullptr, &sampler->m_Sampler));
 
@@ -277,14 +279,20 @@ namespace Arc
         }
     }
 
-    void ResourceCache::AllocateInFlightDescriptorSet(DescriptorSetArray* frameDescriptorSet, const DescriptorSetLayoutDesc& layoutDescription)
+    void ResourceCache::AllocateDescriptorSetArray(DescriptorSetArray* frameDescriptorSet, const DescriptorSetLayoutDesc& layoutDescription)
     {
-        // TODO: support bindles model for InFlight Descriptor sets
+        // TODO: support bindless model for InFlight Descriptor sets
         VkDescriptorSetLayout layout = GetDescriptorSetLayout(layoutDescription.LayoutBindings, layoutDescription.Flags);
 
         std::vector<VkDescriptorSetLayout> layouts(m_ImageCount);
         for (int i = 0; i < layouts.size(); i++)
             layouts[i] = layout;
+
+
+        for (auto& binding : layoutDescription.LayoutBindings)
+        {
+            frameDescriptorSet->m_BindingTypes.push_back(binding.descriptorType);
+        }
 
         VkDescriptorSetAllocateInfo descAllocInfo{};
         descAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -707,7 +715,6 @@ namespace Arc
         pipelineInfo.basePipelineIndex = -1;
 
         VK_CHECK(vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline->m_Pipeline));
-
 
         m_ResourceReleaseFuctions[pipeline->m_Pipeline] = [=]() {
             vkDestroyPipelineLayout(m_Device, pipeline->m_PipelineLayout, nullptr);

@@ -121,8 +121,5 @@ void AssetCache::LoadImage(Texture* texture, std::string filePath)
 	m_Device->SetImageData(&image, data, w * h * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
 	stbi_image_free(data);
 
-	Renderer::Get()->BindBindlessTexture(m_BindlessTextureIndex, image);
-	texture->ArrayIndex = m_BindlessTextureIndex;
-
-	m_BindlessTextureIndex++;
+	texture->TextureBinding = Renderer::BindTexture(image);
 }

@@ -68,28 +68,31 @@ namespace Arc
 		return *this;
 	}
 
-	DescriptorArrayWriteDesc& DescriptorArrayWriteDesc::AddBufferWrite(uint32_t binding, DescriptorType type, std::vector<VkBuffer> buffer, uint32_t offset, uint32_t range)
+	DescriptorArrayWriteDesc& DescriptorArrayWriteDesc::AddBufferWrite(uint32_t binding, std::vector<VkBuffer> buffer, uint32_t offset, uint32_t range)
 	{
-		for (size_t i = 0; i < buffer.size(); i++)
+		std::vector<VkDescriptorBufferInfo> bufferInfos(buffer.size());
+		for (size_t i = 0; i < bufferInfos.size(); i++)
 		{
-			VkDescriptorBufferInfo info;
-			info.buffer = buffer[i];
-			info.offset = offset;
-			info.range = range;
-			BufferInfos.push_back(info);
-
-			VkWriteDescriptorSet write;
-			write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			//write.dstSet = descriptorSet->GetHandle(i);
-			write.dstBinding = binding;
-			write.dstArrayElement = 0;
-			write.descriptorType = static_cast<VkDescriptorType>(type);
-			write.descriptorCount = 1;
-			write.pBufferInfo = &BufferInfos.back();
-			write.pImageInfo = nullptr;
-			write.pTexelBufferView = nullptr;
-			WriteInfo.push_back(write);
+			bufferInfos[i].buffer = buffer[i];
+			bufferInfos[i].offset = offset;
+			bufferInfos[i].range = range;
 		}
+		BufferInfos[binding] = bufferInfos;
+
+		return *this;
+	}
+
+	DescriptorArrayWriteDesc& DescriptorArrayWriteDesc::AddImageWrite(uint32_t binding, VkSampler sampler, VkImageView imageView, ImageLayout imageLayout)
+	{
+		std::vector<VkDescriptorImageInfo> imageInfos;
+
+		VkDescriptorImageInfo info;
+		info.sampler = sampler;
+		info.imageView = imageView;
+		info.imageLayout = static_cast<VkImageLayout>(imageLayout);
+		imageInfos.push_back(info);
+
+		ImageInfos[binding] = imageInfos;
 
 		return *this;
 	}
