@@ -3,6 +3,7 @@
 #include "Core/Timer.h"
 #include "Renderer/Renderer.h"
 #include "Audio/AudioEngine.h"
+#include "Gui/GuiBuilder.h"
 
 #include <iostream>
 #include <chrono>
@@ -23,11 +24,15 @@ Application::Application()
 	m_Device = std::make_unique<Arc::Device>(m_Window->GetHandle(), inFlightImageCount);
 	m_PresentQueue = std::make_unique<Arc::PresentQueue>(m_Device.get(), presentMode);
 	Renderer::Initialize(m_Window.get(), m_Device.get(), m_PresentQueue.get());
-	m_AssetCache = std::make_unique<AssetCache>(m_Device.get());
-	m_Game = std::make_unique<Game>(m_Window.get(), m_AssetCache.get());
-
 
 	Arc::AudioEngine::Initialize();
+
+	m_MainMenu = std::make_unique<MainMenu>(m_Window.get());
+	m_Game = std::make_unique<Game>(m_Window.get());
+
+	Gui::InitFont("res/Fonts/fontmsdf.json");
+	AssetCache::LoadImage(&m_FontTexture, "res/Fonts/fontmsdf.png");
+
 }
 
 Application::~Application()
@@ -69,10 +74,22 @@ void Application::Run()
 		float deltaTime = elapsedTime - lastTime;
 		lastTime = elapsedTime;
 
-		m_Game->Update(deltaTime, elapsedTime, Renderer::GetFrameRenderData());
+		auto& rendererFrameData = Renderer::GetFrameRenderData();
+		rendererFrameData.FontTextureBinding = m_FontTexture.TextureBinding;
+
+		switch (GlobalGameData::CurrentGameState)
+		{
+		case GameState::MainMenu:
+			m_MainMenu->Update(deltaTime, elapsedTime, rendererFrameData);
+			break;
+		case GameState::Game:
+			m_Game->Update(deltaTime, elapsedTime, rendererFrameData);
+			break;
+		default:
+
+			break;
+		}
 		Renderer::RenderFrame();
-		// TODO remove
-		//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 	Renderer::WaitForFrameEnd();
 }

@@ -22,6 +22,8 @@ layout(set = 0, binding = 0) uniform PerFrameData {
 	mat4 InvProjection;
 	mat4 OrthoProjection;
 	mat4 ShadowViewProj;
+	vec3 CameraPosition;
+	vec3 SunShadowDirection;
 };
 
 layout(set = 1, binding = 2) uniform sampler2D Shadowmap;
@@ -35,33 +37,30 @@ layout( push_constant ) uniform constants
 	uint boneMatricesStart;
 };
 
-void main() 
+float CalculateShadow()
 {
     vec3 projCoords = iLightPosition.xyz / iLightPosition.w;
-    float shadow = 0;
+
+    if(projCoords.z > 1.0)
+        return 0.0f;
     vec2 oneOverShadowDepthTextureSize = 1.0 / textureSize(Shadowmap, 0);
+    float bias = 0.0000f;
+    float shadow = 0;
+
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
             vec2 offset = vec2(x, y) * oneOverShadowDepthTextureSize;
-
-            //visibility += textureSampleCompare(
-            //    shadowMap, shadowSampler,
-            //    input.shadowPos.xy + offset, input.shadowPos.z - 0.007
-            //);
-
-            //float depth = texture(Shadowmap, iLightPosition.xy + offset).r;
             float depth = texture(Shadowmap, projCoords.xy + offset).r; 
-            shadow += (projCoords.z - 0.002) > depth ? 1.0 : 0.0;        
-            //visibility += depth < (input.shadowPos.z - 0.007);
+            shadow += (projCoords.z - bias) > depth ? 1.0 : 0.0;        
         }
     }
-    shadow /= 9.0;
-    if(projCoords.z > 1.0)
-        shadow = 0.0;
 
+    return shadow /= 9.0;
+}
 
-    //float depth = texture(Shadowmap, projCoords.xy).r; 
-    //visibility = (projCoords.z) > depth ? 1.0 : 0.2;        
+void main() 
+{
+    float shadow = CalculateShadow();
 
     vec4 sampledColor = vec4(texture(bindlessTextures[colorTextureIndex], iTexCoord).rgb, 1.0f);
 
@@ -70,25 +69,20 @@ void main()
 
     vec3 ambient = 0.5 * sampledColor.rgb;
 
-    vec3 cameraPosition = vec3(InvView[3][0], InvView[3][1], InvView[3][2]);
-    //vec3 cameraPosition = vec3(data.InvView[0][3], data.InvView[1][3], data.InvView[2][3]);
+    //vec3 cameraPosition = vec3(InvView[3][0], InvView[3][1], InvView[3][2]);
+
     vec3 lightDir   = normalize(vec3(0.5, 1, -0.3));
-    vec3 viewDir    = normalize(cameraPosition - iPosition);
-    float diff = max(dot(lightDir, normal), 0.0);
+    vec3 viewDir    = normalize(CameraPosition - iPosition);
+    float diff = max(dot(-SunShadowDirection, normal), 0.0);
     vec3 diffuse = diff * sampledColor.rgb;
 
-    vec3 reflectDir = reflect(-lightDir, normal);
-    vec3 halfwayDir = normalize(lightDir + viewDir);  
-    float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
+    vec3 reflectDir = reflect(SunShadowDirection, normal);
+    vec3 halfwayDir = normalize(viewDir - SunShadowDirection);  
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), 100.0);
 
     vec3 specular = vec3(0.5) * spec; // assuming bright white light color
 
     float light = (dot(lightDir, normal) + 2) / 3;
 
     outColor = vec4((ambient + diffuse + specular) * (1.0f - shadow * 0.5f), 1.0f);
-
-    //outColor = vec4(iTexCoord, 0, 1);
-    //outColor = sampledColor;
-    //outColor = vec4(vec3(depth), 1.0f);
-    //outColor = vec4(vec3(projCoords.z), 1.0f);
 }

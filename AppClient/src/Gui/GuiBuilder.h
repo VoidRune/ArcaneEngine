@@ -1,5 +1,5 @@
 #pragma once
-#include "Renderer/RenderFrameData.h"
+#include "Renderer/Renderer.h"
 
 class Gui
 {
@@ -32,10 +32,20 @@ public:
 	public:
 		// Pixel values
 		glm::vec2 PxDimensions{};
-		glm::vec2 PxCenter{};
+		glm::vec2 PxPivotCenter{};
+
 		// Percent values
 		glm::vec2 PcDimensions{};
-		glm::vec2 PcCenter{};
+		glm::vec2 PcPivotCenter{};
+
+		// Set Width based on Height
+		// If set to 2.5, then width will be 2.5 times the height
+		// Overrides other Width constraints
+		float WidthFromAspect = 0.0f;
+		// Set Height based on Width
+		// If set to 2.5, then height will be 2.5 times the width
+		// Overrides other Height constraints
+		float HeightFromAspect = 0.0f;
 
 		Pivot PivotType = Pivot::Center;
 	};
@@ -44,6 +54,7 @@ public:
 	{
 	public:
 		glm::vec4 Color;
+		uint32_t TextureIndex = Renderer::GetWhiteTexture();
 	};
 
 	class TextDescription

@@ -33,10 +33,11 @@ struct GuiVertex
 {
 	GuiVertex() { }
 
-	GuiVertex(glm::vec2 position, glm::vec2 texCoord, glm::vec4 color)
-		: Position(position), TexCoord(texCoord), Color(color) { }
+	GuiVertex(glm::vec2 position, glm::vec2 texCoord, glm::vec4 color, uint32_t textureIndex)
+		: Position(position), TexCoord(texCoord), Color(color), TextureIndex(textureIndex) { }
 
 	glm::vec2 Position;
 	glm::vec2 TexCoord;
 	glm::vec4 Color;
+	uint32_t TextureIndex;
 };

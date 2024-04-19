@@ -3,7 +3,7 @@
 namespace Arc
 {
     
-    RenderPassDesc& RenderPassDesc::SetInputImages(const std::vector<Image::Proxy>& imageInputs)
+    RenderPassDesc& RenderPassDesc::SetInputImages(const std::vector<GpuImage::Proxy>& imageInputs)
     {
         m_ImageInputs = imageInputs;
         return *this;
@@ -41,19 +41,19 @@ namespace Arc
     }
 
 
-    ComputePassDesc& ComputePassDesc::SetInputImages(const std::vector<Image::Proxy>& imageInputs)
+    ComputePassDesc& ComputePassDesc::SetInputImages(const std::vector<GpuImage::Proxy>& imageInputs)
     {
         m_ImageInputs = imageInputs;
         return *this;
     }
 
-    ComputePassDesc& ComputePassDesc::SetOutputImages(const std::vector<Image::Proxy>& outputInputs)
+    ComputePassDesc& ComputePassDesc::SetOutputImages(const std::vector<GpuImage::Proxy>& outputInputs)
     {
         m_ImageOutputs = outputInputs;
         return *this;
     }
 
-    PresentPassDesc& PresentPassDesc::SetInputImages(const std::vector<Image::Proxy>& imageInputs)
+    PresentPassDesc& PresentPassDesc::SetInputImages(const std::vector<GpuImage::Proxy>& imageInputs)
     {
         m_ImageInputs = imageInputs;
         return *this;

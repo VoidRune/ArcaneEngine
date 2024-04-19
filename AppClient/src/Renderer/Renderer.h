@@ -11,7 +11,7 @@
 class Renderer
 {
 public:
-	static void Initialize(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* presentQueue);
+	static void Initialize(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue);
 	static void Shutdown();
 
 	static void RenderFrame();
@@ -19,10 +19,13 @@ public:
 	static void RecompileShaders();
 	static void WaitForFrameEnd();
 
-	static uint32_t BindTexture(Arc::Image image);
+	static uint32_t BindTexture(Arc::GpuImage image);
 	static void ReleaseTextureBinding(uint32_t binding);
 
 	static RenderFrameData& GetFrameRenderData();
+	static Arc::Device* GetDevice();
+	static uint32_t GetWhiteTexture();
+	static uint32_t GetBlackTexture();
 private:
 
 	static void CompileShaders();

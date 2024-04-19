@@ -1,6 +1,20 @@
 #include "Collision.h"
 
 
+bool RayPlaneCollision(const Ray& ray, const Plane& plane, glm::vec3& point)
+{
+	float t = 0;
+	float denom = glm::dot(ray.Direction, plane.Normal);
+	if (glm::abs(denom) > 0.0001f)
+	{
+		t = (plane.Point - ray.Point).y / denom;
+		point = ray.Point + ray.Direction * t;
+		return true;
+	}
+	point = { 0, 0, 0 };
+	return false;
+}
+
 bool CollisionDetection(const Circle& circle, const Rectangle& rectangle)
 {
 	float s = sin(rectangle.Angle);

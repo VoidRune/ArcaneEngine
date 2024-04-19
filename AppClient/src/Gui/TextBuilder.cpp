@@ -74,13 +74,13 @@ void TextBuilder::BuildText(const std::string& text, const TextDescription& desc
             c.x / (float)m_TextureWidth, 1.0f - c.y / (float)m_TextureHeight,
             (c.x + c.width) / (float)m_TextureWidth, 1.0f - (c.y + c.height) / (float)m_TextureHeight };
       
-        vertices.push_back({ { c.xoffset + x, c.yoffset + charHeight + y }, {texCoord.x, texCoord.w}, desc.BottomColor });
-        vertices.push_back({ { c.xoffset + x, c.yoffset + y }, {texCoord.x, texCoord.y}, desc.TopColor });
-        vertices.push_back({ { c.xoffset + x + charWidth, c.yoffset + charHeight + y }, {texCoord.z, texCoord.w}, desc.BottomColor });
+        vertices.push_back({ { c.xoffset + x, c.yoffset + charHeight + y }, {texCoord.x, texCoord.w}, desc.BottomColor, 0 });
+        vertices.push_back({ { c.xoffset + x, c.yoffset + y }, {texCoord.x, texCoord.y}, desc.TopColor, 0 });
+        vertices.push_back({ { c.xoffset + x + charWidth, c.yoffset + charHeight + y }, {texCoord.z, texCoord.w}, desc.BottomColor, 0 });
 
-        vertices.push_back({ { c.xoffset + x + charWidth, c.yoffset + charHeight + y }, {texCoord.z, texCoord.w}, desc.BottomColor });
-        vertices.push_back({ { c.xoffset + x, c.yoffset + y }, {texCoord.x, texCoord.y}, desc.TopColor });
-        vertices.push_back({ { c.xoffset + x + charWidth, c.yoffset + y }, {texCoord.z, texCoord.y}, desc.TopColor });
+        vertices.push_back({ { c.xoffset + x + charWidth, c.yoffset + charHeight + y }, {texCoord.z, texCoord.w}, desc.BottomColor, 0 });
+        vertices.push_back({ { c.xoffset + x, c.yoffset + y }, {texCoord.x, texCoord.y}, desc.TopColor, 0 });
+        vertices.push_back({ { c.xoffset + x + charWidth, c.yoffset + y }, {texCoord.z, texCoord.y}, desc.TopColor, 0 });
 
         x += c.xadvance;
 	}

@@ -18,7 +18,7 @@ namespace Arc
 
 		void CreateBuffer(GpuBuffer* buffer, const GpuBufferDesc& bufferDescription);
 		void CreateBufferSet(GpuBufferSet* buffer, const GpuBufferDesc& bufferDescription);
-		void CreateImage(Image* image, const ImageDesc& imageDescription);
+		void CreateImage(GpuImage* image, const GpuImageDesc& imageDescription);
 		void CreateSampler(Sampler* sampler, const SamplerDesc& samplerDescription);
 		void AllocateDescriptorSets(const std::vector<DescriptorSet*> descriptorSet, const DescriptorSetLayoutDesc& layoutDescription);
 		void AllocateDescriptorSetArray(DescriptorSetArray* frameDescriptorSet, const DescriptorSetLayoutDesc& layoutDescription);
@@ -33,7 +33,7 @@ namespace Arc
 
 		void ReleaseResource(GpuBuffer* buffer);
 		void ReleaseResource(GpuBufferSet* buffer);
-		void ReleaseResource(Image* image);
+		void ReleaseResource(GpuImage* image);
 		void ReleaseResource(Sampler* sampler);
 		void ReleaseResource(Shader* shader);
 		void ReleaseResource(Pipeline* pipeline);

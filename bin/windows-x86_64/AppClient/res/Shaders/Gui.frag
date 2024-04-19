@@ -2,6 +2,7 @@
 
 layout(location = 0) in vec2 iTexCoord;
 layout(location = 1) in vec4 iColor;
+layout(location = 2) in flat uint iTexIndex;
 
 layout(location = 0) out vec4 outColor;
 
@@ -14,6 +15,6 @@ layout( push_constant ) uniform constants
 
 void main()
 {
-    //vec4 sampledFont = texture(bindlessTextures[textureIndex], iTexCoord);
-    outColor = iColor;
+    vec4 sampled = texture(bindlessTextures[iTexIndex], iTexCoord);
+    outColor = sampled * iColor;
 }

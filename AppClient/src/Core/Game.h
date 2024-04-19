@@ -11,18 +11,10 @@ struct PlayerInfo
 	glm::vec3 Position;
 };
 
-struct Projectile
-{
-	glm::vec3 Position;
-	glm::vec3 Velocity;
-	float LifeTime;
-	bool Deadly;
-};
-
 class Game
 {
 public:
-	Game(Arc::Window* window, AssetCache* assetCache);
+	Game(Arc::Window* window);
 	~Game();
 
 	void Update(float deltaTime, float elapsedTime, RenderFrameData& frameData);
@@ -34,7 +26,6 @@ private:
 
 private:
 	Arc::Window* m_Window;
-	AssetCache* m_AssetCache;
 	std::unique_ptr<Arc::AudioSource> m_ShootSound;
 
 	Arc::Buffer m_ScratchBuffer;
@@ -48,11 +39,10 @@ private:
 	std::vector<Projectile> m_Projectiles;
 
 
-	Texture m_FontTexture;
-
 	Mesh m_PlayerMesh;
 	AnimationSet animSet;
 
+	float m_CurrentTileAngle = 0.0f;
 	Mesh m_ProjectileMesh;
 	Texture m_BaseColorTexture;
 	Texture m_NormalTexture;

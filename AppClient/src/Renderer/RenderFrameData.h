@@ -29,6 +29,9 @@ struct RenderFrameData
 	glm::mat4 ShadowViewProj;
 	glm::mat4 OrthoProjection;
 
+	glm::vec3 CameraPosition;
+	glm::vec3 SunShadowDirection;
+
 	std::vector<glm::mat4> Transformations;
 	std::vector<glm::mat4> BoneMatrices;
 	std::vector<StaticDrawData> StaticDrawCalls;

@@ -4,9 +4,11 @@
 layout(location = 0) in vec2 iPosition;
 layout(location = 1) in vec2 iTexCoord;
 layout(location = 2) in vec4 iColor;
+layout(location = 3) in uint iTexIndex;
 
 layout(location = 0) out vec2 oTexCoord;
 layout(location = 1) out vec4 oColor;
+layout(location = 2) out uint oTexIndex;
 
 layout(set = 0, binding = 0) uniform PerFrameData {
 	mat4 View;
@@ -20,5 +22,6 @@ void main()
 {
 	oTexCoord = iTexCoord;
 	oColor = iColor;
+	oTexIndex = iTexIndex;
 	gl_Position = OrthoProjection * vec4(iPosition, 0.0, 1.0);
 }

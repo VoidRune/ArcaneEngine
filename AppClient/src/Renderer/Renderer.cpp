@@ -23,6 +23,10 @@ struct CameraFrameData
 	glm::mat4 InvProjection;
 	glm::mat4 OrthoProjection;
 	glm::mat4 ShadowmapViewProj;
+	alignas(16)
+	glm::vec3 CameraPosition;
+	alignas(16)
+	glm::vec3 SunShadowDirection;
 } m_CameraFrameData;
 
 std::unique_ptr<Arc::GpuBufferSet> m_CameraFrameDataBuffer;
@@ -67,21 +71,26 @@ std::unique_ptr<Arc::Pipeline> m_PresentPipeline;
 std::unique_ptr<Arc::Pipeline> m_GuiPipeline;
 std::unique_ptr<Arc::Pipeline> m_FontPipeline;
 
+std::unique_ptr<Arc::GpuImage> m_WhiteTexture;
+std::unique_ptr<Arc::GpuImage> m_BlackTexture;
+uint32_t m_WhiteTextureIndex;
+uint32_t m_BlackTextureIndex;
+
 /* Render pass data*/
-VkExtent2D m_ShadowExtent = { 1024, 1024 };
-std::unique_ptr<Arc::Image> m_ShadowDepthAttachment;
-std::unique_ptr<Arc::Image> m_ColorAttachment;
-std::unique_ptr<Arc::Image> m_DepthAttachment;
+VkExtent2D m_ShadowExtent = { 2048, 2048 };
+std::unique_ptr<Arc::GpuImage> m_ShadowDepthAttachment;
+std::unique_ptr<Arc::GpuImage> m_ColorAttachment;
+std::unique_ptr<Arc::GpuImage> m_DepthAttachment;
 Arc::RenderPassProxy m_ShadowPassProxy;
 Arc::RenderPassProxy m_GeometryPassProxy;
 Arc::PresentPassProxy m_PresentPassProxy;
 
-void Renderer::Initialize(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* presentQueue)
+void Renderer::Initialize(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue)
 {
 	m_Window = window;
-	m_Device = core;
+	m_Device = device;
 	m_PresentQueue = presentQueue;
-	Arc::ImGuiInit(window->GetHandle(), core, presentQueue);
+	Arc::ImGuiInit(window->GetHandle(), device, presentQueue);
 
 	m_WindowSize = presentQueue->GetSwapchain()->GetExtent();
 
@@ -125,21 +134,21 @@ void Renderer::Initialize(Arc::Window* window, Arc::Device* core, Arc::PresentQu
 	m_Device->UpdateDescriptorSetArray(m_GlobalDescriptor.get(), Arc::DescriptorArrayWriteDesc()
 		.AddBufferWrite(0, m_CameraFrameDataBuffer->GetHandle(), 0, sizeof(CameraFrameData)));
 
-	m_ShadowDepthAttachment = std::make_unique<Arc::Image>();
-	m_ColorAttachment = std::make_unique<Arc::Image>();
-	m_DepthAttachment = std::make_unique<Arc::Image>();
+	m_ShadowDepthAttachment = std::make_unique<Arc::GpuImage>();
+	m_ColorAttachment = std::make_unique<Arc::GpuImage>();
+	m_DepthAttachment = std::make_unique<Arc::GpuImage>();
 
-	m_Device->GetResourceCache()->CreateImage(m_ShadowDepthAttachment.get(), Arc::ImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_ShadowDepthAttachment.get(), Arc::GpuImageDesc()
 		.SetExtent(m_ShadowExtent)
 		.SetFormat(Arc::Format::D16_Unorm)
 		.AddUsageFlag(Arc::ImageUsage::DepthStencilAttachment)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
-	m_Device->GetResourceCache()->CreateImage(m_ColorAttachment.get(), Arc::ImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_ColorAttachment.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::R16G16B16A16_Sfloat)
 		.AddUsageFlag(Arc::ImageUsage::ColorAttachment)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
-	m_Device->GetResourceCache()->CreateImage(m_DepthAttachment.get(), Arc::ImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_DepthAttachment.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::D32_Sfloat)
 		.AddUsageFlag(Arc::ImageUsage::DepthStencilAttachment));
@@ -169,6 +178,29 @@ void Renderer::Initialize(Arc::Window* window, Arc::Device* core, Arc::PresentQu
 	for (size_t i = 0; i < maxBindlessTextures; i++)
 	{
 		m_TextureBindingIndices.push_back(maxBindlessTextures - i - 1);
+	}
+
+	{
+		m_WhiteTexture = std::make_unique<Arc::GpuImage>();
+		m_BlackTexture = std::make_unique<Arc::GpuImage>();
+
+		m_Device->GetResourceCache()->CreateImage(m_WhiteTexture.get(), Arc::GpuImageDesc()
+			.SetExtent({ 1, 1 })
+			.SetFormat(Arc::Format::R8G8B8A8_Unorm)
+			.AddUsageFlag(Arc::ImageUsage::TransferDst)
+			.AddUsageFlag(Arc::ImageUsage::Sampled));
+		uint32_t whiteData = 0xFFFFFFFF;
+		m_Device->SetImageData(m_WhiteTexture.get(), &whiteData, sizeof(whiteData), Arc::ImageLayout::ShaderReadOnlyOptimal);
+		m_Device->GetResourceCache()->CreateImage(m_BlackTexture.get(), Arc::GpuImageDesc()
+			.SetExtent({ 1, 1 })
+			.SetFormat(Arc::Format::R8G8B8A8_Unorm)
+			.AddUsageFlag(Arc::ImageUsage::TransferDst)
+			.AddUsageFlag(Arc::ImageUsage::Sampled));
+		uint32_t blackData = 0x00000000;
+		m_Device->SetImageData(m_BlackTexture.get(), &blackData, sizeof(blackData), Arc::ImageLayout::ShaderReadOnlyOptimal);
+
+		m_WhiteTextureIndex = BindTexture(*m_WhiteTexture);
+		m_BlackTextureIndex = BindTexture(*m_BlackTexture);
 	}
 
 	
@@ -220,6 +252,21 @@ RenderFrameData& Renderer::GetFrameRenderData()
 	return m_FrameRenderData[m_FrameRenderDataIndex];
 }
 
+Arc::Device* Renderer::GetDevice()
+{
+	return m_Device;
+}
+
+uint32_t Renderer::GetWhiteTexture()
+{
+	return m_WhiteTextureIndex;
+}
+
+uint32_t Renderer::GetBlackTexture()
+{
+	return m_BlackTextureIndex;
+}
+
 void Renderer::RenderFrame()
 {
 	m_RenderThreadFuture.wait();
@@ -235,6 +282,8 @@ void Renderer::RenderFrame()
 	m_CameraFrameData.InvProjection = frameData.InvProjection;
 	m_CameraFrameData.ShadowmapViewProj = frameData.ShadowViewProj;
 	m_CameraFrameData.OrthoProjection = frameData.OrthoProjection;
+	m_CameraFrameData.CameraPosition = frameData.CameraPosition;
+	m_CameraFrameData.SunShadowDirection = frameData.SunShadowDirection;
 
 	ImGui::Begin("Profiling", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 	auto res = m_Device->GetGpuProfiler()->GetResults();
@@ -374,7 +423,7 @@ void Renderer::RenderFrame()
 		});
 }
 
-uint32_t Renderer::BindTexture(Arc::Image image)
+uint32_t Renderer::BindTexture(Arc::GpuImage image)
 {
 	uint32_t freeIndex = m_TextureBindingIndices.back();
 	m_TextureBindingIndices.pop_back();
@@ -453,6 +502,7 @@ void Renderer::PreparePipelines()
 			{ Arc::Format::R32G32_Sfloat, offsetof(GuiVertex, Position) },
 			{ Arc::Format::R32G32_Sfloat, offsetof(GuiVertex, TexCoord) },
 			{ Arc::Format::R32G32B32A32_Sfloat, offsetof(GuiVertex, Color) },
+			{ Arc::Format::R32_Uint, offsetof(GuiVertex, TextureIndex) },
 		}, sizeof(GuiVertex));
 
 	Arc::VertexAttributes emptyAttributes({ }, 0);
@@ -461,7 +511,7 @@ void Renderer::PreparePipelines()
 	m_Device->GetResourceCache()->CreatePipeline(m_ShadowPipeline.get(), Arc::PipelineDesc()
 		.AddShaderStage(m_ShadowDepthShader.get())
 		.SetPrimitiveTopology(Arc::PrimitiveTopology::TriangleList)
-		//.SetCullMode(Arc::CullMode::Front)
+		.SetCullMode(Arc::CullMode::Front)
 		.SetRenderPass(m_Device->GetRenderGraph()->GetRenderPassHandle(m_ShadowPassProxy))
 		.SetVertexAttributes(meshAttributes));
 
@@ -469,7 +519,7 @@ void Renderer::PreparePipelines()
 	m_Device->GetResourceCache()->CreatePipeline(m_ShadowDynamicPipeline.get(), Arc::PipelineDesc()
 		.AddShaderStage(m_ShadowDepthDynamicShader.get())
 		.SetPrimitiveTopology(Arc::PrimitiveTopology::TriangleList)
-		//.SetCullMode(Arc::CullMode::Front)
+		.SetCullMode(Arc::CullMode::Front)
 		.SetRenderPass(m_Device->GetRenderGraph()->GetRenderPassHandle(m_ShadowPassProxy))
 		.SetVertexAttributes(dynamicMeshAttributes));
 
@@ -559,12 +609,12 @@ void Renderer::SwapchainResized(void* presentQueue)
 	m_Device->GetResourceCache()->ReleaseResource(m_ColorAttachment.get());
 	m_Device->GetResourceCache()->ReleaseResource(m_DepthAttachment.get());
 
-	m_Device->GetResourceCache()->CreateImage(m_ColorAttachment.get(), Arc::ImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_ColorAttachment.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::R16G16B16A16_Sfloat)
 		.AddUsageFlag(Arc::ImageUsage::ColorAttachment)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
-	m_Device->GetResourceCache()->CreateImage(m_DepthAttachment.get(), Arc::ImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_DepthAttachment.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::D32_Sfloat)
 		.AddUsageFlag(Arc::ImageUsage::DepthStencilAttachment));

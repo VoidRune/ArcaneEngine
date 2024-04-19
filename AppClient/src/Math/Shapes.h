@@ -24,3 +24,15 @@ struct AABB
 	glm::vec2 TL;
 	glm::vec2 BR;
 };
+
+struct Ray
+{
+	glm::vec3 Point;
+	glm::vec3 Direction;
+};
+
+struct Plane
+{
+	glm::vec3 Point;
+	glm::vec3 Normal;
+};

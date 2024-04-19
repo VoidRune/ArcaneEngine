@@ -1,4 +1,5 @@
 #include "AssetCache.h"
+#include "Renderer/Renderer.h"
 #include "tinygltf/tiny_gltf.h"
 #include "Core/Log.h"
 
@@ -413,17 +414,17 @@ void AssetCache::LoadGltf(Mesh* mesh, AnimationSet* animSet, std::string filePat
 		mesh->VertexCount = vertices.size();
 		mesh->IndexCount = indices.size();
 
-		m_Device->GetResourceCache()->CreateBuffer(&mesh->VertexBuffer, Arc::GpuBufferDesc()
+		Renderer::GetDevice()->GetResourceCache()->CreateBuffer(&mesh->VertexBuffer, Arc::GpuBufferDesc()
 			.SetSize(vertices.size() * sizeof(DynamicVertex))
 			.AddBufferUsage(Arc::BufferUsage::VertexBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 			.AddMemoryPropertyFlag(Arc::MemoryProperty::DeviceLocal));
-		m_Device->UploadToDeviceLocalBuffer(&mesh->VertexBuffer, vertices.data(), vertices.size() * sizeof(DynamicVertex));
+		Renderer::GetDevice()->UploadToDeviceLocalBuffer(&mesh->VertexBuffer, vertices.data(), vertices.size() * sizeof(DynamicVertex));
 
-		m_Device->GetResourceCache()->CreateBuffer(&mesh->IndexBuffer, Arc::GpuBufferDesc()
+		Renderer::GetDevice()->GetResourceCache()->CreateBuffer(&mesh->IndexBuffer, Arc::GpuBufferDesc()
 			.SetSize(indices.size() * sizeof(uint32_t))
 			.AddBufferUsage(Arc::BufferUsage::IndexBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 			.AddMemoryPropertyFlag(Arc::MemoryProperty::DeviceLocal));
-		m_Device->UploadToDeviceLocalBuffer(&mesh->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t));
+		Renderer::GetDevice()->UploadToDeviceLocalBuffer(&mesh->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t));
 
 	}
 	else
@@ -636,17 +637,17 @@ void AssetCache::LoadGltf(Mesh* mesh, std::string filePath)
 		mesh->VertexCount = vertices.size();
 		mesh->IndexCount = indices.size();
 
-		m_Device->GetResourceCache()->CreateBuffer(&mesh->VertexBuffer, Arc::GpuBufferDesc()
+		Renderer::GetDevice()->GetResourceCache()->CreateBuffer(&mesh->VertexBuffer, Arc::GpuBufferDesc()
 			.SetSize(vertices.size() * sizeof(StaticVertex))
 			.AddBufferUsage(Arc::BufferUsage::VertexBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 			.AddMemoryPropertyFlag(Arc::MemoryProperty::DeviceLocal));
-		m_Device->UploadToDeviceLocalBuffer(&mesh->VertexBuffer, vertices.data(), vertices.size() * sizeof(StaticVertex));
+		Renderer::GetDevice()->UploadToDeviceLocalBuffer(&mesh->VertexBuffer, vertices.data(), vertices.size() * sizeof(StaticVertex));
 
-		m_Device->GetResourceCache()->CreateBuffer(&mesh->IndexBuffer, Arc::GpuBufferDesc()
+		Renderer::GetDevice()->GetResourceCache()->CreateBuffer(&mesh->IndexBuffer, Arc::GpuBufferDesc()
 			.SetSize(indices.size() * sizeof(uint32_t))
 			.AddBufferUsage(Arc::BufferUsage::IndexBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 			.AddMemoryPropertyFlag(Arc::MemoryProperty::DeviceLocal));
-		m_Device->UploadToDeviceLocalBuffer(&mesh->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t));
+		Renderer::GetDevice()->UploadToDeviceLocalBuffer(&mesh->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t));
 
 	}
 	else

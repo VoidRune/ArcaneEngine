@@ -122,7 +122,7 @@ namespace Arc
         };
     }
 
-	void ResourceCache::CreateImage(Image* image, const ImageDesc& imageDescription)
+	void ResourceCache::CreateImage(GpuImage* image, const GpuImageDesc& imageDescription)
 	{
         image->m_Width = imageDescription.Extent.width;
         image->m_Height = imageDescription.Extent.height;
@@ -869,7 +869,7 @@ namespace Arc
         m_ResourceReleaseFuctions.erase(key);
     }
 
-    void ResourceCache::ReleaseResource(Image* image)
+    void ResourceCache::ReleaseResource(GpuImage* image)
     {
         void* key = image->m_Image;
         m_ResourceReleaseFuctions[key]();

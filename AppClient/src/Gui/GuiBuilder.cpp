@@ -135,55 +135,66 @@ void Gui::CalculateCornerPoints(glm::vec2& TL, glm::vec2& BR, Gui::Constraint c)
 		parentViewport = { parent.z, parent.w };
 	}
 
+	if (c.WidthFromAspect > 0.0f)
+	{
+		c.PxDimensions.x = c.PxDimensions.y;
+		c.PcDimensions.x = c.PcDimensions.y * c.WidthFromAspect * (parentViewport.y / parentViewport.x);
+	}
+	else if (c.HeightFromAspect > 0.0f)
+	{
+		c.PxDimensions.y = c.PxDimensions.x;
+		c.PcDimensions.y = c.PcDimensions.x * c.HeightFromAspect * (parentViewport.x / parentViewport.y);
+	}
+
 	switch (c.PivotType)
 	{
 	case Pivot::Center:
-		TL += c.PxCenter - c.PxDimensions * 0.5f + parentViewport * (c.PcCenter - c.PcDimensions * 0.5f);
-		BR += c.PxCenter + c.PxDimensions * 0.5f + parentViewport * (c.PcCenter + c.PcDimensions * 0.5f);
+		TL += c.PxPivotCenter - c.PxDimensions * 0.5f + parentViewport * (c.PcPivotCenter - c.PcDimensions * 0.5f);
+		BR += c.PxPivotCenter + c.PxDimensions * 0.5f + parentViewport * (c.PcPivotCenter + c.PcDimensions * 0.5f);
 		break;
 	case Pivot::Left:
-		TL.x += c.PxCenter.x + parentViewport.x * c.PcCenter.x;
-		TL.y += c.PxCenter.y - c.PxDimensions.y * 0.5f + parentViewport.y * (c.PcCenter.y - c.PcDimensions.y * 0.5f);
-		BR.x += c.PxCenter.x + c.PxDimensions.x + parentViewport.x * (c.PcCenter.x + c.PcDimensions.x);
-		BR.y += c.PxCenter.y + c.PxDimensions.y * 0.5f + parentViewport.y * (c.PcCenter.y + c.PcDimensions.y * 0.5f);
+		TL.x += c.PxPivotCenter.x + parentViewport.x * c.PcPivotCenter.x;
+		TL.y += c.PxPivotCenter.y - c.PxDimensions.y * 0.5f + parentViewport.y * (c.PcPivotCenter.y - c.PcDimensions.y * 0.5f);
+		BR.x += c.PxPivotCenter.x + c.PxDimensions.x + parentViewport.x * (c.PcPivotCenter.x + c.PcDimensions.x);
+		BR.y += c.PxPivotCenter.y + c.PxDimensions.y * 0.5f + parentViewport.y * (c.PcPivotCenter.y + c.PcDimensions.y * 0.5f);
 		break;
 	case Pivot::Top:
-		TL.x += c.PxCenter.x - c.PxDimensions.x * 0.5f + parentViewport.x * (c.PcCenter.x - c.PcDimensions.x * 0.5f);
-		TL.y += c.PxCenter.y + parentViewport.y * c.PcCenter.y;
-		BR.x += c.PxCenter.x + c.PxDimensions.x * 0.5f + parentViewport.x * (c.PcCenter.x + c.PcDimensions.x * 0.5f);
-		BR.y += c.PxCenter.y + c.PxDimensions.y + parentViewport.y * (c.PcCenter.y + c.PcDimensions.y);
+		TL.x += c.PxPivotCenter.x - c.PxDimensions.x * 0.5f + parentViewport.x * (c.PcPivotCenter.x - c.PcDimensions.x * 0.5f);
+		TL.y += c.PxPivotCenter.y + parentViewport.y * c.PcPivotCenter.y;
+		BR.x += c.PxPivotCenter.x + c.PxDimensions.x * 0.5f + parentViewport.x * (c.PcPivotCenter.x + c.PcDimensions.x * 0.5f);
+		BR.y += c.PxPivotCenter.y + c.PxDimensions.y + parentViewport.y * (c.PcPivotCenter.y + c.PcDimensions.y);
 		break;
 	case Pivot::Right:
-		TL.x += c.PxCenter.x - c.PxDimensions.x + parentViewport.x * (c.PcCenter.x - c.PcDimensions.x);
-		TL.y += c.PxCenter.y - c.PxDimensions.y * 0.5f + parentViewport.y * (c.PcCenter.y - c.PcDimensions.y * 0.5f);
-		BR.x += c.PxCenter.x + parentViewport.x * c.PcCenter.x;
-		BR.y += c.PxCenter.y + c.PxDimensions.y * 0.5f + parentViewport.y * (c.PcCenter.y + c.PcDimensions.y * 0.5f);
+		TL.x += c.PxPivotCenter.x - c.PxDimensions.x + parentViewport.x * (c.PcPivotCenter.x - c.PcDimensions.x);
+		TL.y += c.PxPivotCenter.y - c.PxDimensions.y * 0.5f + parentViewport.y * (c.PcPivotCenter.y - c.PcDimensions.y * 0.5f);
+		BR.x += c.PxPivotCenter.x + parentViewport.x * c.PcPivotCenter.x;
+		BR.y += c.PxPivotCenter.y + c.PxDimensions.y * 0.5f + parentViewport.y * (c.PcPivotCenter.y + c.PcDimensions.y * 0.5f);
 		break;
 	case Pivot::Bottom:
-		TL.x += c.PxCenter.x - c.PxDimensions.x * 0.5f + parentViewport.x * (c.PcCenter.x - c.PcDimensions.x * 0.5f);
-		TL.y += c.PxCenter.y - c.PxDimensions.y + parentViewport.y * (c.PcCenter.y - c.PcDimensions.y);
-		BR.x += c.PxCenter.x + c.PxDimensions.x * 0.5f + parentViewport.x * (c.PcCenter.x + c.PcDimensions.x * 0.5f);
-		BR.y += c.PxCenter.y + parentViewport.y * c.PcCenter.y;
+		TL.x += c.PxPivotCenter.x - c.PxDimensions.x * 0.5f + parentViewport.x * (c.PcPivotCenter.x - c.PcDimensions.x * 0.5f);
+		TL.y += c.PxPivotCenter.y - c.PxDimensions.y + parentViewport.y * (c.PcPivotCenter.y - c.PcDimensions.y);
+		BR.x += c.PxPivotCenter.x + c.PxDimensions.x * 0.5f + parentViewport.x * (c.PcPivotCenter.x + c.PcDimensions.x * 0.5f);
+		BR.y += c.PxPivotCenter.y + parentViewport.y * c.PcPivotCenter.y;
 		break;
 	case Pivot::TopLeft:
-		TL += c.PxCenter + parentViewport * c.PcCenter;
-		BR += c.PxCenter + c.PxDimensions + parentViewport * (c.PcCenter + c.PcDimensions);
+		TL += c.PxPivotCenter + parentViewport * c.PcPivotCenter;
+		BR += c.PxPivotCenter + c.PxDimensions + parentViewport * (c.PcPivotCenter + c.PcDimensions);
 		break;
 	case Pivot::TopRight:
-		TL.x += c.PxCenter.x - c.PxDimensions.x + parentViewport.x * (c.PcCenter.x - c.PcDimensions.x);
-		TL.y += c.PxCenter.y + parentViewport.y * c.PcCenter.y;
-		BR.x += c.PxCenter.x + parentViewport.x * c.PcCenter.x;
-		BR.y += c.PxCenter.y + c.PxDimensions.y + parentViewport.y * (c.PcCenter.y + c.PcDimensions.y);
+		TL.x += c.PxPivotCenter.x - c.PxDimensions.x + parentViewport.x * (c.PcPivotCenter.x - c.PcDimensions.x);
+		TL.y += c.PxPivotCenter.y + parentViewport.y * c.PcPivotCenter.y;
+		BR.x += c.PxPivotCenter.x + parentViewport.x * c.PcPivotCenter.x;
+		BR.y += c.PxPivotCenter.y + c.PxDimensions.y + parentViewport.y * (c.PcPivotCenter.y + c.PcDimensions.y);
 		break;
 	case Pivot::BottomRight:
-		TL += c.PxCenter - c.PxDimensions + parentViewport * (c.PcCenter - c.PcDimensions);
-		BR += c.PxCenter + parentViewport * c.PcCenter;
+		TL += c.PxPivotCenter - c.PxDimensions + parentViewport * (c.PcPivotCenter - c.PcDimensions);
+		BR += c.PxPivotCenter + parentViewport * c.PcPivotCenter;
 		break;
 	case Pivot::BottomLeft:
-		TL.x += c.PxCenter.x + parentViewport.x * c.PcCenter.x;
-		TL.y += c.PxCenter.y - c.PxDimensions.y + parentViewport.y * (c.PcCenter.y - c.PcDimensions.y);
-		BR.x += c.PxCenter.x + c.PxDimensions.x + parentViewport.x * (c.PcCenter.x + c.PcDimensions.x);
-		BR.y += c.PxCenter.y + parentViewport.y * c.PcCenter.y;
+		TL.x += c.PxPivotCenter.x + parentViewport.x * c.PcPivotCenter.x;
+		TL.y += c.PxPivotCenter.y - c.PxDimensions.y + parentViewport.y * (c.PcPivotCenter.y - c.PcDimensions.y);
+		BR.x += c.PxPivotCenter.x + c.PxDimensions.x + parentViewport.x * (c.PcPivotCenter.x + c.PcDimensions.x);
+		BR.y += c.PxPivotCenter.y + parentViewport.y * c.PcPivotCenter.y;
 		break;
 	default:
 		TL = { 0, 0 };
@@ -193,11 +204,11 @@ void Gui::CalculateCornerPoints(glm::vec2& TL, glm::vec2& BR, Gui::Constraint c)
 
 void Gui::AddRectangle(glm::vec2& TL, glm::vec2& BR, WidgetView color)
 {
-	s_GuiVertices.push_back({ TL, {0, 0}, color.Color });
-	s_GuiVertices.push_back({ {BR.x, TL.y}, {1, 0}, color.Color });
-	s_GuiVertices.push_back({ {TL.x, BR.y}, {0, 1}, color.Color });
+	s_GuiVertices.push_back({ TL, {0, 1}, color.Color, color.TextureIndex });
+	s_GuiVertices.push_back({ {BR.x, TL.y}, {1, 1}, color.Color, color.TextureIndex });
+	s_GuiVertices.push_back({ {TL.x, BR.y}, {0, 0}, color.Color, color.TextureIndex });
 
-	s_GuiVertices.push_back({ {TL.x, BR.y}, {0, 1}, color.Color });
-	s_GuiVertices.push_back({ {BR.x, TL.y}, {1, 0}, color.Color });
-	s_GuiVertices.push_back({ BR, {1, 1}, color.Color });
+	s_GuiVertices.push_back({ {TL.x, BR.y}, {0, 0}, color.Color, color.TextureIndex });
+	s_GuiVertices.push_back({ {BR.x, TL.y}, {1, 1}, color.Color, color.TextureIndex });
+	s_GuiVertices.push_back({ BR, {1, 0}, color.Color, color.TextureIndex });
 }

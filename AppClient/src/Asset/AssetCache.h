@@ -15,7 +15,7 @@ struct Mesh
 
 struct Texture
 {
-	Arc::Image Image;
+	Arc::GpuImage Image;
 	uint32_t TextureBinding;
 };
 
@@ -92,14 +92,11 @@ public:
 class AssetCache
 {
 public:
-	AssetCache(Arc::Device* device);
-	~AssetCache();
+	static void LoadObj(Mesh* mesh, std::string filePath);
+	static void LoadImage(Texture* texture, std::string filePath);
 
-	void LoadObj(Mesh* mesh, std::string filePath);
-	void LoadImage(Texture* texture, std::string filePath);
-
-	void LoadGltf(Mesh* mesh, AnimationSet* animSet, std::string filePath);
-	void LoadGltf(Mesh* mesh, std::string filePath);
+	static void LoadGltf(Mesh* mesh, AnimationSet* animSet, std::string filePath);
+	static void LoadGltf(Mesh* mesh, std::string filePath);
 
 private:
 	Arc::Device* m_Device;

@@ -69,7 +69,9 @@ private:
 	};
 	std::vector<DensityPoint> m_Points;
 	std::vector<uint8_t> m_GradientData;
-	std::unique_ptr<Arc::Image> m_ColorGradientImage;
+	std::unique_ptr<Arc::GpuImage> m_ColorGradientImage;
+	std::unique_ptr<Arc::GpuImage> m_MuLimitsImage;
+
 	VkDescriptorSet m_ImGuiDset;
 
 	std::unique_ptr<Arc::Sampler> m_PointSampler;
@@ -82,8 +84,8 @@ private:
 	std::unique_ptr<Arc::Pipeline> m_PresentPipeline;
 
 	/* Render pass data*/
-	std::unique_ptr<Arc::Image> m_AccumulationImage;
-	std::unique_ptr<Arc::Image> m_ComputeAttachment;
+	std::unique_ptr<Arc::GpuImage> m_AccumulationImage;
+	std::unique_ptr<Arc::GpuImage> m_ComputeAttachment;
 	Arc::ComputePassProxy m_ComputePassProxy;
 	Arc::PresentPassProxy m_PresentPassProxy;
 };

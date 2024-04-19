@@ -1,21 +1,10 @@
 #include "World.h"
 #include "Math/Collision.h"
 
-World::World(AssetCache* assetCache)
+World::World()
 {
-	m_AssetCache = assetCache;
-
-	m_AssetCache->LoadObj(&m_FloorMesh, "res/Meshes/floor.obj");
-	m_AssetCache->LoadObj(&m_WallMesh, "res/Meshes/fence.obj");
-	m_AssetCache->LoadObj(&m_SideMesh, "res/Meshes/side.obj");
-	m_AssetCache->LoadObj(&m_CornerMesh, "res/Meshes/corner.obj");
-
-	m_AssetCache->LoadGltf(&m_TileSet, "res/Meshes/tileset.glb");
-
-	m_AssetCache->LoadImage(&m_BaseColorTexture, "res/Textures/Greystone/albedo.png");
-	m_AssetCache->LoadImage(&m_NormalTexture, "res/Textures/Greystone/normal.png");
-
-	m_AssetCache->LoadObj(&m_CubeMesh, "res/Meshes/cube.obj");
+	AssetCache::LoadImage(&m_BaseColorTexture, "res/Textures/Greystone/albedo.png");
+	AssetCache::LoadImage(&m_NormalTexture, "res/Textures/Greystone/normal.png");
 
     m_Arena = 
     {
@@ -31,21 +20,39 @@ World::World(AssetCache* assetCache)
 
 
 	TileObject to;
-	m_AssetCache->LoadObj(&to.Model.Mesh, "res/Meshes/floor.obj");
+	AssetCache::LoadObj(&to.Model.Mesh, "res/Meshes/floor.obj");
 	to.Model.BaseColorTexture.TextureBinding = 0;
 	to.Model.NormalTexture.TextureBinding = 1;
 	m_TileObjects.push_back(to);
 
-	m_AssetCache->LoadObj(&to.Model.Mesh, "res/Meshes/cube.obj");
+	AssetCache::LoadGltf(&to.Model.Mesh, "res/Meshes/cornerStone.glb");
 	to.Model.BaseColorTexture.TextureBinding = 0;
 	to.Model.NormalTexture.TextureBinding = 1;
-	to.Colliders.push_back({ {0, 0}, 1, 1, 0.0f });
+	to.Colliders.push_back({ {0, 0}, 0.6, 0.6, 0.0f });
 	m_TileObjects.push_back(to);
 
-	m_AssetCache->LoadGltf(&to.Model.Mesh, "res/Meshes/wall.glb");
+	AssetCache::LoadGltf(&to.Model.Mesh, "res/Meshes/wallFancy.glb");
 	to.Model.BaseColorTexture.TextureBinding = 0;
 	to.Model.NormalTexture.TextureBinding = 1;
 	to.Colliders[0] = { {0, 0}, 2, 0.4, 0.0f };
+	m_TileObjects.push_back(to);
+
+	AssetCache::LoadGltf(&to.Model.Mesh, "res/Meshes/wallWindow.glb");
+	to.Model.BaseColorTexture.TextureBinding = 0;
+	to.Model.NormalTexture.TextureBinding = 1;
+	to.Colliders[0] = { {0, 0}, 2, 0.4, 0.0f };
+	m_TileObjects.push_back(to);
+
+	AssetCache::LoadGltf(&to.Model.Mesh, "res/Meshes/barrel.glb");
+	to.Model.BaseColorTexture.TextureBinding = 0;
+	to.Model.NormalTexture.TextureBinding = 1;
+	to.Colliders[0] = { {0, 0}, 0.3, 0.3, 0.0f };
+	m_TileObjects.push_back(to);
+
+	AssetCache::LoadGltf(&to.Model.Mesh, "res/Meshes/flag.glb");
+	to.Model.BaseColorTexture.TextureBinding = 0;
+	to.Model.NormalTexture.TextureBinding = 1;
+	to.Colliders.clear();
 	m_TileObjects.push_back(to);
 
 	Tile t;
@@ -123,10 +130,10 @@ void World::Collide(glm::vec3& position, glm::vec3 velocity, float radius)
 		}
 	}
 
-	for (auto& rect : m_Test)
-	{
-		CollisionResolution(c, rect);
-	}
+	//for (auto& rect : m_Test)
+	//{
+	//	CollisionResolution(c, rect);
+	//}
 
 	for (auto& t : m_WorldTiles)
 	{

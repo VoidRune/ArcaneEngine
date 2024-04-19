@@ -4,16 +4,6 @@
 #include "tinyobj/tiny_obj_loader.h"
 #include "Core/Log.h"
 
-AssetCache::AssetCache(Arc::Device* device)
-{
-	m_Device = device;
-}
-
-AssetCache::~AssetCache()
-{
-
-}
-
 void AssetCache::LoadObj(Mesh* mesh, std::string filePath)
 {
 	tinyobj::ObjReaderConfig reader_config;
@@ -90,17 +80,17 @@ void AssetCache::LoadObj(Mesh* mesh, std::string filePath)
 	mesh->VertexCount = vertices.size();
 	mesh->IndexCount = indices.size();
 
-	m_Device->GetResourceCache()->CreateBuffer(&mesh->VertexBuffer, Arc::GpuBufferDesc()
+	Renderer::GetDevice()->GetResourceCache()->CreateBuffer(&mesh->VertexBuffer, Arc::GpuBufferDesc()
 		.SetSize(vertices.size() * sizeof(StaticVertex))
 		.AddBufferUsage(Arc::BufferUsage::VertexBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 		.AddMemoryPropertyFlag(Arc::MemoryProperty::DeviceLocal));
-	m_Device->UploadToDeviceLocalBuffer(&mesh->VertexBuffer, vertices.data(), vertices.size() * sizeof(StaticVertex));
+	Renderer::GetDevice()->UploadToDeviceLocalBuffer(&mesh->VertexBuffer, vertices.data(), vertices.size() * sizeof(StaticVertex));
 
-	m_Device->GetResourceCache()->CreateBuffer(&mesh->IndexBuffer, Arc::GpuBufferDesc()
+	Renderer::GetDevice()->GetResourceCache()->CreateBuffer(&mesh->IndexBuffer, Arc::GpuBufferDesc()
 		.SetSize(indices.size() * sizeof(uint32_t))
 		.AddBufferUsage(Arc::BufferUsage::IndexBuffer).AddBufferUsage(Arc::BufferUsage::TransferDst)
 		.AddMemoryPropertyFlag(Arc::MemoryProperty::DeviceLocal));
-	m_Device->UploadToDeviceLocalBuffer(&mesh->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t));
+	Renderer::GetDevice()->UploadToDeviceLocalBuffer(&mesh->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t));
 
 }
 
@@ -111,14 +101,14 @@ void AssetCache::LoadImage(Texture* texture, std::string filePath)
 	int w, h, c;
 
 	unsigned char* data = stbi_load(filePath.c_str(), &w, &h, &c, 4);
-	Arc::Image image;
-	m_Device->GetResourceCache()->CreateImage(&image, Arc::ImageDesc()
+	Arc::GpuImage image;
+	Renderer::GetDevice()->GetResourceCache()->CreateImage(&image, Arc::GpuImageDesc()
 		.SetExtent({ (uint32_t)w, (uint32_t)h })
 		.SetFormat(Arc::Format::R8G8B8A8_Unorm)
 		.AddUsageFlag(Arc::ImageUsage::TransferDst)
 		.AddUsageFlag(Arc::ImageUsage::Sampled)
 		.SetEnableMipLevels(true));
-	m_Device->SetImageData(&image, data, w * h * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
+	Renderer::GetDevice()->SetImageData(&image, data, w * h * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
 	stbi_image_free(data);
 
 	texture->TextureBinding = Renderer::BindTexture(image);

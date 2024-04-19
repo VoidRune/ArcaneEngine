@@ -5,7 +5,7 @@
 
 namespace Arc
 {
-	struct ImageDesc
+	struct GpuImageDesc
 	{
 	public:
 		VkExtent2D Extent{};
@@ -15,14 +15,14 @@ namespace Arc
 		VkImageUsageFlags UsageFlags{};
 		VkImageAspectFlags AspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
 
-		ImageDesc& SetExtent(VkExtent2D extent);
-		ImageDesc& SetDepth(uint32_t depth);
-		ImageDesc& SetFormat(Arc::Format format);
-		ImageDesc& SetEnableMipLevels(bool enable);
-		ImageDesc& AddUsageFlag(ImageUsage usageFlag);
+		GpuImageDesc& SetExtent(VkExtent2D extent);
+		GpuImageDesc& SetDepth(uint32_t depth);
+		GpuImageDesc& SetFormat(Arc::Format format);
+		GpuImageDesc& SetEnableMipLevels(bool enable);
+		GpuImageDesc& AddUsageFlag(ImageUsage usageFlag);
 	};
 
-	class Image
+	class GpuImage
 	{
 	public:
 		VkImage GetHandle() { return m_Image; }

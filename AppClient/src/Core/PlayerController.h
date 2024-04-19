@@ -1,5 +1,8 @@
 #pragma once
 #include "Window/Window.h"
+#include "Asset/AssetCache.h"
+#include "Renderer/RenderFrameData.h"
+#include "Projectile.h"
 #include "Camera.h"
 
 class PlayerController
@@ -7,7 +10,8 @@ class PlayerController
 public:
 	PlayerController(Arc::Window* window);
 	~PlayerController();
-
+	
+	void UpdateSpells(float deltaTime, std::vector<Projectile>& projectiles, RenderFrameData& frameData);
 	void Update(float deltaTime);
 	void UpdateCamera();
 
@@ -30,6 +34,10 @@ private:
 	float m_MaxMana = 100.0f;
 	float m_CurrentMana = 100.0f;
 	bool m_HasMoved;
+
+	bool m_IsCasting = false;
+	float m_CastTime = 0.0f;
+	Mesh m_FrozenLanceMesh;
 
 	glm::vec3 Position;
 	glm::vec3 Velocity;

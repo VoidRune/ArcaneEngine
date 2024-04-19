@@ -175,7 +175,7 @@ namespace Arc
         vkUpdateDescriptorSets(m_LogicalDevice, static_cast<uint32_t>(writeDescriptorSet.size()), writeDescriptorSet.data(), 0, NULL);
     }
 
-    void Device::SetImageData(Image* image, const void* data, uint32_t size, ImageLayout newLayout)
+    void Device::SetImageData(GpuImage* image, const void* data, uint32_t size, ImageLayout newLayout)
     {
         /* Allocate temporary staging buffer */
         VkBufferCreateInfo stagingBufferInfo = {};
@@ -373,7 +373,7 @@ namespace Arc
         vmaDestroyBuffer(m_ResourceCache->GetAllocator(), stagingBuffer.m_Buffer, stagingBuffer.m_Allocation);
     }
 
-    void Device::TransitionImageLayout(Image* image, ImageLayout newLayout)
+    void Device::TransitionImageLayout(GpuImage* image, ImageLayout newLayout)
     {
         ImmediateSubmit([=](VkCommandBuffer cmd) {
             VkImageLayout tempOldLayout = VK_IMAGE_LAYOUT_UNDEFINED;

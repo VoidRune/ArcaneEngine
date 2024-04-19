@@ -2,31 +2,31 @@
 
 namespace Arc
 {
-    ImageDesc& ImageDesc::SetExtent(VkExtent2D extent)
+    GpuImageDesc& GpuImageDesc::SetExtent(VkExtent2D extent)
     {
         this->Extent = extent;
         return *this;
     }
 
-    ImageDesc& ImageDesc::SetDepth(uint32_t depth)
+    GpuImageDesc& GpuImageDesc::SetDepth(uint32_t depth)
     {
         this->Depth = depth;
         return *this;
     }
 
-    ImageDesc& ImageDesc::SetFormat(Arc::Format format)
+    GpuImageDesc& GpuImageDesc::SetFormat(Arc::Format format)
     {
         this->Format = format;
         return *this;
     }
 
-    ImageDesc& ImageDesc::SetEnableMipLevels(bool enable)
+    GpuImageDesc& GpuImageDesc::SetEnableMipLevels(bool enable)
     {
         this->MipLevelsEnabled = enable;
         return *this;
     }
 
-    ImageDesc& ImageDesc::AddUsageFlag(ImageUsage usageFlag)
+    GpuImageDesc& GpuImageDesc::AddUsageFlag(ImageUsage usageFlag)
     {
         VkImageUsageFlags vkFlag = static_cast<VkImageUsageFlags>(usageFlag);
         this->UsageFlags |= vkFlag;

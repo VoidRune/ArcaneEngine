@@ -72,7 +72,7 @@ namespace Arc
 		m_PresentPassTasks.clear();
 
 		std::vector<VkImage> usedAttachments;
-		std::vector<Image::Proxy> inputImages;
+		std::vector<GpuImage::Proxy> inputImages;
 
 		// TODO: more sophisticated system 
 		/* Constructs renderpasses and framebuffers						*/

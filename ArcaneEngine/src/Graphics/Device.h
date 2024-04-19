@@ -13,7 +13,7 @@ namespace Arc
 	class Swapchain;
 	class RenderGraph;
 	class DescriptorSetCache;
-	class Image;
+	class GpuImage;
 	class Device
 	{
 	public:
@@ -33,9 +33,9 @@ namespace Arc
 		};
 		void UpdateDescriptorSet(DescriptorSet* descriptorSet, const DescriptorWriteDesc& writeDesc);
 		void UpdateDescriptorSetArray(DescriptorSetArray* descriptorSet, const DescriptorArrayWriteDesc& writeDesc);
-		void SetImageData(Image* image, const void* data, uint32_t size, ImageLayout newLayout);
+		void SetImageData(GpuImage* image, const void* data, uint32_t size, ImageLayout newLayout);
 		void UploadToDeviceLocalBuffer(GpuBuffer* buffer, void* data, uint32_t size);
-		void TransitionImageLayout(Image* image, ImageLayout newLayout);
+		void TransitionImageLayout(GpuImage* image, ImageLayout newLayout);
 
 		std::unique_ptr<Swapchain> CreateSwapchain(PresentMode preferredMode);
 

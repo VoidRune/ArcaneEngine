@@ -95,8 +95,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 	//int width, height, nrChannels;
 	//std::vector<uint8_t> imageData1;
 	//LoadImageData("res/Textures/stoneWall.png", imageData1, &width, &height, &nrChannels);
-	Arc::Image texture;
-	core->GetResourceCache()->CreateImage(&texture, Arc::ImageDesc()
+	Arc::GpuImage texture;
+	core->GetResourceCache()->CreateImage(&texture, Arc::GpuImageDesc()
 		.SetExtent({ (uint32_t)sizeX, (uint32_t)sizeY })
 		.SetDepth(sizeZ)
 		.SetFormat(Arc::Format::R8_Unorm)
@@ -109,18 +109,35 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 	m_Device->UpdateDescriptorSet(m_BindlessTexturesDescriptor.get(), Arc::DescriptorWriteDesc()
 		.AddImageWrite(0, m_LinearSampler->GetHandle(), texture.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal, 1));
 
-
-	stbi_set_flip_vertically_on_load(true);
-	int width, height, nrComponents;
-	float* hdrData = stbi_loadf("res/Textures/puresky.hdr", &width, &height, &nrComponents, 4);
-	Arc::Image hdrTexture;
-	core->GetResourceCache()->CreateImage(&hdrTexture, Arc::ImageDesc()
-		.SetExtent({ (uint32_t)width, (uint32_t)height })
-		.SetFormat(Arc::Format::R32G32B32A32_Sfloat)
+	uint32_t muTextureSize = 4;
+	m_MuLimitsImage = std::make_unique<Arc::GpuImage>();
+	core->GetResourceCache()->CreateImage(m_MuLimitsImage.get(), Arc::GpuImageDesc()
+		.SetExtent({ muTextureSize, muTextureSize })
+		.SetDepth(muTextureSize)
+		.SetFormat(Arc::Format::R32_Sfloat)
+		.SetEnableMipLevels(false)
 		.AddUsageFlag(Arc::ImageUsage::TransferDst)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
-	core->SetImageData(&hdrTexture, hdrData, width * height * 4 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
-	stbi_image_free(hdrData);
+
+	std::vector<float> muData;
+	uint32_t maxMuSize = muTextureSize * muTextureSize * muTextureSize;
+	for (size_t i = 0; i < maxMuSize; i++)
+	{
+		muData.push_back(i / (float)maxMuSize);
+	}
+	core->SetImageData(m_MuLimitsImage.get(), muData.data(), muData.size() * sizeof(float), Arc::ImageLayout::ShaderReadOnlyOptimal);
+
+	//stbi_set_flip_vertically_on_load(true);
+	//int width, height, nrComponents;
+	//float* hdrData = stbi_loadf("res/Textures/puresky.hdr", &width, &height, &nrComponents, 4);
+	//Arc::GpuImage hdrTexture;
+	//core->GetResourceCache()->CreateImage(&hdrTexture, Arc::GpuImageDesc()
+	//	.SetExtent({ (uint32_t)width, (uint32_t)height })
+	//	.SetFormat(Arc::Format::R32G32B32A32_Sfloat)
+	//	.AddUsageFlag(Arc::ImageUsage::TransferDst)
+	//	.AddUsageFlag(Arc::ImageUsage::Sampled));
+	//core->SetImageData(&hdrTexture, hdrData, width * height * 4 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
+	//stbi_image_free(hdrData);
 
 
 	DensityPoint dp;
@@ -142,8 +159,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 
 	CalculateDataPoints();
 
-	m_ColorGradientImage = std::make_unique<Arc::Image>();
-	core->GetResourceCache()->CreateImage(m_ColorGradientImage.get(), Arc::ImageDesc()
+	m_ColorGradientImage = std::make_unique<Arc::GpuImage>();
+	core->GetResourceCache()->CreateImage(m_ColorGradientImage.get(), Arc::GpuImageDesc()
 		.SetExtent({ (uint32_t)gradSize, (uint32_t)1 })
 		.SetFormat(Arc::Format::R8G8B8A8_Unorm)
 		.AddUsageFlag(Arc::ImageUsage::TransferDst)
@@ -152,13 +169,13 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 
 	m_ImGuiDset = ImGui_ImplVulkan_AddTexture(m_LinearSampler->GetHandle(), m_ColorGradientImage->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-	m_ComputeAttachment = std::make_unique<Arc::Image>();
-	m_AccumulationImage = std::make_unique<Arc::Image>();
-	core->GetResourceCache()->CreateImage(m_AccumulationImage.get(), Arc::ImageDesc()
+	m_ComputeAttachment = std::make_unique<Arc::GpuImage>();
+	m_AccumulationImage = std::make_unique<Arc::GpuImage>();
+	core->GetResourceCache()->CreateImage(m_AccumulationImage.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::R32G32B32A32_Sfloat)
 		.AddUsageFlag(Arc::ImageUsage::Storage));
-	core->GetResourceCache()->CreateImage(m_ComputeAttachment.get(), Arc::ImageDesc()
+	core->GetResourceCache()->CreateImage(m_ComputeAttachment.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::R8G8B8A8_Unorm)
 		.AddUsageFlag(Arc::ImageUsage::Storage)
@@ -185,7 +202,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 	m_Device->UpdateDescriptorSet(m_ComputeDescriptor.get(), Arc::DescriptorWriteDesc()
 		.AddImageWrite(0, m_LinearSampler->GetHandle(), texture.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal)
 		.AddImageWrite(1, m_LinearSampler->GetHandle(), m_ColorGradientImage->GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal)
-		.AddImageWrite(2, m_PointSampler->GetHandle(), hdrTexture.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal)
+		.AddImageWrite(2, m_PointSampler->GetHandle(), m_MuLimitsImage->GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal)
 		.AddImageWrite(3, m_PointSampler->GetHandle(), m_AccumulationImage->GetImageView(), Arc::ImageLayout::General)
 		.AddImageWrite(4, m_PointSampler->GetHandle(), m_ComputeAttachment->GetImageView(), Arc::ImageLayout::General));
 
@@ -470,11 +487,11 @@ void VolumeRenderer::SwapchainResized(void* presentQueue)
 	m_Device->GetResourceCache()->ReleaseResource(m_AccumulationImage.get());
 	m_Device->GetResourceCache()->ReleaseResource(m_ComputeAttachment.get());
 
-	m_Device->GetResourceCache()->CreateImage(m_AccumulationImage.get(), Arc::ImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_AccumulationImage.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::R32G32B32A32_Sfloat)
 		.AddUsageFlag(Arc::ImageUsage::Storage));
-	m_Device->GetResourceCache()->CreateImage(m_ComputeAttachment.get(), Arc::ImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_ComputeAttachment.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::R8G8B8A8_Unorm)
 		.AddUsageFlag(Arc::ImageUsage::Storage)
