@@ -188,6 +188,113 @@ struct Photon {
     uint bounces;
 };
 
+bool PerformVoxelTraversal(inout Photon p)
+{
+    float gridSize = textureSize(muTexture, 0).r;
+
+    vec3 invDir = 1 / p.direction;
+    vec3 rayGradient = abs(invDir / gridSize);
+
+    ivec3 cellIndex =  ivec3(p.position * gridSize);
+    vec3 lengthStepped = (p.position * gridSize - vec3(cellIndex)) * rayGradient;
+
+    if(p.direction.x > 0)
+        lengthStepped.x = (cellIndex.x + 1.0f - p.position.x * gridSize) * rayGradient.x;
+    if(p.direction.y > 0)
+        lengthStepped.y = (cellIndex.y + 1.0f - p.position.y * gridSize) * rayGradient.y;
+    if(p.direction.z > 0)
+        lengthStepped.z = (cellIndex.z + 1.0f - p.position.z * gridSize) * rayGradient.z;
+
+    float unif = -log(RandomValue(rng)) / data.extinction;
+
+    float umin = 0.0f;
+    float umax = 0.0f;
+
+    while(true)
+    {
+        float umin = umax;
+        if (lengthStepped.x < lengthStepped.y && lengthStepped.x < lengthStepped.z) {
+            umax = lengthStepped.x; 
+            lengthStepped.x += rayGradient.x;
+        } else if (lengthStepped.y < lengthStepped.x && lengthStepped.y < lengthStepped.z) {
+            umax = lengthStepped.y; 
+            lengthStepped.y += rayGradient.y;
+        } else {
+            umax = lengthStepped.z; 
+            lengthStepped.z += rayGradient.z;  
+        }
+
+        vec3 midpoint = p.position + p.direction * (umin + umax) * 0.5;
+
+        if (any(greaterThan(midpoint, vec3(1 + 1e-4))) || any(lessThan(midpoint, vec3(0 - 1e-4)))) {
+            return false;
+        }
+
+
+        float mu = texture(muTexture, midpoint).r;
+        float s = umax - umin;
+        float opticalThicness = mu * s;
+        
+        if (opticalThicness >= unif)
+        {
+            float t = unif / mu;
+            p.position = p.position + p.direction * umin;
+            return true;
+        }
+        unif -= opticalThicness;
+    }
+}
+
+
+bool PerformVoxelTraversalEmpty(inout Photon p)
+{
+    float gridSize = textureSize(muTexture, 0).r;
+
+    vec3 invDir = 1 / p.direction;
+    vec3 rayGradient = abs(invDir / gridSize);
+
+    ivec3 cellIndex =  ivec3(p.position * gridSize);
+    vec3 lengthStepped = (p.position * gridSize - vec3(cellIndex)) * rayGradient;
+
+    if(p.direction.x > 0)
+        lengthStepped.x = (cellIndex.x + 1.0f - p.position.x * gridSize) * rayGradient.x;
+    if(p.direction.y > 0)
+        lengthStepped.y = (cellIndex.y + 1.0f - p.position.y * gridSize) * rayGradient.y;
+    if(p.direction.z > 0)
+        lengthStepped.z = (cellIndex.z + 1.0f - p.position.z * gridSize) * rayGradient.z;
+
+    float umin = 0.0f;
+    float umax = 0.0f;
+
+    while(true)
+    {
+        float umin = umax;
+        if (lengthStepped.x < lengthStepped.y && lengthStepped.x < lengthStepped.z) {
+            umax = lengthStepped.x; 
+            lengthStepped.x += rayGradient.x;
+        } else if (lengthStepped.y < lengthStepped.x && lengthStepped.y < lengthStepped.z) {
+            umax = lengthStepped.y; 
+            lengthStepped.y += rayGradient.y;
+        } else {
+            umax = lengthStepped.z; 
+            lengthStepped.z += rayGradient.z;  
+        }
+
+        vec3 midpoint = p.position + p.direction * (umin + umax) * 0.5;
+
+        if (any(greaterThan(midpoint, vec3(1 + 1e-4))) || any(lessThan(midpoint, vec3(0 - 1e-4)))) {
+            return false;
+        }
+
+        float mu = texture(muTexture, midpoint).r;
+        if(mu > 0.1f)
+        {
+            p.position = p.position + p.direction * umin;
+            return true;
+        }
+    }
+}
+
 void main() 
 {
     uint x = gl_GlobalInvocationID.x;
@@ -217,87 +324,7 @@ void main()
     {
         float gridSize = textureSize(muTexture, 0).r;
 
-        vec3 start = rayOrigin + rayDirection * tmin;
-        vec3 rayGradient = 1 / max(abs(rayDirection), 0.0001f) / gridSize;
-        vec3 invDir = 1 / rayDirection;
 
-        rayGradient.x = (rayDirection.y * rayDirection.y + rayDirection.z * rayDirection.z) / rayDirection.x * rayDirection.x;
-        rayGradient.y = (rayDirection.x * rayDirection.x + rayDirection.z * rayDirection.z) / rayDirection.y * rayDirection.y;
-        rayGradient.z = (rayDirection.x * rayDirection.x + rayDirection.y * rayDirection.y) / rayDirection.z * rayDirection.z;
-        rayGradient = sqrt(1 + rayGradient) / gridSize;
-
-        rayGradient = abs(invDir / gridSize);
-
-        //vec3 vstep = vec3(1);
-        ivec3 cellIndex =  ivec3(start * gridSize - 0.0001);
-        ivec3 cellStep = ivec3(-1);
-        vec3 lengthStepped = (start * gridSize - vec3(cellIndex)) * rayGradient;
-        //vec3 lengthStepped = (cellIndex + 1.0f - start * gridSize) * rayGradient;
-        //lengthStepped = vec3(0);
-        if(rayDirection.x > 0)
-        {
-            lengthStepped.x = (cellIndex.x + 1.0f - start.x * gridSize) * rayGradient.x;
-            cellStep.x = 1;
-        }
-        if(rayDirection.y > 0)
-        {
-            lengthStepped.y = (cellIndex.y + 1.0f - start.y * gridSize) * rayGradient.y;
-            cellStep.y = 1;
-        }
-        if(rayDirection.z > 0)
-        {
-            lengthStepped.z = (cellIndex.z + 1.0f - start.z * gridSize) * rayGradient.z;
-            cellStep.z = 1;
-        }
-
-        //RayBox(start, rayDirection, cellIndex, cellIndex + vec3(1) / gridSize, tmin, tmax);
-        //lengthStepped = rayDirection * (tmax - max(tmin, 0.0)) / gridSize;
-
-        //color.rgb = lengthStepped;
-
-        float hits = 0.0f;
-        float dist = 0.0f;
-        while(dist < maxDist - 0.00001)
-        {
-            float mu = texture(muTexture, (cellIndex + vec3(0.5)) / gridSize).r;
-
-            if(mu > 0.4f && mu < 0.85f)
-            {
-                color.rgb = vec3(mu, 0, 0);
-                break;
-            }
-
-            hits += 1;
-            if(lengthStepped.x < lengthStepped.y){
-                if(lengthStepped.x < lengthStepped.z){
-                    dist = lengthStepped.x;
-                    lengthStepped.x += rayGradient.x;
-                    cellIndex.x += cellStep.x;
-                }else{
-                    dist = lengthStepped.z;
-                    lengthStepped.z += rayGradient.z;
-                    cellIndex.z += cellStep.z;
-                }
-            }else{
-                if(lengthStepped.y < lengthStepped.z){
-                    dist = lengthStepped.y;
-                    lengthStepped.y += rayGradient.y;
-                    cellIndex.y += cellStep.y;
-                }else{
-                    dist = lengthStepped.z;
-                    lengthStepped.z += rayGradient.z;   
-                    cellIndex.z += cellStep.z;
-                }
-            }
-
-        }
-        //color.rgb = hits.rrr / gridSize / 2;
-        //color.rgb = dist.rrr;
-        //color.rgb = lengthStepped;
-        //color.rgb = cellIndex / gridSize;
-        //color.rgb = rayGradient * gridSize / 1.41;
-
-        /*
         Photon photon;
         photon.position = rayOrigin + rayDirection * tmin;
         photon.direction = rayDirection;
@@ -305,16 +332,32 @@ void main()
         photon.transmittance = vec3(1.0f);
         photon.radiance = vec3(0);
 
-        while(true)
+
+        //photon.radiance = vec3(PerformVoxelTraversal(photon), 0, 0);     
+        
+        int limit = 255;
+        while(limit > 0)
         {
-           float step = -log(RandomValue(rng)) / data.extinction;
-           photon.position += step * photon.direction;
+            //PerformVoxelTraversal
+            //PerformVoxelTraversalEmpty
+            //if(texture(muTexture, photon.position).r <= 0.1)
+            //    if(!PerformVoxelTraversal(photon))
+            //    {
+            //        vec3 envSample = data.backgroundColor;
+            //        vec3 radiance = photon.transmittance * envSample.rgb;
+            //        photon.radiance += (radiance - photon.radiance);
+            //        break;
+            //    }
+
+            float step = -log(RandomValue(rng)) / data.extinction;
+            photon.position += step * photon.direction;
 
             float intensity = texture(volumeTexture, photon.position).r;
             //float intensity = 1.0 * fbm(photon.position * 8.0) * (0.7 - distance(photon.position, vec3(0.5, 0.5, 0.5)));
             vec4 transferFunction = texture(colorGradient, vec2(intensity, 0.5));
             
             float PNull = 1.0 - transferFunction.a;
+
             float PScattering;
             if (photon.bounces >= data.bounceLimit) {
                 PScattering = 0.0;
@@ -337,8 +380,8 @@ void main()
                 // absorption
                 vec3 radiance = vec3(0);
                 // emmision
-                if(transferFunction.a > 0.9)
-                    radiance = photon.transmittance * 0 * transferFunction.rgb;
+                //if(transferFunction.a > 0.9)
+                //    radiance = photon.transmittance * 0 * transferFunction.rgb;
                 photon.radiance += (radiance - photon.radiance);
 
                 break;
@@ -350,14 +393,12 @@ void main()
                 photon.direction = sampleHenyeyGreenstein(rng, anisotropy, photon.direction);
                 photon.bounces++;
             } else {
-                //photon.direction = sampleHenyeyGreenstein(rng, 0.9999, photon.direction);
                 // null collision
             }
+            limit++;
         }
 
         color.rgb = photon.radiance;
-        */
-
 
         /*
         vec3 radiance = vec3(0);

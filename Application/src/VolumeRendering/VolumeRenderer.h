@@ -12,7 +12,7 @@
 class VolumeRenderer : public BaseRenderer
 {
 public:
-	VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* presentQueue);
+	VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue);
 	~VolumeRenderer();
 
 	void RenderFrame(float elapsedTime);
@@ -47,7 +47,7 @@ private:
 		glm::vec4 cameraDir;
 		uint32_t frameIndex = 0;
 		int32_t bounceLimit = 124;
-		float extinction = 24.0f;
+		float extinction = 200.0f;
 		float anisotropy = 0.2f;
 		alignas(16) glm::vec3 backgroundColor = { 1, 1, 1 };
 	} m_CameraFrameData;

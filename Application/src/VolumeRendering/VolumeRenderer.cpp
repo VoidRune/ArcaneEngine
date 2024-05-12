@@ -6,12 +6,12 @@
 #include "Core/Timer.h"
 #include "Graphics/Vulkan/ShaderCompiler.h"
 
-VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::PresentQueue* presentQueue)
+VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue)
 {
 	m_Window = window;
-	m_Device = core;
+	m_Device = device;
 	m_PresentQueue = presentQueue;
-	Arc::ImGuiInit(window->GetHandle(), core, presentQueue);
+	Arc::ImGuiInit(window->GetHandle(), device, presentQueue);
 
 	m_WindowSize = presentQueue->GetSwapchain()->GetExtent();
 
@@ -32,11 +32,11 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 		.AddBufferWrite(0, m_CameraFrameDataBuffer->GetHandle(), 0, sizeof(CameraFrameData)));
 
 	m_PointSampler = std::make_unique<Arc::Sampler>();
-	core->GetResourceCache()->CreateSampler(m_PointSampler.get(), Arc::SamplerDesc()
+	m_Device->GetResourceCache()->CreateSampler(m_PointSampler.get(), Arc::SamplerDesc()
 		.SetMinFilter(Arc::Filter::Nearest)
 		.SetMagFilter(Arc::Filter::Nearest));
 	m_LinearSampler = std::make_unique<Arc::Sampler>();
-	core->GetResourceCache()->CreateSampler(m_LinearSampler.get(), Arc::SamplerDesc()
+	m_Device->GetResourceCache()->CreateSampler(m_LinearSampler.get(), Arc::SamplerDesc()
 		.SetMinFilter(Arc::Filter::Linear)
 		.SetMagFilter(Arc::Filter::Linear)
 		.SetAddressMode(Arc::SamplerAddressMode::MirroredRepeat));
@@ -49,6 +49,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 
 	//std::ifstream file("res/Volume/body_512x512x226.raw", std::ios::ate | std::ios::binary);
 	std::ifstream file("res/Volume/manix.raw", std::ios::ate | std::ios::binary);
+	//std::ifstream file("res/Volume/bonsai1_lo_512x512x182_uint8.raw", std::ios::ate | std::ios::binary);
 
 	if (!file.is_open())
 		throw std::runtime_error("failed to open file!");
@@ -56,6 +57,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 	file.seekg(0);
 	//uint16_t sizeX = 512, sizeY = 512, sizeZ = 226;
 	uint16_t sizeX = 512, sizeY = 512, sizeZ = 460;
+	//uint16_t sizeX = 512, sizeY = 512, sizeZ = 182;
 	//file.read((char*)&sizeX, sizeof(sizeX));
 	//file.read((char*)&sizeY, sizeof(sizeY));
 	//file.read((char*)&sizeZ, sizeof(sizeZ));
@@ -96,49 +98,28 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 	//std::vector<uint8_t> imageData1;
 	//LoadImageData("res/Textures/stoneWall.png", imageData1, &width, &height, &nrChannels);
 	Arc::GpuImage texture;
-	core->GetResourceCache()->CreateImage(&texture, Arc::GpuImageDesc()
+	m_Device->GetResourceCache()->CreateImage(&texture, Arc::GpuImageDesc()
 		.SetExtent({ (uint32_t)sizeX, (uint32_t)sizeY })
 		.SetDepth(sizeZ)
 		.SetFormat(Arc::Format::R8_Unorm)
 		.SetEnableMipLevels(false)
 		.AddUsageFlag(Arc::ImageUsage::TransferDst)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
-	core->SetImageData(&texture, imageData1.data(), sizeX * sizeY * sizeZ, Arc::ImageLayout::ShaderReadOnlyOptimal);
+	m_Device->SetImageData(&texture, imageData1.data(), sizeX * sizeY * sizeZ, Arc::ImageLayout::ShaderReadOnlyOptimal);
 	delete data;
 
 	m_Device->UpdateDescriptorSet(m_BindlessTexturesDescriptor.get(), Arc::DescriptorWriteDesc()
 		.AddImageWrite(0, m_LinearSampler->GetHandle(), texture.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal, 1));
 
-	uint32_t muTextureSize = 4;
+	uint32_t muTextureSize = 20;
 	m_MuLimitsImage = std::make_unique<Arc::GpuImage>();
-	core->GetResourceCache()->CreateImage(m_MuLimitsImage.get(), Arc::GpuImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_MuLimitsImage.get(), Arc::GpuImageDesc()
 		.SetExtent({ muTextureSize, muTextureSize })
 		.SetDepth(muTextureSize)
 		.SetFormat(Arc::Format::R32_Sfloat)
 		.SetEnableMipLevels(false)
 		.AddUsageFlag(Arc::ImageUsage::TransferDst)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
-
-	std::vector<float> muData;
-	uint32_t maxMuSize = muTextureSize * muTextureSize * muTextureSize;
-	for (size_t i = 0; i < maxMuSize; i++)
-	{
-		muData.push_back(i / (float)maxMuSize);
-	}
-	core->SetImageData(m_MuLimitsImage.get(), muData.data(), muData.size() * sizeof(float), Arc::ImageLayout::ShaderReadOnlyOptimal);
-
-	//stbi_set_flip_vertically_on_load(true);
-	//int width, height, nrComponents;
-	//float* hdrData = stbi_loadf("res/Textures/puresky.hdr", &width, &height, &nrComponents, 4);
-	//Arc::GpuImage hdrTexture;
-	//core->GetResourceCache()->CreateImage(&hdrTexture, Arc::GpuImageDesc()
-	//	.SetExtent({ (uint32_t)width, (uint32_t)height })
-	//	.SetFormat(Arc::Format::R32G32B32A32_Sfloat)
-	//	.AddUsageFlag(Arc::ImageUsage::TransferDst)
-	//	.AddUsageFlag(Arc::ImageUsage::Sampled));
-	//core->SetImageData(&hdrTexture, hdrData, width * height * 4 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
-	//stbi_image_free(hdrData);
-
 
 	DensityPoint dp;
 	dp.density = 0.0f;
@@ -160,31 +141,94 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* core, Arc::Pres
 	CalculateDataPoints();
 
 	m_ColorGradientImage = std::make_unique<Arc::GpuImage>();
-	core->GetResourceCache()->CreateImage(m_ColorGradientImage.get(), Arc::GpuImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_ColorGradientImage.get(), Arc::GpuImageDesc()
 		.SetExtent({ (uint32_t)gradSize, (uint32_t)1 })
 		.SetFormat(Arc::Format::R8G8B8A8_Unorm)
 		.AddUsageFlag(Arc::ImageUsage::TransferDst)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
-	core->SetImageData(m_ColorGradientImage.get(), m_GradientData.data(), gradSize * 1 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
+	m_Device->SetImageData(m_ColorGradientImage.get(), m_GradientData.data(), gradSize * 1 * 4, Arc::ImageLayout::ShaderReadOnlyOptimal);
 
 	m_ImGuiDset = ImGui_ImplVulkan_AddTexture(m_LinearSampler->GetHandle(), m_ColorGradientImage->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+	std::vector<float> muData;
+	uint32_t maxMuSize = muTextureSize * muTextureSize * muTextureSize;
+
+	std::vector<glm::vec2> minmaxTransferFunction;
+	for (size_t i = 0; i < maxMuSize; i++)
+		minmaxTransferFunction.push_back(glm::vec2(1000.0f, 0.0f));
+
+	for (size_t z = 0; z < sizeZ; z++)
+	{
+		for (size_t y = 0; y < sizeY; y++)
+		{
+			for (size_t x = 0; x < sizeX; x++)
+			{
+				uint32_t index = x + z * sizeX + y * sizeX * sizeZ;
+				if (flipYZ)
+					index = x + y * sizeX + z * sizeX * sizeY;
+				auto transferFunctionIndex = imageData1[index];
+
+				uint32_t xa = (float)x / (float)sizeX * (float)muTextureSize;
+				uint32_t ya = (float)y / (float)sizeY * (float)muTextureSize;
+				uint32_t za = (float)z / (float)sizeZ * (float)muTextureSize;
+				uint32_t a = xa + ya * muTextureSize + za * muTextureSize * muTextureSize;
+
+				if (transferFunctionIndex < minmaxTransferFunction[a].x)
+					minmaxTransferFunction[a].x = transferFunctionIndex;
+				if (transferFunctionIndex > minmaxTransferFunction[a].y)
+					minmaxTransferFunction[a].y = transferFunctionIndex;
+
+				//std::cout << xa << " " << ya << " " << za << std::endl;
+
+			}
+		}
+	}
+
+
+	for (size_t z = 0; z < muTextureSize; z++) {
+		for (size_t y = 0; y < muTextureSize; y++) {
+			for (size_t x = 0; x < muTextureSize; x++) {
+				int index = x + y * muTextureSize + z * muTextureSize * muTextureSize;
+				//muData.push_back((float)index / maxMuSize);
+
+				float maxMu = 0.0f;
+				for (size_t i = minmaxTransferFunction[index].x; i < minmaxTransferFunction[index].y; i++)
+				{
+					if (m_GradientData[i * 4 + 3] > maxMu)
+						maxMu = m_GradientData[i * 4 + 3] / 255.0f;
+				}
+				muData.push_back(maxMu);
+				//std::cout << maxMu << std::endl;
+				//std::cout << minmaxTransferFunction[index].x << " " << minmaxTransferFunction[index].y << std::endl;
+			}
+		}
+	}
+
+
+	//for (size_t i = 0; i < maxMuSize; i++)
+	//{
+	//	muData.push_back((float)i / maxMuSize);
+	//}
+	m_Device->SetImageData(m_MuLimitsImage.get(), muData.data(), muData.size() * sizeof(float), Arc::ImageLayout::ShaderReadOnlyOptimal);
+
+
 	m_ComputeAttachment = std::make_unique<Arc::GpuImage>();
 	m_AccumulationImage = std::make_unique<Arc::GpuImage>();
-	core->GetResourceCache()->CreateImage(m_AccumulationImage.get(), Arc::GpuImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_AccumulationImage.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::R32G32B32A32_Sfloat)
 		.AddUsageFlag(Arc::ImageUsage::Storage));
-	core->GetResourceCache()->CreateImage(m_ComputeAttachment.get(), Arc::GpuImageDesc()
+	m_Device->GetResourceCache()->CreateImage(m_ComputeAttachment.get(), Arc::GpuImageDesc()
 		.SetExtent(m_WindowSize)
 		.SetFormat(Arc::Format::R8G8B8A8_Unorm)
 		.AddUsageFlag(Arc::ImageUsage::Storage)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
 
 	m_PointSampler = std::make_unique<Arc::Sampler>();
-	core->GetResourceCache()->CreateSampler(m_PointSampler.get(), Arc::SamplerDesc()
+	m_Device->GetResourceCache()->CreateSampler(m_PointSampler.get(), Arc::SamplerDesc()
 		.SetMinFilter(Arc::Filter::Nearest)
-		.SetMagFilter(Arc::Filter::Nearest));
+		.SetMagFilter(Arc::Filter::Nearest)
+		.SetAddressMode(Arc::SamplerAddressMode::MirroredRepeat));
 
 	m_PostprocessDescriptor = std::make_unique<Arc::DescriptorSet>();
 	m_Device->GetResourceCache()->AllocateDescriptorSets({ m_PostprocessDescriptor.get() }, Arc::DescriptorSetLayoutDesc()
@@ -265,6 +309,9 @@ void VolumeRenderer::CalculateDataPoints()
 	}
 }
 
+double computeTime = 0.0;
+int computeDivider = 0;
+
 VolumeRenderer::~VolumeRenderer()
 {
 	m_RenderThreadFuture.wait();
@@ -272,6 +319,8 @@ VolumeRenderer::~VolumeRenderer()
 	Arc::ImGuiShutdown();
 	m_Device->GetResourceCache()->PrintHeapBudgets();
 	m_Device->GetResourceCache()->FreeResources();
+
+	Arc::LogInfo("average" + std::to_string(computeTime / computeDivider));
 }
 
 void VolumeRenderer::RenderFrame(float elapsedTime)
@@ -295,6 +344,12 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	auto res = m_Device->GetGpuProfiler()->GetResults();
 	for (auto& el : res)
 	{
+		if (el.taskName == "compute")
+		{
+			computeTime += el.timeInMs;
+			computeDivider++;
+		}
+
 		std::string s = el.taskName + ": " + std::to_string(el.timeInMs) + "ms";
 		ImGui::Text(s.c_str());
 	}
@@ -351,8 +406,8 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		m_Device->SetImageData(m_ColorGradientImage.get(), m_GradientData.data(), m_GradientData.size(), Arc::ImageLayout::ShaderReadOnlyOptimal);
 	}
 
-	bool val1 = ImGui::SliderInt("Bounce limit", &m_CameraFrameData.bounceLimit, 1, 128);
-	bool val2 = ImGui::SliderFloat("Extinction", &m_CameraFrameData.extinction, 0.0f, 100.0f);
+	bool val1 = ImGui::SliderInt("Bounce limit", &m_CameraFrameData.bounceLimit, 0, 128);
+	bool val2 = ImGui::SliderFloat("Extinction", &m_CameraFrameData.extinction, 0.1f, 300.0f);
 	bool val3 = ImGui::SliderFloat("Anisotropy", &m_CameraFrameData.anisotropy, -1.0f, 1.0f);
 	bool val4 = ImGui::ColorEdit3("Background", &m_CameraFrameData.backgroundColor.r);
 	ImGui::End();
