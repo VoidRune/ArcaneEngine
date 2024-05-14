@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-#define ARCANE_ENABLE_VALIDATION
+//#define ARCANE_ENABLE_VALIDATION
 #ifdef ARCANE_ENABLE_VALIDATION
 #define VK_CHECK(x)															\
 	{																		\
