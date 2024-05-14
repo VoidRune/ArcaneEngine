@@ -455,7 +455,7 @@ namespace Arc
         instanceLayers.push_back("VK_LAYER_KHRONOS_validation");
         instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
-        instanceLayers.push_back("VK_LAYER_KHRONOS_synchronization2");
+        //instanceLayers.push_back("VK_LAYER_KHRONOS_synchronization2");
 
         createInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayers.size());
         createInfo.ppEnabledLayerNames = instanceLayers.data();
