@@ -238,7 +238,7 @@ bool PerformVoxelTraversal(inout Photon p)
         if (opticalThicness >= unif)
         {
             float t = unif / mu;
-            p.position = p.position + p.direction * umin;
+            p.position = p.position + p.direction * (umin + t);
             return true;
         }
         unif -= opticalThicness;
@@ -322,9 +322,6 @@ void main()
 
     if(intersect)
     {
-        float gridSize = textureSize(muTexture, 0).r;
-
-
         Photon photon;
         photon.position = rayOrigin + rayDirection * tmin;
         photon.direction = rayDirection;
@@ -335,22 +332,33 @@ void main()
 
         //photon.radiance = vec3(PerformVoxelTraversal(photon), 0, 0);     
         
-        int limit = 255;
+        int limit = 1000;
         while(limit > 0)
         {
             //PerformVoxelTraversal
             //PerformVoxelTraversalEmpty
             //if(texture(muTexture, photon.position).r <= 0.1)
-            //    if(!PerformVoxelTraversal(photon))
-            //    {
-            //        vec3 envSample = data.backgroundColor;
-            //        vec3 radiance = photon.transmittance * envSample.rgb;
-            //        photon.radiance += (radiance - photon.radiance);
-            //        break;
-            //    }
 
-            float step = -log(RandomValue(rng)) / data.extinction;
-            photon.position += step * photon.direction;
+            if(!PerformVoxelTraversal(photon))
+            {
+                vec3 envSample = data.backgroundColor;
+                vec3 radiance = photon.transmittance * envSample.rgb;
+                photon.radiance += (radiance - photon.radiance);
+                break;
+            }
+
+            //float step = -log(RandomValue(rng)) / data.extinction;
+            //photon.position += step * photon.direction;
+            //if (any(greaterThan(photon.position, vec3(1))) || any(lessThan(photon.position, vec3(0)))) {
+            //    // out of bounds
+            //    //vec4 envSample = sampleEnvironmentMap(photon.direction);
+            //    //vec3 envSample = vec3(dot(photon.direction, vec3(1, 1, 1)));
+            //    vec3 envSample = data.backgroundColor;
+            //    vec3 radiance = photon.transmittance * envSample.rgb;
+            //    photon.radiance += (radiance - photon.radiance);
+            //    
+            //    break;
+            //}
 
             float intensity = texture(volumeTexture, photon.position).r;
             //float intensity = 1.0 * fbm(photon.position * 8.0) * (0.7 - distance(photon.position, vec3(0.5, 0.5, 0.5)));
@@ -367,16 +375,7 @@ void main()
             float PAbsorption = 1.0 - PNull - PScattering;
 
             float rand = RandomValue(rng);
-            if (any(greaterThan(photon.position, vec3(1))) || any(lessThan(photon.position, vec3(0)))) {
-                // out of bounds
-                //vec4 envSample = sampleEnvironmentMap(photon.direction);
-                //vec3 envSample = vec3(dot(photon.direction, vec3(1, 1, 1)));
-                vec3 envSample = data.backgroundColor;
-                vec3 radiance = photon.transmittance * envSample.rgb;
-                photon.radiance += (radiance - photon.radiance);
-                
-                break;
-            } else if (rand < PAbsorption) {
+            if (rand < PAbsorption) {
                 // absorption
                 vec3 radiance = vec3(0);
                 // emmision
@@ -395,7 +394,7 @@ void main()
             } else {
                 // null collision
             }
-            limit++;
+            limit--;
         }
 
         color.rgb = photon.radiance;

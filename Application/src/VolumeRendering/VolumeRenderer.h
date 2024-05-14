@@ -27,6 +27,7 @@ private:
 	void BuildRenderGraph();
 
 	void CalculateDataPoints();
+	void CalculateMuData();
 
 	Arc::Window* m_Window;
 	Arc::Device* m_Device;
@@ -46,7 +47,7 @@ private:
 		glm::vec4 cameraPos;
 		glm::vec4 cameraDir;
 		uint32_t frameIndex = 0;
-		int32_t bounceLimit = 124;
+		int32_t bounceLimit = 16;
 		float extinction = 200.0f;
 		float anisotropy = 0.2f;
 		alignas(16) glm::vec3 backgroundColor = { 1, 1, 1 };
@@ -70,6 +71,8 @@ private:
 	std::vector<DensityPoint> m_Points;
 	std::vector<uint8_t> m_GradientData;
 	std::unique_ptr<Arc::GpuImage> m_ColorGradientImage;
+	uint32_t m_MuTextureSize = 20;
+	std::vector<glm::vec2> m_MinmaxTransferFunction;
 	std::unique_ptr<Arc::GpuImage> m_MuLimitsImage;
 
 	VkDescriptorSet m_ImGuiDset;

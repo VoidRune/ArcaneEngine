@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "VolumeRendering/VolumeRenderer.h"
+#include "VoxelRaytracing/VoxelRaytracer.h"
 
 void Run()
 {
@@ -27,6 +28,7 @@ void Run()
 	std::unique_ptr<BaseRenderer> renderer;
 
 	renderer = std::make_unique<VolumeRenderer>(window.get(), device.get(), presentQueue.get());
+	//renderer = std::make_unique<VoxelRaytracer>(window.get(), device.get(), presentQueue.get());
 
 	Arc::Timer timer;
 	while (!window->IsClosed())

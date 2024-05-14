@@ -48,16 +48,16 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 
 
 	//std::ifstream file("res/Volume/body_512x512x226.raw", std::ios::ate | std::ios::binary);
-	std::ifstream file("res/Volume/manix.raw", std::ios::ate | std::ios::binary);
-	//std::ifstream file("res/Volume/bonsai1_lo_512x512x182_uint8.raw", std::ios::ate | std::ios::binary);
+	//std::ifstream file("res/Volume/manix.raw", std::ios::ate | std::ios::binary);
+	std::ifstream file("res/Volume/bonsai1_lo_512x512x182_uint8.raw", std::ios::ate | std::ios::binary);
 
 	if (!file.is_open())
 		throw std::runtime_error("failed to open file!");
 
 	file.seekg(0);
 	//uint16_t sizeX = 512, sizeY = 512, sizeZ = 226;
-	uint16_t sizeX = 512, sizeY = 512, sizeZ = 460;
-	//uint16_t sizeX = 512, sizeY = 512, sizeZ = 182;
+	//uint16_t sizeX = 512, sizeY = 512, sizeZ = 460;
+	uint16_t sizeX = 512, sizeY = 512, sizeZ = 182;
 	//file.read((char*)&sizeX, sizeof(sizeX));
 	//file.read((char*)&sizeY, sizeof(sizeY));
 	//file.read((char*)&sizeZ, sizeof(sizeZ));
@@ -71,8 +71,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		sizeZ = temp;
 	}
 
-	uint16_t* data = new uint16_t[sizeX * sizeY * sizeZ];
-	file.read((char*)data, sizeof(uint16_t) * sizeX * sizeY * sizeZ);
+	uint8_t* data = new uint8_t[sizeX * sizeY * sizeZ];
+	file.read((char*)data, sizeof(uint8_t) * sizeX * sizeY * sizeZ);
 	file.close();
 
 	std::vector<uint8_t> imageData1(sizeX * sizeY * sizeZ);
@@ -111,29 +111,43 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_Device->UpdateDescriptorSet(m_BindlessTexturesDescriptor.get(), Arc::DescriptorWriteDesc()
 		.AddImageWrite(0, m_LinearSampler->GetHandle(), texture.GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal, 1));
 
-	uint32_t muTextureSize = 20;
 	m_MuLimitsImage = std::make_unique<Arc::GpuImage>();
 	m_Device->GetResourceCache()->CreateImage(m_MuLimitsImage.get(), Arc::GpuImageDesc()
-		.SetExtent({ muTextureSize, muTextureSize })
-		.SetDepth(muTextureSize)
+		.SetExtent({ m_MuTextureSize, m_MuTextureSize })
+		.SetDepth(m_MuTextureSize)
 		.SetFormat(Arc::Format::R32_Sfloat)
 		.SetEnableMipLevels(false)
 		.AddUsageFlag(Arc::ImageUsage::TransferDst)
 		.AddUsageFlag(Arc::ImageUsage::Sampled));
 
+	//DensityPoint dp;
+	//dp.density = 0.0f;
+	//dp.location = 0.05f;
+	//dp.color = { 1, 0, 0 };
+	//m_Points.push_back(dp);
+	//dp.density = 1.0f;
+	//dp.location = 0.65f;
+	//dp.color = { 1.0, 0.9, 0.0 };
+	//m_Points.push_back(dp);
+	//dp.density = 1.0f;
+	//dp.location = 1.0f;
+	//dp.color = { 0.0, 1.0, 1.0 };
+	//m_Points.push_back(dp);
+
 	DensityPoint dp;
 	dp.density = 0.0f;
-	dp.location = 0.05f;
-	dp.color = { 1, 0, 0 };
+	dp.location = 0.01f;
+	dp.color = { 0, 1, 0 };
 	m_Points.push_back(dp);
 	dp.density = 1.0f;
-	dp.location = 0.65f;
+	dp.location = 0.05f;
 	dp.color = { 1.0, 0.9, 0.0 };
 	m_Points.push_back(dp);
 	dp.density = 1.0f;
 	dp.location = 1.0f;
 	dp.color = { 0.0, 1.0, 1.0 };
 	m_Points.push_back(dp);
+
 
 	uint32_t gradSize = 256;
 	m_GradientData.resize(gradSize * 4);
@@ -150,12 +164,10 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 
 	m_ImGuiDset = ImGui_ImplVulkan_AddTexture(m_LinearSampler->GetHandle(), m_ColorGradientImage->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-	std::vector<float> muData;
-	uint32_t maxMuSize = muTextureSize * muTextureSize * muTextureSize;
+	uint32_t maxMuSize = m_MuTextureSize * m_MuTextureSize * m_MuTextureSize;
 
-	std::vector<glm::vec2> minmaxTransferFunction;
 	for (size_t i = 0; i < maxMuSize; i++)
-		minmaxTransferFunction.push_back(glm::vec2(1000.0f, 0.0f));
+		m_MinmaxTransferFunction.push_back(glm::vec2(1000.0f, 0.0f));
 
 	for (size_t z = 0; z < sizeZ; z++)
 	{
@@ -168,15 +180,15 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 					index = x + y * sizeX + z * sizeX * sizeY;
 				auto transferFunctionIndex = imageData1[index];
 
-				uint32_t xa = (float)x / (float)sizeX * (float)muTextureSize;
-				uint32_t ya = (float)y / (float)sizeY * (float)muTextureSize;
-				uint32_t za = (float)z / (float)sizeZ * (float)muTextureSize;
-				uint32_t a = xa + ya * muTextureSize + za * muTextureSize * muTextureSize;
+				uint32_t xa = (float)x / (float)sizeX * (float)m_MuTextureSize;
+				uint32_t ya = (float)y / (float)sizeY * (float)m_MuTextureSize;
+				uint32_t za = (float)z / (float)sizeZ * (float)m_MuTextureSize;
+				uint32_t a = xa + ya * m_MuTextureSize + za * m_MuTextureSize * m_MuTextureSize;
 
-				if (transferFunctionIndex < minmaxTransferFunction[a].x)
-					minmaxTransferFunction[a].x = transferFunctionIndex;
-				if (transferFunctionIndex > minmaxTransferFunction[a].y)
-					minmaxTransferFunction[a].y = transferFunctionIndex;
+				if (transferFunctionIndex < m_MinmaxTransferFunction[a].x)
+					m_MinmaxTransferFunction[a].x = transferFunctionIndex;
+				if (transferFunctionIndex > m_MinmaxTransferFunction[a].y)
+					m_MinmaxTransferFunction[a].y = transferFunctionIndex;
 
 				//std::cout << xa << " " << ya << " " << za << std::endl;
 
@@ -184,33 +196,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		}
 	}
 
-
-	for (size_t z = 0; z < muTextureSize; z++) {
-		for (size_t y = 0; y < muTextureSize; y++) {
-			for (size_t x = 0; x < muTextureSize; x++) {
-				int index = x + y * muTextureSize + z * muTextureSize * muTextureSize;
-				//muData.push_back((float)index / maxMuSize);
-
-				float maxMu = 0.0f;
-				for (size_t i = minmaxTransferFunction[index].x; i < minmaxTransferFunction[index].y; i++)
-				{
-					if (m_GradientData[i * 4 + 3] > maxMu)
-						maxMu = m_GradientData[i * 4 + 3] / 255.0f;
-				}
-				muData.push_back(maxMu);
-				//std::cout << maxMu << std::endl;
-				//std::cout << minmaxTransferFunction[index].x << " " << minmaxTransferFunction[index].y << std::endl;
-			}
-		}
-	}
-
-
-	//for (size_t i = 0; i < maxMuSize; i++)
-	//{
-	//	muData.push_back((float)i / maxMuSize);
-	//}
-	m_Device->SetImageData(m_MuLimitsImage.get(), muData.data(), muData.size() * sizeof(float), Arc::ImageLayout::ShaderReadOnlyOptimal);
-
+	CalculateMuData();
 
 	m_ComputeAttachment = std::make_unique<Arc::GpuImage>();
 	m_AccumulationImage = std::make_unique<Arc::GpuImage>();
@@ -309,6 +295,32 @@ void VolumeRenderer::CalculateDataPoints()
 	}
 }
 
+void VolumeRenderer::CalculateMuData()
+{
+	std::vector<float> muData;
+
+	for (size_t z = 0; z < m_MuTextureSize; z++) {
+		for (size_t y = 0; y < m_MuTextureSize; y++) {
+			for (size_t x = 0; x < m_MuTextureSize; x++) {
+				int index = x + y * m_MuTextureSize + z * m_MuTextureSize * m_MuTextureSize;
+				//muData.push_back((float)index / maxMuSize);
+
+				float maxMu = 0.0f;
+				for (size_t i = m_MinmaxTransferFunction[index].x; i < m_MinmaxTransferFunction[index].y; i++)
+				{
+					if (m_GradientData[i * 4 + 3] > maxMu)
+						maxMu = m_GradientData[i * 4 + 3] / 255.0f;
+				}
+				muData.push_back(maxMu);
+				//std::cout << maxMu << std::endl;
+				//std::cout << minmaxTransferFunction[index].x << " " << minmaxTransferFunction[index].y << std::endl;
+			}
+		}
+	}
+
+	m_Device->SetImageData(m_MuLimitsImage.get(), muData.data(), muData.size() * sizeof(float), Arc::ImageLayout::ShaderReadOnlyOptimal);
+}
+
 double computeTime = 0.0;
 int computeDivider = 0;
 
@@ -404,6 +416,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		ARC_LOG("Changed desity points!");
 		CalculateDataPoints();
 		m_Device->SetImageData(m_ColorGradientImage.get(), m_GradientData.data(), m_GradientData.size(), Arc::ImageLayout::ShaderReadOnlyOptimal);
+		CalculateMuData();
 	}
 
 	bool val1 = ImGui::SliderInt("Bounce limit", &m_CameraFrameData.bounceLimit, 0, 128);
