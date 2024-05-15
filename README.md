@@ -15,6 +15,7 @@ Note that Vulkan SDK is not included in this project and needs to be downloaded 
 ## Volume renderer
 ![Absorption emission](/images/volume1.png)
 ![Multiple scattering](/images/volume2.png)
+![Multiple scattering with higher extinction](/images/volume3.png)
 Note manix dataset is not included!
 
 ## Dependencies
