@@ -62,8 +62,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	//file.read((char*)&sizeY, sizeof(sizeY));
 	//file.read((char*)&sizeZ, sizeof(sizeZ));
 
-	bool flipYZ = true;
-	bool invertY = false;
+	bool flipYZ = false;
+	bool invertY = true;
 	if (flipYZ)
 	{
 		uint32_t temp = sizeY;
@@ -83,12 +83,12 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		{
 			for (size_t x = 0; x < sizeX; x++)
 			{
-				uint32_t indexA = x + z * sizeX + y * sizeX * sizeZ;
-				uint32_t indexB = x + z * sizeX + y * sizeX * sizeZ;
+				uint32_t indexA = x + y * sizeX + z * sizeX * sizeY;
+				uint32_t indexB = x + y * sizeX + z * sizeX * sizeY;
 				if (flipYZ)
-					indexA = x + y * sizeX + z * sizeX * sizeY;
+					indexA = x + z * sizeX + y * sizeX * sizeZ;
 				if (invertY)
-					indexB = x + z * sizeX + (sizeY - y - 1) * sizeX * sizeZ;
+					indexB = x + (sizeY - y - 1) * sizeX + z * sizeX * sizeY;
 				imageData1[indexA] = data[indexB];
 			}
 		}
@@ -175,9 +175,10 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		{
 			for (size_t x = 0; x < sizeX; x++)
 			{
-				uint32_t index = x + z * sizeX + y * sizeX * sizeZ;
+				uint32_t index = x + y * sizeX + z * sizeX * sizeY;
 				if (flipYZ)
-					index = x + y * sizeX + z * sizeX * sizeY;
+					index = x + z * sizeX + y * sizeX * sizeZ;
+
 				auto transferFunctionIndex = imageData1[index];
 
 				uint32_t xa = (float)x / (float)sizeX * (float)m_MuTextureSize;
