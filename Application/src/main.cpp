@@ -62,12 +62,10 @@ void main()
 	Arc::Shader vertShader;
 	Arc::Shader fragShader;
 	Arc::ShaderDesc shaderDesc;
-	Arc::ShaderCompiler::Initialize();
 	if (Arc::ShaderCompiler::Compile("res/Shaders/shader.vert", shaderDesc))
 		resourceCache->CreateShader(&vertShader, shaderDesc);
 	if (Arc::ShaderCompiler::Compile("res/Shaders/shader.frag", shaderDesc))
 		resourceCache->CreateShader(&fragShader, shaderDesc);
-	Arc::ShaderCompiler::Release();
 
 	Arc::Pipeline pipeline;
 	resourceCache->CreatePipeline(&pipeline, Arc::PipelineDesc{
