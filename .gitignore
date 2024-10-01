@@ -1,0 +1,13 @@
+# Folders
+build/
+bin/windows-x86_64/ArcaneEngine
+bin/
+
+# Visual Studio files and folder
+**.pdb
+.vs/
+**.sln
+**.vcxproj
+**.vcxproj.filters
+**.vcxproj.user
+**.csproj
