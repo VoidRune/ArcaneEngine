@@ -73,7 +73,7 @@ namespace Arc
 		renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
 		renderingInfo.renderArea = VkRect2D{ {0, 0}, { renderArea[0], renderArea[1] } };
 		renderingInfo.layerCount = 1;
-		renderingInfo.colorAttachmentCount = colorInfo.size();
+		renderingInfo.colorAttachmentCount = (uint32_t)colorInfo.size();
 		renderingInfo.pColorAttachments = colorInfo.data();
 		if (depthAttachment.has_value())
 		{
@@ -184,7 +184,7 @@ namespace Arc
 			sets[i] = (VkDescriptorSet)descriptorSets[i];
 		}
 
-		vkCmdBindDescriptorSets((VkCommandBuffer)m_CommandBuffer, static_cast<VkPipelineBindPoint>(bindPoint), (VkPipelineLayout)layout, firstSet, sets.size(), sets.data(), 0, nullptr);
+		vkCmdBindDescriptorSets((VkCommandBuffer)m_CommandBuffer, static_cast<VkPipelineBindPoint>(bindPoint), (VkPipelineLayout)layout, firstSet, (uint32_t)sets.size(), sets.data(), 0, nullptr);
 	}
 
 	void CommandBuffer::BindPipeline(PipelineHandle pipeline)

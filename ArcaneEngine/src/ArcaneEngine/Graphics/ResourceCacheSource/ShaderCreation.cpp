@@ -65,7 +65,7 @@ namespace Arc
         {
             // Should be maximum one push constant
             const auto& bufferType = compiler.get_type(resource.base_type_id);
-            uint32_t size = compiler.get_declared_struct_size(bufferType);
+            uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_size(bufferType));
             shader->m_PushConstantSize = size;
         }
 
@@ -95,7 +95,7 @@ namespace Arc
         for (const auto& resource : resources.uniform_buffers)
         {
             const auto& bufferType = compiler.get_type(resource.base_type_id);
-            uint32_t bufferSize = compiler.get_declared_struct_size(bufferType);
+            uint32_t bufferSize = static_cast<uint32_t>(compiler.get_declared_struct_size(bufferType));
             uint32_t set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
             uint32_t binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
             const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
@@ -114,7 +114,7 @@ namespace Arc
         for (const auto& resource : resources.storage_buffers)
         {
             const auto& bufferType = compiler.get_type(resource.base_type_id);
-            uint32_t bufferSize = compiler.get_declared_struct_size(bufferType);
+            uint32_t bufferSize = static_cast<uint32_t>(compiler.get_declared_struct_size(bufferType));
             uint32_t set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
             uint32_t binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
             const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);

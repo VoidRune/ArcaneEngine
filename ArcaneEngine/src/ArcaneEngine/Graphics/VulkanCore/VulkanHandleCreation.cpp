@@ -6,7 +6,6 @@
 #include "VulkanLocal.h"
 
 /* Needed for surface creation */
-#define GLFW_INCLUDE_NONE
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 

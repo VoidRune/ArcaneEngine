@@ -71,7 +71,7 @@ namespace Arc
 		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
 		m_FrameResources.reserve(m_ImageCount);
-		for (int i = 0; i < m_ImageCount; i++)
+		for (uint32_t i = 0; i < m_ImageCount; i++)
 		{
 			SemaphoreCreateInfo semaphoreCreateInfo = {
 				.logicalDevice = m_LogicalDevice

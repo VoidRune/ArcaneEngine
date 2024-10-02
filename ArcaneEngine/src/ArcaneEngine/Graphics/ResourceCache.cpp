@@ -155,7 +155,7 @@ namespace Arc
 
         uint32_t allocationCount = 0;
         uint64_t allocationBytes = 0;
-        for (int heapIndex = 0; heapIndex < heapCount; heapIndex++)
+        for (uint32_t heapIndex = 0; heapIndex < heapCount; heapIndex++)
         {
             allocationCount += budgets[heapIndex].statistics.allocationCount;
             allocationBytes += budgets[heapIndex].statistics.allocationBytes;

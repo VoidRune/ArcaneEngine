@@ -10,7 +10,7 @@
 #include "ArcaneEngine/Core/Timer.h"
 #include "ArcaneEngine/Graphics/ShaderCompiler.h"
 
-void main()
+int main()
 {
 	Arc::WindowDescription windowDesc;
 	windowDesc.Title = "Arcane Vulkan renderer";
@@ -80,7 +80,7 @@ void main()
 		Arc::CommandBuffer* cmd = frameData.CommandBuffer;
 
 		float timeValue = (float)timer.elapsed_sec();
-		globalFrameData = { 0.2, timeValue - (int)timeValue, 1};
+		globalFrameData = { 0.2f, timeValue - (int)timeValue, 1.0f};
 		{
 			void* data = resourceCache->MapMemory(bufferArray.get(), frameData.FrameIndex);
 			memcpy(data, &globalFrameData, sizeof(GlobalFrameData));

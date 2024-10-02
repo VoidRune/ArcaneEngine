@@ -28,6 +28,6 @@ namespace Arc
 	}
 	double Timer::elapsed_micro()
 	{
-		return time_point_cast<microseconds>(high_resolution_clock::now()).time_since_epoch().count() - time_point_cast<microseconds>(timeStamp).time_since_epoch().count();
+		return (double)time_point_cast<microseconds>(high_resolution_clock::now()).time_since_epoch().count() - time_point_cast<microseconds>(timeStamp).time_since_epoch().count();
 	}
 }

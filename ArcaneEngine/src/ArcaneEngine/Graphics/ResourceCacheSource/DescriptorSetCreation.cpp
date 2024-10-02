@@ -73,7 +73,7 @@ namespace Arc
         std::vector<VkDescriptorSet> descriptorSets(m_FramesInFlight);
         VK_CHECK(vkAllocateDescriptorSets((VkDevice)m_LogicalDevice, &descAllocInfo, descriptorSets.data()));
 
-        for (int i = 0; i < m_FramesInFlight; i++)
+        for (uint32_t i = 0; i < m_FramesInFlight; i++)
         {
             descriptorArray->m_DescriptorSets[i] = descriptorSets[i];
         }

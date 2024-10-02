@@ -72,12 +72,12 @@ namespace Arc
 
 	float Input::GetMouseX()
 	{
-		return s_MouseX;
+		return static_cast<float>(s_MouseX);
 	}
 
 	float Input::GetMouseY()
 	{
-		return s_MouseY;
+		return static_cast<float>(s_MouseY);
 	}
 
 }

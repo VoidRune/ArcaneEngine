@@ -1,12 +1,7 @@
--- premake5.lua
 workspace "ArcaneEngine"
-   architecture "x64"
-   configurations { "Debug", "Release", "Dist" }
-   startproject "Application"
-
-   -- Workspace-wide build options for MSVC
-   filter "system:windows"
-      buildoptions { "/EHsc", "/Zc:preprocessor", "/Zc:__cplusplus" }
+   	architecture "x64"
+   	configurations { "Debug", "Release", "Dist" }
+   	startproject "Application"
 
 	flags
 	{

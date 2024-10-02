@@ -68,7 +68,7 @@ namespace Arc
         gpuBufferArray->m_Buffers.resize(m_FramesInFlight);
         gpuBufferArray->m_Allocations.resize(m_FramesInFlight);
         gpuBufferArray->m_Size = desc.Size;
-        for (int i = 0; i < m_FramesInFlight; i++)
+        for (uint32_t i = 0; i < m_FramesInFlight; i++)
         {
             VkBuffer buffer;
             VmaAllocation allocation;

@@ -3,7 +3,6 @@
 
 #define NOMINMAX
 #define NOGDI
-#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
 #include <iostream>
@@ -23,12 +22,12 @@ namespace Arc
 		glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
 		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-		uint32_t width = desc.Width;
-		uint32_t height = desc.Height;
+		int width = desc.Width;
+		int height = desc.Height;
 
 		m_IsFullscreen = desc.Fullscreen;
-		m_WindowedPos[0] = (mode->width - desc.Width) * 0.5;
-		m_WindowedPos[1] = (mode->height - desc.Height) * 0.5;
+		m_WindowedPos[0] = static_cast<int>((mode->width - desc.Width) * 0.5);
+		m_WindowedPos[1] = static_cast<int>((mode->height - desc.Height) * 0.5);
 		m_WindowedSize[0] = desc.Width;
 		m_WindowedSize[1] = desc.Height;
 
@@ -93,7 +92,7 @@ namespace Arc
 			{
 				InputData& inputFunc = *(InputData*)glfwGetWindowUserPointer(window);
 
-				inputFunc.SetScroll(xOffset, yOffset);
+				inputFunc.SetScroll((float)xOffset, (float)yOffset);
 			});
 	}
 
@@ -107,7 +106,7 @@ namespace Arc
 	{
 		double xpos, ypos;
 		glfwGetCursorPos((GLFWwindow*)m_Window, &xpos, &ypos);
-		Input::Update(xpos, ypos);
+		Input::Update((int)xpos, (int)ypos);
 		glfwPollEvents();
 	}
 

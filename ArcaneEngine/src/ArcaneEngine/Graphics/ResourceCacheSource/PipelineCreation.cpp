@@ -62,8 +62,8 @@ namespace Arc
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = extent.width;
-        viewport.height = extent.height;
+        viewport.width = static_cast<float>(extent.width);
+        viewport.height = static_cast<float>(extent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
@@ -123,7 +123,7 @@ namespace Arc
         }
 
         std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachment;
-        for (int i = 0; i < colorAttachmentCount; i++)
+        for (uint32_t i = 0; i < colorAttachmentCount; i++)
         {
             VkPipelineColorBlendAttachmentState tempAttachment;
             tempAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -141,7 +141,7 @@ namespace Arc
         colorBlendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         colorBlendInfo.logicOpEnable = VK_FALSE;
         colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;
-        colorBlendInfo.attachmentCount = colorBlendAttachment.size();
+        colorBlendInfo.attachmentCount = static_cast<uint32_t>(colorBlendAttachment.size());
         colorBlendInfo.pAttachments = colorBlendAttachment.data();
         colorBlendInfo.blendConstants[0] = 0.0f;
         colorBlendInfo.blendConstants[1] = 0.0f;
@@ -159,7 +159,7 @@ namespace Arc
 
         VkPipelineRenderingCreateInfo renderingInfo = {};
         renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-        renderingInfo.colorAttachmentCount = colorAttachmentFormats.size();
+        renderingInfo.colorAttachmentCount = static_cast<uint32_t>(colorAttachmentFormats.size());
         renderingInfo.pColorAttachmentFormats = colorAttachmentFormats.data();
         renderingInfo.depthAttachmentFormat = (VkFormat)desc.DepthAttachmentFormat;
         renderingInfo.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
@@ -208,7 +208,7 @@ namespace Arc
 
         VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = layouts.size();
+        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layouts.size());
         pipelineLayoutInfo.pSetLayouts = layouts.data();
         if (pushConstantSize > 0)
         {
@@ -236,7 +236,7 @@ namespace Arc
         VkGraphicsPipelineCreateInfo pipelineInfo = {};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo.pNext = &renderingInfo;
-        pipelineInfo.stageCount = shaderStages.size();
+        pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
         pipelineInfo.pStages = shaderStages.data();
 
         pipelineInfo.pVertexInputState = &vertexInputInfo;
