@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="imag/Logo.png" alt="Logo" height="120">
+  <img src="images/Logo.png" alt="Logo" height="120">
 </div>
 
 # ArcaneEngine
