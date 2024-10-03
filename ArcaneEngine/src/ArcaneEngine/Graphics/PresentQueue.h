@@ -24,6 +24,7 @@ namespace Arc
 
 		FrameData BeginFrame();
 		void EndFrame();
+		bool OutOfDate() { return m_OutOfDate; };
 
 		Format GetSurfaceFormat() { return m_SurfaceFormat; }
 		ImageHandle GetImage(uint32_t index) { return m_SwapchainImages[index]; };

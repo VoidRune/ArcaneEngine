@@ -7,7 +7,6 @@ project "Application"
 
 	targetdir ("../bin/%{cfg.system}-%{cfg.architecture}/%{prj.name}")
 	objdir ("../build/%{cfg.system}-%{cfg.architecture}/%{prj.name}")
-	--debugdir ("$(ProjectDir)")
 	debugdir ("../bin/%{cfg.system}-%{cfg.architecture}/%{prj.name}")
 
 	dependson 

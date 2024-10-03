@@ -3,6 +3,7 @@ build/
 
 # Visual Studio files and folder
 **.pdb
+**.idb
 .vs/
 **.sln
 **.vcxproj

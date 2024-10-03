@@ -6,7 +6,6 @@ project "ArcaneEngine"
 
 	targetdir ("../bin/%{cfg.system}-%{cfg.architecture}/%{prj.name}")
 	objdir ("../build/%{cfg.system}-%{cfg.architecture}/%{prj.name}")
-	--debugdir ("$(ProjectDir)")
 	debugdir ("../bin/%{cfg.system}-%{cfg.architecture}/%{prj.name}")
 
    	files 
@@ -40,38 +39,20 @@ project "ArcaneEngine"
 	}
 
 	filter { "system:windows", "configurations:Debug" }	
-      		links
-      		{
-			--"$(VULKAN_SDK)/Lib/glslangd.lib",
-			--"$(VULKAN_SDK)/Lib/GenericCodeGend.lib",
-			--"$(VULKAN_SDK)/Lib/glslang-default-resource-limitsd.lib",
-			--"$(VULKAN_SDK)/Lib/MachineIndependentd.lib",
-			--"$(VULKAN_SDK)/Lib/SPIRVd.lib",
-			--"$(VULKAN_SDK)/Lib/SPIRV-Toolsd.lib",
-			--"$(VULKAN_SDK)/Lib/SPIRV-Tools-optd.lib",
-			--"$(VULKAN_SDK)/Lib/SPVRemapperd.lib",
-			--"$(VULKAN_SDK)/Lib/OSDependentd.lib",
+		links
+		{
 			"$(VULKAN_SDK)/Lib/shaderc_combinedd.lib",
 			"$(VULKAN_SDK)/Lib/spirv-cross-cored.lib",
-          		--"dependencies/GameNetworkingSockets/bin/Windows/Debug/GameNetworkingSockets.lib"
-      		}
+			--"dependencies/GameNetworkingSockets/bin/Windows/Debug/GameNetworkingSockets.lib"
+		}
 
   	filter { "system:windows", "configurations:Release or configurations:Dist" }	
-      		links
-      		{
-			--"$(VULKAN_SDK)/Lib/glslang.lib",
-			--"$(VULKAN_SDK)/Lib/GenericCodeGen.lib",
-			--"$(VULKAN_SDK)/Lib/glslang-default-resource-limits.lib",
-			--"$(VULKAN_SDK)/Lib/MachineIndependent.lib",
-			--"$(VULKAN_SDK)/Lib/SPIRV.lib",
-			--"$(VULKAN_SDK)/Lib/SPIRV-Tools.lib",
-			--"$(VULKAN_SDK)/Lib/SPIRV-Tools-opt.lib",
-			--"$(VULKAN_SDK)/Lib/SPVRemapper.lib",
-			--"$(VULKAN_SDK)/Lib/OSDependent.lib",
+		links
+		{
 			"$(VULKAN_SDK)/Lib/shaderc_combined.lib",
 			"$(VULKAN_SDK)/Lib/spirv-cross-core.lib",
-          		--"dependencies/GameNetworkingSockets/bin/Windows/Release/GameNetworkingSockets.lib"
-      		}
+			--"dependencies/GameNetworkingSockets/bin/Windows/Release/GameNetworkingSockets.lib"
+		}
 
    	filter "system:windows"
        		systemversion "latest"

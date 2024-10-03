@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include "ArcaneEngine/Window/Window.h"
+#include "ArcaneEngine/Window/Input.h"
 #include "ArcaneEngine/Graphics/Device.h"
 #include "ArcaneEngine/Graphics/PresentQueue.h"
 #include "ArcaneEngine/Graphics/ResourceCache.h"
@@ -34,7 +35,7 @@ int main()
 		.UsageFlags = Arc::ImageUsage::ColorAttachment | Arc::ImageUsage::TransferSrc | Arc::ImageUsage::TransferDst,
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
-		});
+	});
 
 	struct GlobalFrameData
 	{
@@ -46,14 +47,14 @@ int main()
 		.Size = sizeof(GlobalFrameData),
 		.UsageFlags = Arc::BufferUsage::UniformBuffer,
 		.MemoryProperty = Arc::MemoryProperty::HostVisible,
-		});
+	});
 
 	std::unique_ptr<Arc::DescriptorSetArray> descSetArray = std::make_unique<Arc::DescriptorSetArray>();
 	resourceCache->AllocateDescriptorSetArray(descSetArray.get(), Arc::DescriptorSetDesc{
 		.Bindings = {
 			{ Arc::DescriptorType::UniformBuffer, Arc::ShaderStage::Vertex }
 		}
-		});
+	});
 
 	device->UpdateDescriptorSet(descSetArray.get(), Arc::DescriptorWrite()
 		.AddWrite(Arc::BufferArrayWrite(0, bufferArray.get()))
@@ -76,6 +77,21 @@ int main()
 	while (!window->IsClosed())
 	{
 		window->PollEvents();
+
+		if (Arc::Input::IsKeyPressed(Arc::KeyCode::Escape))
+			window->SetClosed(true);
+		if (Arc::Input::IsKeyPressed(Arc::KeyCode::F1))
+			window->SetFullscreen(!window->IsFullscreen());
+
+		if (presentQueue->OutOfDate())
+		{
+			while (window->Width() == 0 || window->Height() == 0)
+				window->WaitEvents();
+			device->WaitIdle();
+			presentQueue.reset();
+			presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), presentMode);
+		}
+
 		Arc::FrameData frameData = presentQueue->BeginFrame();
 		Arc::CommandBuffer* cmd = frameData.CommandBuffer;
 
