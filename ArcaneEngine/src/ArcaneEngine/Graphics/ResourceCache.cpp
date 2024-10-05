@@ -1,4 +1,5 @@
 #include "ResourceCache.h"
+#include "Device.h"
 #include "VulkanCore/VulkanLocal.h"
 #include "ArcaneEngine/Core/Log.h"
 

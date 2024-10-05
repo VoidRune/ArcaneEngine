@@ -1,6 +1,5 @@
 #pragma once
 #include "VulkanCore/VulkanHandles.h"
-#include "Device.h"
 #include "VulkanObjects/GpuBuffer.h"
 #include "VulkanObjects/GpuImage.h"
 #include "VulkanObjects/Sampler.h"
@@ -12,6 +11,7 @@
 
 namespace Arc
 {
+	class Device;
 	class ResourceCache
 	{
 	public:

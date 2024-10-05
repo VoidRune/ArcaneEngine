@@ -1,6 +1,7 @@
 #pragma once
 #include "ArcaneEngine/Graphics/VulkanCore/VulkanHandles.h"
 #include "ArcaneEngine/Graphics/Common.h"
+#include <vector>
 
 namespace Arc
 {

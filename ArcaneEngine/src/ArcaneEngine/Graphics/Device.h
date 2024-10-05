@@ -3,6 +3,8 @@
 #include "QueueFamilyIndices.h"
 #include "VulkanObjects/DescriptorSet.h"
 #include "VulkanObjects/DescriptorWrite.h"
+#include "ResourceCache.h"
+#include "RenderGraph.h"
 #include <vector>
 
 namespace Arc
@@ -27,6 +29,9 @@ namespace Arc
 		CommandPoolHandle GetCommanPool() { return m_CommandPool; }
 		uint32_t GetFramesInFlightCount() { return m_FramesInFlight; }
 
+		ResourceCache* GetResourceCache() { return m_ResourceCache.get(); }
+		RenderGraph* GetRenderGraph() { return m_RenderGraph.get(); }
+
 	private:
 
 		void CreateInstance(const std::vector<const char*>& instanceExtensions);
@@ -46,5 +51,8 @@ namespace Arc
 		QueueHandle m_GraphicsQueue;
 		QueueHandle m_PresentQueue;
 		CommandPoolHandle m_CommandPool;
+
+		std::unique_ptr<ResourceCache> m_ResourceCache;
+		std::unique_ptr<RenderGraph> m_RenderGraph;
 	};
 }

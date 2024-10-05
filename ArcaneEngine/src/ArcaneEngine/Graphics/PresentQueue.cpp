@@ -1,7 +1,8 @@
 #include "PresentQueue.h"
-#include "ArcaneEngine/Core/Log.h"
+#include "ArcaneEngine/Graphics/Device.h"
 #include "ArcaneEngine/Graphics/VulkanCore/VulkanHandleCreation.h"
 #include "ArcaneEngine/Graphics/VulkanCore/VulkanLocal.h"
+#include "ArcaneEngine/Core/Log.h"
 #include <vulkan/vulkan_core.h>
 
 namespace Arc

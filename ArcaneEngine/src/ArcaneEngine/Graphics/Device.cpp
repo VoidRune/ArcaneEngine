@@ -15,10 +15,16 @@ namespace Arc
         SelectPhysicalDevice();
         CreateSurface(windowHandle, framesInFlight);
         CreateLogicalDevice();
+
+        m_ResourceCache = std::make_unique<ResourceCache>(this);
+        m_RenderGraph = std::make_unique<RenderGraph>();
 	}
 
 	Device::~Device()
 	{
+        m_ResourceCache.reset();
+        m_RenderGraph.reset();
+
         VK_CHECK(vkDeviceWaitIdle((VkDevice)m_LogicalDevice));
         vkDestroyCommandPool((VkDevice)m_LogicalDevice, (VkCommandPool)m_CommandPool, nullptr);
         vkDestroyDevice((VkDevice)m_LogicalDevice, nullptr);

@@ -1,12 +1,9 @@
 #pragma once
-#include "ArcaneEngine/Graphics/Device.h"
 #include "ArcaneEngine/Graphics/CommandBuffer.h"
 #include "ArcaneEngine/Graphics/Common.h"
 
 namespace Arc
 {
-
-	class CommandBuffer;
 	class FrameData
 	{
 	public:
@@ -16,6 +13,7 @@ namespace Arc
 		ImageViewHandle PresentImageView;
 	};
 
+	class Device;
 	class PresentQueue
 	{
 	public:

@@ -1,6 +1,5 @@
 #pragma once
 #include "VulkanCore/VulkanHandles.h"
-#include "Device.h"
 #include "CommandBuffer.h"
 #include "PresentQueue.h"
 #include <functional>
