@@ -52,9 +52,12 @@ namespace Arc
 
 		for (auto& pass : m_RenderPasses)
 		{
-			cmd->BeginRendering(pass.ColorAttachments, pass.DepthAttachment, extent);
+			bool hasAttachments = pass.ColorAttachments.size() != 0 && pass.DepthAttachment.has_value();
+			if (hasAttachments)
+				cmd->BeginRendering(pass.ColorAttachments, pass.DepthAttachment, extent);
 			pass.ExecuteFunction(frameData.CommandBuffer, frameData.FrameIndex);
-			cmd->EndRendering();
+			if (hasAttachments)
+				cmd->EndRendering();
 		}
 
 		cmd->TransitionImage(frameData.PresentImage, Arc::ImageLayout::Undefined, Arc::ImageLayout::TransferSrcOptimal);

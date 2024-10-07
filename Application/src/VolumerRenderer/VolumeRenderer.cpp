@@ -9,15 +9,6 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_ResourceCache = m_Device->GetResourceCache();
 	m_RenderGraph = m_Device->GetRenderGraph();
 
-	//std::unique_ptr<Arc::GpuImage> image = std::make_unique<Arc::GpuImage>();
-	//p_ResourceCache->CreateGpuImage(image.get(), Arc::GpuImageDesc{
-	//	.Extent = {windowDesc.Width, windowDesc.Height, 1},
-	//	.Format = Arc::Format::R8G8B8A8_Unorm,
-	//	.UsageFlags = Arc::ImageUsage::ColorAttachment | Arc::ImageUsage::TransferSrc | Arc::ImageUsage::TransferDst,
-	//	.AspectFlags = Arc::ImageAspect::Color,
-	//	.MipLevels = 1,
-	//	});
-
 	m_BufferArray = std::make_unique<Arc::GpuBufferArray>();
 	m_ResourceCache->CreateGpuBufferArray(m_BufferArray.get(), Arc::GpuBufferDesc{
 		.Size = sizeof(GlobalFrameData),
@@ -48,6 +39,41 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_ResourceCache->CreatePipeline(m_Pipeline.get(), Arc::PipelineDesc{
 		.ShaderStages = { m_VertShader.get(), m_FragShader.get() }
 	});
+
+	m_CompShader = std::make_unique<Arc::Shader>();
+	if (Arc::ShaderCompiler::Compile("res/Shaders/compute.comp", shaderDesc))
+		m_ResourceCache->CreateShader(m_CompShader.get(), shaderDesc);
+	m_ComputePipeline = std::make_unique<Arc::ComputePipeline>();
+	m_ResourceCache->CreateComputePipeline(m_ComputePipeline.get(), Arc::ComputePipelineDesc{
+		.Shader = m_CompShader.get()
+	});
+
+	m_ComputeImage = std::make_unique<Arc::GpuImage>();
+	m_ResourceCache->CreateGpuImage(m_ComputeImage.get(), Arc::GpuImageDesc{
+		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+		.Format = Arc::Format::R8G8B8A8_Unorm,
+		.UsageFlags = Arc::ImageUsage::ColorAttachment | Arc::ImageUsage::TransferSrc | Arc::ImageUsage::TransferDst,
+		.AspectFlags = Arc::ImageAspect::Color,
+		.MipLevels = 1,
+	});
+
+	m_ComputeDescriptor = std::make_unique<Arc::DescriptorSet>();
+	m_ResourceCache->AllocateDescriptorSet(m_ComputeDescriptor.get(), Arc::DescriptorSetDesc{
+		.Bindings = {
+			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute }
+		}
+	});
+
+	m_LinearSampler = std::make_unique<Arc::Sampler>();
+	m_ResourceCache->CreateSampler(m_LinearSampler.get(), Arc::SamplerDesc{
+		.MinFilter = Arc::Filter::Linear,
+		.MagFilter = Arc::Filter::Linear,
+		.AddressMode = Arc::SamplerAddressMode::Repeat
+	});
+
+	m_Device->UpdateDescriptorSet(m_ComputeDescriptor.get(), Arc::DescriptorWrite()
+		.AddWrite(Arc::ImageWrite(0, m_ComputeImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+	);
 }
 
 VolumeRenderer::~VolumeRenderer()
@@ -67,6 +93,13 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		m_ResourceCache->UnmapMemory(m_BufferArray.get(), frameData.FrameIndex);
 	}
 
+	m_RenderGraph->AddPass(Arc::RenderPass{
+		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
+			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_ComputePipeline->GetLayout(), 0, { m_ComputeDescriptor->GetHandle()});
+			cmd->BindComputePipeline(m_ComputePipeline->GetHandle());
+			cmd->Dispatch(1, 1, 1);
+		}
+	});
 	m_RenderGraph->SetPresentPass(Arc::PresentPass{
 		.LoadOp = Arc::AttachmentLoadOp::Clear,
 		.ClearColor = {1, 0.5, 0, 1},

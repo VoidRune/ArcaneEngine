@@ -34,4 +34,11 @@ private:
 	std::unique_ptr<Arc::Shader> m_VertShader;
 	std::unique_ptr<Arc::Shader> m_FragShader;
 	std::unique_ptr<Arc::Pipeline> m_Pipeline;
+
+	std::unique_ptr<Arc::Shader> m_CompShader;
+	std::unique_ptr<Arc::ComputePipeline> m_ComputePipeline;
+	std::unique_ptr<Arc::GpuImage> m_ComputeImage;
+	std::unique_ptr<Arc::DescriptorSet> m_ComputeDescriptor;
+
+	std::unique_ptr<Arc::Sampler> m_LinearSampler;
 };
