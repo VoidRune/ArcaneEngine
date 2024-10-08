@@ -73,6 +73,7 @@ namespace Arc
         gpuImage->m_Extent[0] = desc.Extent[0];
         gpuImage->m_Extent[1] = desc.Extent[1];
         gpuImage->m_Extent[2] = desc.Extent[2];
+        gpuImage->m_MipLevels = desc.MipLevels;
 
         m_Resources[gpuImage] = ResourceType::GpuImage;
     }

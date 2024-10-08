@@ -16,8 +16,11 @@ namespace Arc
 		~Device();
 
 		void WaitIdle();
+		void ImmediateSubmit(std::function<void(CommandBufferHandle cmd)>&& func);
+
 		void UpdateDescriptorSet(DescriptorSet* descriptor, const DescriptorWrite& write);
 		void UpdateDescriptorSet(DescriptorSetArray* descriptorArray, const DescriptorWrite& write);
+		void TransitionImageLayout(GpuImage* image, ImageLayout newLayout);
 
 		InstanceHandle GetInstance() { return m_Instance; }
 		PhysicalDeviceHandle GetPhysicalDevice() { return m_PhysicalDevice; }

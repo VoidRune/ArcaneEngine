@@ -42,6 +42,47 @@ namespace Arc
         vkDeviceWaitIdle((VkDevice)m_LogicalDevice);
     }
 
+    void Device::ImmediateSubmit(std::function<void(CommandBufferHandle cmd)>&& func)
+    {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = (VkCommandPool)m_CommandPool;
+        allocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer commandBuffer;
+        VK_CHECK(vkAllocateCommandBuffers((VkDevice)m_LogicalDevice, &allocInfo, &commandBuffer));
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+
+        func(commandBuffer);
+
+        VK_CHECK(vkEndCommandBuffer(commandBuffer));
+
+        VkFence uploadFence;
+        VkFenceCreateInfo uploadFenceCreateInfo{};
+        uploadFenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        uploadFenceCreateInfo.pNext = nullptr;
+        uploadFenceCreateInfo.flags = 0;
+        VK_CHECK(vkCreateFence((VkDevice)m_LogicalDevice, &uploadFenceCreateInfo, nullptr, &uploadFence));
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+
+        VK_CHECK(vkQueueSubmit((VkQueue)m_GraphicsQueue, 1, &submitInfo, uploadFence));
+
+        VK_CHECK(vkWaitForFences((VkDevice)m_LogicalDevice, 1, &uploadFence, true, std::numeric_limits<uint64_t>::max()));
+        vkDestroyFence((VkDevice)m_LogicalDevice, uploadFence, nullptr);
+
+        vkFreeCommandBuffers((VkDevice)m_LogicalDevice, (VkCommandPool)m_CommandPool, 1, &commandBuffer);
+    }
+
     void Device::UpdateDescriptorSet(DescriptorSet* descriptor, const DescriptorWrite& write)
     {
         std::vector<VkWriteDescriptorSet> writeDescriptorSet;
@@ -177,6 +218,55 @@ namespace Arc
         }
 
         vkUpdateDescriptorSets((VkDevice)m_LogicalDevice, static_cast<uint32_t>(writeDescriptorSet.size()), writeDescriptorSet.data(), 0, NULL);
+    }
+
+    void Device::TransitionImageLayout(GpuImage* image, ImageLayout newLayout)
+    {
+        ImmediateSubmit([=](CommandBufferHandle cmd) {
+            VkImageLayout tempOldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            VkImageLayout tempNewLayout = static_cast<VkImageLayout>(newLayout);
+
+            VkImageMemoryBarrier barrier{};
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            barrier.oldLayout = tempOldLayout;
+            barrier.newLayout = tempNewLayout;
+            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.image = (VkImage)image->GetHandle();
+            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            barrier.subresourceRange.baseMipLevel = 0;
+            barrier.subresourceRange.levelCount = image->GetMipLevels();
+            barrier.subresourceRange.baseArrayLayer = 0;
+            barrier.subresourceRange.layerCount = 1;
+
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            VkPipelineStageFlags sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            VkPipelineStageFlags destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+            if (tempOldLayout == VK_IMAGE_LAYOUT_UNDEFINED && tempNewLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+                barrier.srcAccessMask = 0;
+                barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+                sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+                destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            }
+            else if (tempOldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && tempNewLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+                barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+                sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            }
+
+            vkCmdPipelineBarrier(
+                (VkCommandBuffer)cmd,
+                sourceStage, destinationStage,
+                0,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier);
+        });        
     }
     
     void Device::CreateInstance(const std::vector<const char*>& instanceExtensions)

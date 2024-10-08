@@ -52,10 +52,11 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_ResourceCache->CreateGpuImage(m_ComputeImage.get(), Arc::GpuImageDesc{
 		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
 		.Format = Arc::Format::R8G8B8A8_Unorm,
-		.UsageFlags = Arc::ImageUsage::ColorAttachment | Arc::ImageUsage::TransferSrc | Arc::ImageUsage::TransferDst,
+		.UsageFlags = Arc::ImageUsage::Storage,
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
 	});
+	m_Device->TransitionImageLayout(m_ComputeImage.get(), Arc::ImageLayout::General);
 
 	m_ComputeDescriptor = std::make_unique<Arc::DescriptorSet>();
 	m_ResourceCache->AllocateDescriptorSet(m_ComputeDescriptor.get(), Arc::DescriptorSetDesc{

@@ -21,6 +21,7 @@ namespace Arc
 		AllocationHandle GetDeviceMemory() { return m_Allocation; }
 		Format GetFormat() { return m_Format; }
 		uint32_t* GetExtent() { return m_Extent; }
+		uint32_t GetMipLevels() { return m_MipLevels; }
 
 	private:
 		ImageHandle m_Image;
@@ -28,6 +29,7 @@ namespace Arc
 		AllocationHandle m_Allocation;
 		Format m_Format;
 		uint32_t m_Extent[3];
+		uint32_t m_MipLevels;
 
 		friend class ResourceCache;
 	};
