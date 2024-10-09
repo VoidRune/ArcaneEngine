@@ -29,16 +29,22 @@ private:
 		float r, g, b;
 	} globalFrameData;
 
-	std::unique_ptr<Arc::GpuBufferArray> m_BufferArray;
-	std::unique_ptr<Arc::DescriptorSetArray> m_DescSetArray;
+	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;
+	std::unique_ptr<Arc::DescriptorSetArray> m_GlobalDataDescSet;
+
+
+	// Resources
+	std::unique_ptr<Arc::Sampler> m_LinearSampler;
+	std::unique_ptr<Arc::GpuImage> m_OutputImage;
+
+	// Compute Pass
+	std::unique_ptr<Arc::Shader> m_VolumeShader;
+	std::unique_ptr<Arc::ComputePipeline> m_VolumePipeline;
+	std::unique_ptr<Arc::DescriptorSet> m_VolumeImageDescriptor;
+	// Present Pass
 	std::unique_ptr<Arc::Shader> m_VertShader;
 	std::unique_ptr<Arc::Shader> m_FragShader;
-	std::unique_ptr<Arc::Pipeline> m_Pipeline;
+	std::unique_ptr<Arc::Pipeline> m_PresentPipeline;
+	std::unique_ptr<Arc::DescriptorSet> m_PresentDescriptor;
 
-	std::unique_ptr<Arc::Shader> m_CompShader;
-	std::unique_ptr<Arc::ComputePipeline> m_ComputePipeline;
-	std::unique_ptr<Arc::GpuImage> m_ComputeImage;
-	std::unique_ptr<Arc::DescriptorSet> m_ComputeDescriptor;
-
-	std::unique_ptr<Arc::Sampler> m_LinearSampler;
 };

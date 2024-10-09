@@ -1,13 +1,12 @@
 #version 450
 
-//shader input
-layout (location = 0) in vec3 inColor;
+layout(location = 0) in vec2 pos;
+layout (location = 0) out vec4 outColor;
 
-//output write
-layout (location = 0) out vec4 outFragColor;
+layout(set = 0, binding = 0) uniform sampler2D image;
 
 void main() 
 {
-	//return red
-	outFragColor = vec4(inColor,1.0f);
+	vec2 uv = (pos + 1) * 0.5f;
+	outColor = vec4(texture(image, uv));
 }

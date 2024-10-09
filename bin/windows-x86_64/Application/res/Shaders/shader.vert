@@ -1,27 +1,17 @@
 #version 450
 #extension GL_KHR_vulkan_glsl : enable
 
-layout(location = 0) out vec3 outColor;
+layout(location = 0) out vec2 pos;
 
-vec2 positions[3] = vec2[](
-    vec2(0.0, -0.5),
-    vec2(0.5, 0.5),
-    vec2(-0.5, 0.5)
+vec2 positions[4] = vec2[](
+    vec2(-1,-1),
+    vec2( 1,-1),
+    vec2( 1, 1),
+    vec2(-1, 1)
 );
-
-vec3 colors[3] = vec3[](
-    vec3(1.0, 0.0, 0.0),
-    vec3(0.0, 1.0, 0.0),
-    vec3(0.0, 0.0, 1.0)
-);
-
-layout(set = 0, binding = 0) uniform FrameData {
-	vec3 color;
-};
 
 void main()
 {
-    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
-    //outColor = colors[gl_VertexIndex];
-    outColor = color;
+    pos = positions[gl_VertexIndex];
+    gl_Position = vec4(pos, 0.0, 1.0);
 }
