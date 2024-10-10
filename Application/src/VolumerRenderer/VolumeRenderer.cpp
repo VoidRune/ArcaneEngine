@@ -38,6 +38,16 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	});
 	m_Device->TransitionImageLayout(m_OutputImage.get(), Arc::ImageLayout::General);
 
+	m_AccumulationImage = std::make_unique<Arc::GpuImage>();
+	m_ResourceCache->CreateGpuImage(m_AccumulationImage.get(), Arc::GpuImageDesc{
+		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+		.Format = Arc::Format::R16G16B16A16_Sfloat,
+		.UsageFlags = Arc::ImageUsage::Storage,
+		.AspectFlags = Arc::ImageAspect::Color,
+		.MipLevels = 1,
+		});
+	m_Device->TransitionImageLayout(m_AccumulationImage.get(), Arc::ImageLayout::General);
+
 
 	m_GlobalDataBuffer = std::make_unique<Arc::GpuBufferArray>();
 	m_ResourceCache->CreateGpuBufferArray(m_GlobalDataBuffer.get(), Arc::GpuBufferDesc{
@@ -64,12 +74,14 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_VolumeImageDescriptor = std::make_unique<Arc::DescriptorSet>();
 	m_ResourceCache->AllocateDescriptorSet(m_VolumeImageDescriptor.get(), Arc::DescriptorSetDesc{
 		.Bindings = {
+			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute },
 			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute }
 		}
 	});
 
 	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor.get(), Arc::DescriptorWrite()
-		.AddWrite(Arc::ImageWrite(0, m_OutputImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(1, m_OutputImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
 	);
 
 
@@ -111,7 +123,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
 			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_VolumePipeline->GetLayout(), 0, { m_GlobalDataDescSet->GetHandle(frameIndex), m_VolumeImageDescriptor->GetHandle()});
 			cmd->BindComputePipeline(m_VolumePipeline->GetHandle());
-			cmd->Dispatch(m_PresentQueue->GetExtent()[0] / 32, m_PresentQueue->GetExtent()[1] / 32, 1);
+			cmd->Dispatch(std::ceil(m_PresentQueue->GetExtent()[0] / 32.0f), std::ceil(m_PresentQueue->GetExtent()[1] / 32.0f), 1);
 		}
 	});
 	m_RenderGraph->SetPresentPass(Arc::PresentPass{

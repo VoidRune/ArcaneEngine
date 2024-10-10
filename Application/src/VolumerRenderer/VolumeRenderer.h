@@ -36,6 +36,7 @@ private:
 	// Resources
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
 	std::unique_ptr<Arc::GpuImage> m_OutputImage;
+	std::unique_ptr<Arc::GpuImage> m_AccumulationImage;
 
 	// Compute Pass
 	std::unique_ptr<Arc::Shader> m_VolumeShader;
