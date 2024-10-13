@@ -18,6 +18,7 @@ project "Application"
 	{ 
 		"src/**.h", 
 		"src/**.cpp",
+		"dependencies/**.hpp",		
 		"dependencies/stb/**.h",
 		"dependencies/stb/**.cpp",
 	}

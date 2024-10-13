@@ -1,25 +1,53 @@
 #version 450
 
 layout(set = 0, binding = 0) uniform GlobalFrameData{
-    vec3 color;
+    mat4 projection;
+    mat4 view;
+    mat4 inverseProjection;
+    mat4 inverseView;
+    vec4 cameraPosition;
+    vec4 cameraDirection;
+    vec3 backgroundColor;
 } globalData;
 
-layout(rgba16f, set = 1, binding = 0) uniform image2D accumulationImage;
-layout(rgba8, set = 1, binding = 1) uniform image2D outputImage;
-
+layout(set = 1, binding = 0, rgba16f) uniform image2D accumulationImage;
+layout(set = 1, binding = 1, rgba8) uniform image2D outputImage;
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+bool RayBox(vec3 rayOrigin, vec3 rayDirection, vec3 p1, vec3 p2, out float tmin, out float tmax)
+{
+    vec3 dirFrac = 1 / rayDirection;
+    vec3 t1 = (p1 - rayOrigin) * dirFrac;
+    vec3 t2 = (p2 - rayOrigin) * dirFrac;
+    tmin = max(max(min(t1.x, t2.x), min(t1.y, t2.y)), min(t1.z, t2.z));
+    tmax = min(min(max(t1.x, t2.x), max(t1.y, t2.y)), max(t1.z, t2.z));
+    return tmax >= tmin && tmax >= 0.0;
+}
+
 void main() 
 {
+
     ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
-	ivec2 size = imageSize(outputImage);
+	vec2 size = imageSize(outputImage);
     vec2 uv = pos / size;
 
-    if(pos.x < size.x && pos.y < size.y)
+    vec3 rayOrigin = globalData.cameraPosition.xyz;
+    vec4 rayTarget = globalData.inverseProjection * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+    vec3 rayDirection = vec3(globalData.inverseView * vec4(normalize(rayTarget.xyz / rayTarget.w), 0.0));
+
+    float tmin;
+    float tmax;
+    bool intersect = RayBox(rayOrigin, rayDirection, vec3(0, 0, 0), vec3(1, 1, 1), tmin, tmax);
+    tmin = max(tmin, 0.0);
+    float maxDist = tmax - tmin;
+
+    vec4 outputColor = vec4(uv, 0, 1.0f);
+    if(intersect)
     {
-        vec4 color = vec4(uv, 0, 1);
-        imageStore(outputImage, pos, color);
+        outputColor = vec4(maxDist, maxDist, maxDist, 1);
     }
 
-    imageStore(accumulationImage, pos, vec4(globalData.color, 1));
-    imageStore(outputImage, pos, vec4(globalData.color, 1));
+    vec4 loaded = imageLoad(accumulationImage, pos);
+    imageStore(accumulationImage, pos, loaded + vec4(uv, 1, 1));
+    imageStore(outputImage, pos, outputColor);
 }

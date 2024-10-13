@@ -5,6 +5,8 @@
 #include "ArcaneEngine/Graphics/PresentQueue.h"
 #include "ArcaneEngine/Graphics/ResourceCache.h"
 #include "ArcaneEngine/Graphics/RenderGraph.h"
+#include "Core/CameraFP.h"
+#include <glm/glm.hpp>
 
 class VolumeRenderer : RendererBase
 {
@@ -24,9 +26,17 @@ private:
 	Arc::ResourceCache* m_ResourceCache;
 	Arc::RenderGraph* m_RenderGraph;
 
+	std::unique_ptr<CameraFP> m_Camera;
+
 	struct GlobalFrameData
 	{
-		float r, g, b;
+		glm::mat4 projection;
+		glm::mat4 view;
+		glm::mat4 inverseProjection;
+		glm::mat4 inverseView;
+		glm::vec4 cameraPosition;
+		glm::vec4 cameraDirection;
+		glm::vec3 backgroundColor;
 	} globalFrameData;
 
 	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;

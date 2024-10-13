@@ -100,6 +100,10 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_Device->UpdateDescriptorSet(m_PresentDescriptor.get(), Arc::DescriptorWrite()
 		.AddWrite(Arc::ImageWrite(0, m_OutputImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
 	);
+
+	m_Camera = std::make_unique<CameraFP>(m_Window);
+	m_Camera->Position = glm::vec3(0.5, 0.5, -0.5f);
+	m_Camera->MovementSpeed = 0.5f;
 }
 
 VolumeRenderer::~VolumeRenderer()
@@ -109,10 +113,21 @@ VolumeRenderer::~VolumeRenderer()
 
 void VolumeRenderer::RenderFrame(float elapsedTime)
 {
+	static float lastTime = 0.0f;
+	m_Camera->Update(elapsedTime - lastTime);
+	lastTime = elapsedTime;
+
 	Arc::FrameData frameData = m_PresentQueue->BeginFrame();
 	Arc::CommandBuffer* cmd = frameData.CommandBuffer;
 
-	globalFrameData = { 0.2f, elapsedTime - (int)elapsedTime, 1.0f };
+	globalFrameData.projection = m_Camera->Projection;
+	globalFrameData.view = m_Camera->View;
+	globalFrameData.inverseProjection = m_Camera->InverseProjection;
+	globalFrameData.inverseView = m_Camera->InverseView;
+	globalFrameData.cameraPosition = glm::vec4(m_Camera->Position, 0.0f);
+	globalFrameData.cameraDirection = glm::vec4(m_Camera->Forward, 0.0f);
+	globalFrameData.backgroundColor = glm::vec3(0.2f, elapsedTime - (int)elapsedTime, 1.0f);
+
 	{
 		void* data = m_ResourceCache->MapMemory(m_GlobalDataBuffer.get(), frameData.FrameIndex);
 		memcpy(data, &globalFrameData, sizeof(GlobalFrameData));
