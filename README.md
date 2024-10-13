@@ -97,11 +97,11 @@ Note that Vulkan SDK is not included in this project and needs to be downloaded 
 ## Dependencies
 * [Vulkan SDK](https://vulkan.lunarg.com)
 * [GLFW](https://www.glfw.org)
+* [GLM](https://glm.g-truc.net/0.9.8/index.html)
+* [stb](https://github.com/nothings/stb)
 
 <!--
-* [GLM](https://glm.g-truc.net/0.9.8/index.html)
 * [ImGui](https://github.com/ocornut/imgui)
-* [stb](https://github.com/nothings/stb)
 * [miniaudio](https://github.com/mackron/miniaudio)
 * [minivorbis](https://github.com/edubart/minivorbis)
 * [minimp3](https://github.com/lieff/minimp3)
