@@ -114,7 +114,8 @@ VolumeRenderer::~VolumeRenderer()
 void VolumeRenderer::RenderFrame(float elapsedTime)
 {
 	static float lastTime = 0.0f;
-	m_Camera->Update(elapsedTime - lastTime);
+	float dt = elapsedTime - lastTime;
+	m_Camera->Update(dt);
 	lastTime = elapsedTime;
 
 	Arc::FrameData frameData = m_PresentQueue->BeginFrame();

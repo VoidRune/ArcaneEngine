@@ -3,16 +3,15 @@
 #include <fstream>
 #include <filesystem>
 
-#include <glslang/Include/glslang_c_interface.h>
-#include <glslang/Public/resource_limits_c.h>
+//#include <glslang/Include/glslang_c_interface.h>
+//#include <glslang/Public/resource_limits_c.h>
 
 #include <shaderc/shaderc.hpp>
 
 namespace Arc::ShaderCompiler
 {
-	bool Compile(const std::string& filePath, ShaderDesc& shaderDesc)
+	bool ReadFile(const std::string& filePath, std::string& dataText)
 	{
-		std::string dataText;
 		std::ifstream in(filePath, std::ios::in | std::ios::binary);
 		if (in.is_open())
 		{
@@ -23,6 +22,51 @@ namespace Arc::ShaderCompiler
 			in.close();
 		}
 		else
+		{
+			return false;
+		}
+		return true;
+	}
+
+	class ShaderIncluder : public shaderc::CompileOptions::IncluderInterface {
+	public:
+		shaderc_include_result* GetInclude(const char* requested_source,
+			shaderc_include_type type,
+			const char* requesting_source,
+			size_t include_depth) override {
+
+			std::filesystem::path fullPath = requesting_source;
+			std::string parentPath = fullPath.parent_path().string();
+			std::string path = parentPath + "/" + requested_source;
+			std::string dataText;
+			if (!ReadFile(parentPath + "/" + requested_source, dataText))
+			{
+				ARC_LOG_ERROR(std::string("Failed to compile shader: Could not open file ") + path);
+				return nullptr;
+			}
+
+			auto* result = new shaderc_include_result;
+			result->source_name = requested_source;
+			result->source_name_length = strlen(requested_source);
+			char* content_ptr = new char[dataText.size() + 1];
+			strcpy(content_ptr, dataText.c_str());
+			result->content = content_ptr;
+			result->content_length = dataText.size();
+			result->user_data = nullptr;
+
+			return result;
+		}
+
+		void ReleaseInclude(shaderc_include_result* data) override {
+			delete[] data->content;
+			delete data;
+		}
+	};
+
+	bool Compile(const std::string& filePath, ShaderDesc& shaderDesc)
+	{
+		std::string dataText;
+		if (!ReadFile(filePath, dataText))
 		{
 			ARC_LOG_ERROR(std::string("Failed to compile shader: Could not open file ") + filePath.c_str());
 			return false;
@@ -47,6 +91,8 @@ namespace Arc::ShaderCompiler
 	{	
 		shaderc::Compiler compiler;
 		shaderc::CompileOptions options;
+		options.SetIncluder(std::make_unique<ShaderIncluder>());
+
 		options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
 		const bool optimize = true;
 		if (optimize)
@@ -63,6 +109,13 @@ namespace Arc::ShaderCompiler
 		{
 			ARC_LOG_ERROR(std::string("Unknown shader stage: ") + debugName);
 		}
+		}
+
+		auto precompileResult = compiler.PreprocessGlsl(source.data(), shaderStageShaderc, debugName.c_str(), options);
+		if (precompileResult.GetCompilationStatus() != shaderc_compilation_status_success)
+		{
+			//LOG_CORE_ERROR("VK_Shader: Could not preompile shader {0}, error message: {1}", m_SourceFilepath, precompileResult.GetErrorMessage());
+			ARC_LOG_ERROR(std::string("Unknown shader stage: ") + debugName);
 		}
 
 		shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(source.data(), shaderStageShaderc, debugName.c_str(), options);
