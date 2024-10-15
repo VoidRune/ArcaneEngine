@@ -1,5 +1,6 @@
 #include "VolumeRenderer.h"
 #include "ArcaneEngine/Graphics/ShaderCompiler.h"
+#include "DataSetLoader.h"
 
 VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue)
 {
@@ -48,6 +49,16 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		});
 	m_Device->TransitionImageLayout(m_AccumulationImage.get(), Arc::ImageLayout::General);
 
+	m_DatasetImage = std::make_unique<Arc::GpuImage>();
+	m_ResourceCache->CreateGpuImage(m_DatasetImage.get(), Arc::GpuImageDesc{
+		.Extent = { 512, 512, 182 },
+		.Format = Arc::Format::R8_Unorm,
+		.UsageFlags = Arc::ImageUsage::Sampled | Arc::ImageUsage::TransferDst,
+		.AspectFlags = Arc::ImageAspect::Color,
+		.MipLevels = 1,
+	});
+	std::vector<uint8_t> dataSet = DatasetLoader::LoadFromFile("res/Datasets/bonsai.raw");
+	m_Device->SetImageData(m_DatasetImage.get(), dataSet.data(), dataSet.size(), Arc::ImageLayout::General);
 
 	m_GlobalDataBuffer = std::make_unique<Arc::GpuBufferArray>();
 	m_ResourceCache->CreateGpuBufferArray(m_GlobalDataBuffer.get(), Arc::GpuBufferDesc{
@@ -75,13 +86,15 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_ResourceCache->AllocateDescriptorSet(m_VolumeImageDescriptor.get(), Arc::DescriptorSetDesc{
 		.Bindings = {
 			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute },
-			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute }
+			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute },
+			{ Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Compute }
 		}
 	});
 
 	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor.get(), Arc::DescriptorWrite()
 		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
 		.AddWrite(Arc::ImageWrite(1, m_OutputImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(2, m_DatasetImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
 	);
 
 

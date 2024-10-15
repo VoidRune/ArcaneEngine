@@ -13,6 +13,7 @@ layout(set = 0, binding = 0) uniform GlobalFrameData{
 
 layout(set = 1, binding = 0, rgba16f) uniform image2D accumulationImage;
 layout(set = 1, binding = 1, rgba8) uniform image2D outputImage;
+layout(set = 1, binding = 2) uniform sampler3D datasetImage;
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 bool RayBox(vec3 rayOrigin, vec3 rayDirection, vec3 p1, vec3 p2, out float tmin, out float tmax)
@@ -28,9 +29,9 @@ bool RayBox(vec3 rayOrigin, vec3 rayDirection, vec3 p1, vec3 p2, out float tmin,
 void main() 
 {
 
-    ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 px = ivec2(gl_GlobalInvocationID.xy);
 	vec2 size = imageSize(outputImage);
-    vec2 uv = pos / size;
+    vec2 uv = px / size;
 
     vec3 rayOrigin = globalData.cameraPosition.xyz;
     vec4 rayTarget = globalData.inverseProjection * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
@@ -44,12 +45,14 @@ void main()
 
     vec4 outputColor = vec4(uv, 0, 1.0f);
     outputColor = GetColor();
+    vec3 pos = rayOrigin + rayDirection * (tmin + 0.3);
     if(intersect)
     {
-        outputColor = vec4(maxDist, maxDist, maxDist, 1);
+        float r = texture(datasetImage, pos).r;
+        outputColor = vec4(r, maxDist, maxDist, 1);
     }
 
-    vec4 loaded = imageLoad(accumulationImage, pos);
-    imageStore(accumulationImage, pos, loaded + vec4(uv, 1, 1));
-    imageStore(outputImage, pos, outputColor);
+    vec4 loaded = imageLoad(accumulationImage, px);
+    imageStore(accumulationImage, px, loaded + vec4(uv, 1, 1));
+    imageStore(outputImage, px, outputColor);
 }
