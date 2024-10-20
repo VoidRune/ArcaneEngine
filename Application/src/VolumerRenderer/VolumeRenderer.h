@@ -36,6 +36,10 @@ private:
 		glm::mat4 inverseView;
 		glm::vec4 cameraPosition;
 		glm::vec4 cameraDirection;
+		uint32_t frameIndex;
+		uint32_t bounceLimit;
+		float extinction;
+		float anisotropy;
 		glm::vec3 backgroundColor;
 	} globalFrameData;
 
@@ -44,10 +48,12 @@ private:
 
 
 	// Resources
+	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
 	std::unique_ptr<Arc::GpuImage> m_OutputImage;
 	std::unique_ptr<Arc::GpuImage> m_AccumulationImage;
 	std::unique_ptr<Arc::GpuImage> m_DatasetImage;
+	std::unique_ptr<Arc::GpuImage> m_TransferFunctionImage;
 
 	// Compute Pass
 	std::unique_ptr<Arc::Shader> m_VolumeShader;
@@ -58,5 +64,4 @@ private:
 	std::unique_ptr<Arc::Shader> m_FragShader;
 	std::unique_ptr<Arc::Pipeline> m_PresentPipeline;
 	std::unique_ptr<Arc::DescriptorSet> m_PresentDescriptor;
-
 };

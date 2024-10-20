@@ -54,10 +54,15 @@ namespace Arc
 		{
 			bool hasAttachments = pass.ColorAttachments.size() != 0 && pass.DepthAttachment.has_value();
 			if (hasAttachments)
+			{
 				cmd->BeginRendering(pass.ColorAttachments, pass.DepthAttachment, extent);
-			pass.ExecuteFunction(frameData.CommandBuffer, frameData.FrameIndex);
-			if (hasAttachments)
+				pass.ExecuteFunction(frameData.CommandBuffer, frameData.FrameIndex);
 				cmd->EndRendering();
+			}
+			else
+			{
+				pass.ExecuteFunction(frameData.CommandBuffer, frameData.FrameIndex);
+			}
 		}
 
 		cmd->TransitionImage(frameData.PresentImage, Arc::ImageLayout::Undefined, Arc::ImageLayout::TransferSrcOptimal);

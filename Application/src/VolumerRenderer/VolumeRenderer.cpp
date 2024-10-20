@@ -29,6 +29,13 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.AddressMode = Arc::SamplerAddressMode::Repeat
 	});
 
+	m_NearestSampler = std::make_unique<Arc::Sampler>();
+	m_ResourceCache->CreateSampler(m_NearestSampler.get(), Arc::SamplerDesc{
+		.MinFilter = Arc::Filter::Nearest,
+		.MagFilter = Arc::Filter::Nearest,
+		.AddressMode = Arc::SamplerAddressMode::Repeat
+	});
+
 	m_OutputImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_OutputImage.get(), Arc::GpuImageDesc{
 		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
@@ -46,7 +53,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.UsageFlags = Arc::ImageUsage::Storage,
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
-		});
+	});
 	m_Device->TransitionImageLayout(m_AccumulationImage.get(), Arc::ImageLayout::General);
 
 	m_DatasetImage = std::make_unique<Arc::GpuImage>();
@@ -57,8 +64,21 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
 	});
-	std::vector<uint8_t> dataSet = DatasetLoader::LoadFromFile("res/Datasets/bonsai.raw");
-	m_Device->SetImageData(m_DatasetImage.get(), dataSet.data(), dataSet.size(), Arc::ImageLayout::General);
+	{
+		std::vector<uint8_t> dataSet = DatasetLoader::LoadFromFile("res/Datasets/bonsai.raw");
+		m_Device->SetImageData(m_DatasetImage.get(), dataSet.data(), dataSet.size(), Arc::ImageLayout::General);
+	}
+
+	//m_TransferFunctionImage = std::make_unique<Arc::GpuImage>();
+	//m_ResourceCache->CreateGpuImage(m_DatasetImage.get(), Arc::GpuImageDesc{
+	//	.Extent = { 1, 1, 1 },
+	//	.Format = Arc::Format::R8G8B8A8_Unorm,
+	//	.UsageFlags = Arc::ImageUsage::Sampled | Arc::ImageUsage::TransferDst,
+	//	.AspectFlags = Arc::ImageAspect::Color,
+	//	.MipLevels = 1,
+	//});
+	//uint32_t data = 0x00FFFFFF;
+	//m_Device->SetImageData(m_TransferFunctionImage.get(), &data, sizeof(data), Arc::ImageLayout::General);
 
 	m_GlobalDataBuffer = std::make_unique<Arc::GpuBufferArray>();
 	m_ResourceCache->CreateGpuBufferArray(m_GlobalDataBuffer.get(), Arc::GpuBufferDesc{
@@ -92,8 +112,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	});
 
 	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor.get(), Arc::DescriptorWrite()
-		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
-		.AddWrite(Arc::ImageWrite(1, m_OutputImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(1, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
 		.AddWrite(Arc::ImageWrite(2, m_DatasetImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
 	);
 
@@ -111,12 +131,13 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		}
 	});
 	m_Device->UpdateDescriptorSet(m_PresentDescriptor.get(), Arc::DescriptorWrite()
-		.AddWrite(Arc::ImageWrite(0, m_OutputImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(0, m_OutputImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_NearestSampler.get()))
 	);
 
 	m_Camera = std::make_unique<CameraFP>(m_Window);
 	m_Camera->Position = glm::vec3(0.5, 0.5, -0.5f);
 	m_Camera->MovementSpeed = 0.5f;
+	globalFrameData.frameIndex = 1;
 }
 
 VolumeRenderer::~VolumeRenderer()
@@ -140,7 +161,16 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	globalFrameData.inverseView = m_Camera->InverseView;
 	globalFrameData.cameraPosition = glm::vec4(m_Camera->Position, 0.0f);
 	globalFrameData.cameraDirection = glm::vec4(m_Camera->Forward, 0.0f);
-	globalFrameData.backgroundColor = glm::vec3(0.2f, elapsedTime - (int)elapsedTime, 1.0f);
+	globalFrameData.backgroundColor = glm::vec3(1, 1, 1);
+	globalFrameData.frameIndex++;
+	globalFrameData.bounceLimit = 8;
+	globalFrameData.anisotropy = 0.2f;
+	globalFrameData.extinction = 1.0f;
+
+	if (m_Camera->HasMoved)
+	{
+		globalFrameData.frameIndex = 1;
+	}
 
 	{
 		void* data = m_ResourceCache->MapMemory(m_GlobalDataBuffer.get(), frameData.FrameIndex);
@@ -150,9 +180,32 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 
 	m_RenderGraph->AddPass(Arc::RenderPass{
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
+			cmd->MemoryBarrier({
+			Arc::CommandBuffer::ImageBarrier{
+				.Handle = m_AccumulationImage->GetHandle(),
+				.OldLayout = Arc::ImageLayout::Undefined,
+				.NewLayout = Arc::ImageLayout::General,
+			},
+			Arc::CommandBuffer::ImageBarrier{
+				.Handle = m_OutputImage->GetHandle(),
+				.OldLayout = Arc::ImageLayout::Undefined,
+				.NewLayout = Arc::ImageLayout::General,
+			} });
 			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_VolumePipeline->GetLayout(), 0, { m_GlobalDataDescSet->GetHandle(frameIndex), m_VolumeImageDescriptor->GetHandle()});
 			cmd->BindComputePipeline(m_VolumePipeline->GetHandle());
 			cmd->Dispatch(std::ceil(m_PresentQueue->GetExtent()[0] / 32.0f), std::ceil(m_PresentQueue->GetExtent()[1] / 32.0f), 1);
+		
+			cmd->MemoryBarrier({
+			Arc::CommandBuffer::ImageBarrier{
+				.Handle = m_AccumulationImage->GetHandle(),
+				.OldLayout = Arc::ImageLayout::General,
+				.NewLayout = Arc::ImageLayout::General
+			},
+			Arc::CommandBuffer::ImageBarrier{
+				.Handle = m_OutputImage->GetHandle(),
+				.OldLayout = Arc::ImageLayout::General,
+				.NewLayout = Arc::ImageLayout::ShaderReadOnlyOptimal
+			} });
 		}
 	});
 	m_RenderGraph->SetPresentPass(Arc::PresentPass{

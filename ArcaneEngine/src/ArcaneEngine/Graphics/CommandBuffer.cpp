@@ -90,87 +90,7 @@ namespace Arc
 
 		vkCmdBeginRendering((VkCommandBuffer)m_CommandBuffer, &renderingInfo);
 	}
-	/*
-	void CommandBuffer::BeginRendering(const std::vector<ColorAttachment>& colorAttachments, const DepthAttachment& depthAttachment, const uint32_t renderArea[2])
-	{
-		std::vector<VkRenderingAttachmentInfo> colorInfo(colorAttachments.size());
-		for (size_t i = 0; i < colorInfo.size(); i++)
-		{
-			auto& info = colorInfo[i];
-			auto& colorAttachment = colorAttachments[i];
-			info = {};
-			info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-			info.imageView = (VkImageView)colorAttachment.ImageView;
-			info.imageLayout = (VkImageLayout)colorAttachment.ImageLayout;
-			info.loadOp = (VkAttachmentLoadOp)colorAttachment.LoadOp;
-			info.storeOp = (VkAttachmentStoreOp)colorAttachment.StoreOp;
-			info.clearValue = { colorAttachment.ClearColor[0], colorAttachment.ClearColor[1], colorAttachment.ClearColor[2], colorAttachment.ClearColor[3] };
-		}
 
-		VkRenderingAttachmentInfo depthInfo = {};
-		depthInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-		depthInfo.imageView = (VkImageView)depthAttachment.ImageView;
-		depthInfo.imageLayout = (VkImageLayout)depthAttachment.ImageLayout;
-		depthInfo.loadOp = (VkAttachmentLoadOp)depthAttachment.LoadOp;
-		depthInfo.storeOp = (VkAttachmentStoreOp)depthAttachment.StoreOp;
-		depthInfo.clearValue.depthStencil = { depthAttachment.ClearValue, 0 };
-
-		VkRenderingInfo renderingInfo = {};
-		renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-		renderingInfo.renderArea = VkRect2D{ {0, 0}, { renderArea[0], renderArea[1] } };
-		renderingInfo.layerCount = 1;
-		renderingInfo.colorAttachmentCount = colorInfo.size();
-		renderingInfo.pColorAttachments = colorInfo.data();
-		renderingInfo.pDepthAttachment = &depthInfo;
-
-		vkCmdBeginRendering((VkCommandBuffer)m_CommandBuffer, &renderingInfo);
-	}
-
-	void CommandBuffer::BeginRendering(const std::vector<ColorAttachment>& colorAttachments, const uint32_t renderArea[2])
-	{
-		std::vector<VkRenderingAttachmentInfo> colorInfo(colorAttachments.size());
-		for (size_t i = 0; i < colorInfo.size(); i++)
-		{
-			auto& info = colorInfo[i];
-			auto& colorAttachment = colorAttachments[i];
-			info = {};
-			info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-			info.imageView = (VkImageView)colorAttachment.ImageView;
-			info.imageLayout = (VkImageLayout)colorAttachment.ImageLayout;
-			info.loadOp = (VkAttachmentLoadOp)colorAttachment.LoadOp;
-			info.storeOp = (VkAttachmentStoreOp)colorAttachment.StoreOp;
-			info.clearValue = { colorAttachment.ClearColor[0], colorAttachment.ClearColor[1], colorAttachment.ClearColor[2], colorAttachment.ClearColor[3] };
-		}
-
-		VkRenderingInfo renderingInfo = {};
-		renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-		renderingInfo.renderArea = VkRect2D{ {0, 0}, { renderArea[0], renderArea[1] }};
-		renderingInfo.layerCount = 1;
-		renderingInfo.colorAttachmentCount = colorInfo.size();
-		renderingInfo.pColorAttachments = colorInfo.data();
-
-		vkCmdBeginRendering((VkCommandBuffer)m_CommandBuffer, &renderingInfo);
-	}
-
-	void CommandBuffer::BeginRendering(const DepthAttachment& depthAttachment, const uint32_t renderArea[2])
-	{
-		VkRenderingAttachmentInfo depthInfo = {};
-		depthInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-		depthInfo.imageView = (VkImageView)depthAttachment.ImageView;
-		depthInfo.imageLayout = (VkImageLayout)depthAttachment.ImageLayout;
-		depthInfo.loadOp = (VkAttachmentLoadOp)depthAttachment.LoadOp;
-		depthInfo.storeOp = (VkAttachmentStoreOp)depthAttachment.StoreOp;
-		depthInfo.clearValue.depthStencil = { depthAttachment.ClearValue, 0 };
-
-		VkRenderingInfo renderingInfo = {};
-		renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-		renderingInfo.renderArea = VkRect2D{ {0, 0}, { renderArea[0], renderArea[1] } };
-		renderingInfo.layerCount = 1;
-		renderingInfo.pDepthAttachment = &depthInfo;
-
-		vkCmdBeginRendering((VkCommandBuffer)m_CommandBuffer, &renderingInfo);
-	}
-	*/
 	void CommandBuffer::EndRendering()
 	{
 		vkCmdEndRendering((VkCommandBuffer)m_CommandBuffer);
@@ -296,5 +216,37 @@ namespace Arc
 		blitInfo.pRegions = &blitRegion;
 
 		vkCmdBlitImage2((VkCommandBuffer)m_CommandBuffer, &blitInfo);
+	}
+
+	void CommandBuffer::MemoryBarrier(std::vector<ImageBarrier> imageBarriers)
+	{
+		std::vector<VkImageMemoryBarrier2> barriers;
+		barriers.reserve(imageBarriers.size());
+		for (auto& barrier : imageBarriers)
+		{
+			VkImageMemoryBarrier2 imageBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+			imageBarrier.image = (VkImage)barrier.Handle;
+			//imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+			//imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
+			imageBarrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+			imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+			//imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+			//imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+			imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+			imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+			imageBarrier.oldLayout = (VkImageLayout)barrier.OldLayout;
+			imageBarrier.newLayout = (VkImageLayout)barrier.NewLayout;
+
+			VkImageAspectFlags aspectMask = (barrier.NewLayout == ImageLayout::DepthAttachmentOptimal) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+			VkImageSubresourceRange subRange{ aspectMask, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+			imageBarrier.subresourceRange = subRange;
+			barriers.push_back(imageBarrier);
+		}
+
+		VkDependencyInfo depInfo{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+		depInfo.imageMemoryBarrierCount = barriers.size();
+		depInfo.pImageMemoryBarriers = barriers.data();
+
+		vkCmdPipelineBarrier2((VkCommandBuffer)m_CommandBuffer, &depInfo);
 	}
 }

@@ -38,6 +38,14 @@ namespace Arc
 		void ClearColorImage(ImageHandle image, const float clearColor[4], ImageLayout layout);
 		void CopyImageToImage(ImageHandle src, const uint32_t srcExtent[3], ImageHandle dst, const uint32_t dstExtent[3]);
 
+		struct ImageBarrier
+		{
+			ImageHandle Handle;
+			ImageLayout OldLayout;
+			ImageLayout NewLayout;
+		};
+		void MemoryBarrier(std::vector<ImageBarrier> imageBarriers);
+
 		CommandBufferHandle GetHandle() { return m_CommandBuffer; }
 
 	private:

@@ -6,11 +6,20 @@
 
 namespace Arc
 {
+
+	struct Resource
+	{
+
+	};
+
 	struct RenderPass
 	{
 		std::vector<ColorAttachment> ColorAttachments = {};
 		std::optional<DepthAttachment> DepthAttachment = {};
 		std::function<void(CommandBuffer* cb, uint32_t frameIndex)> ExecuteFunction = nullptr;
+
+		std::vector<Resource> Inputs = {};
+		std::vector<Resource> Outputs = {};
 	};
 
 	struct PresentPass
@@ -18,6 +27,8 @@ namespace Arc
 		AttachmentLoadOp LoadOp = AttachmentLoadOp::DontCare;
 		std::array<float, 4> ClearColor = {};
 		std::function<void(CommandBuffer* cb, uint32_t frameIndex)> ExecuteFunction = nullptr;
+
+		std::vector<Resource> Inputs = {};
 	};
 
 	class RenderGraph
