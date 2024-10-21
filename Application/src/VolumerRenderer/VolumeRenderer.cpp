@@ -44,17 +44,23 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
 	});
-	m_Device->TransitionImageLayout(m_OutputImage.get(), Arc::ImageLayout::General);
+	//m_Device->TransitionImageLayout(m_OutputImage.get(), Arc::ImageLayout::General);
 
-	m_AccumulationImage = std::make_unique<Arc::GpuImage>();
-	m_ResourceCache->CreateGpuImage(m_AccumulationImage.get(), Arc::GpuImageDesc{
+	m_AccumulationImage1 = std::make_unique<Arc::GpuImage>();
+	m_AccumulationImage2 = std::make_unique<Arc::GpuImage>();
+	{
+		Arc::GpuImageDesc desc = Arc::GpuImageDesc{
 		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
-		.Format = Arc::Format::R16G16B16A16_Sfloat,
+		.Format = Arc::Format::R32G32B32A32_Sfloat,
 		.UsageFlags = Arc::ImageUsage::Storage,
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
-	});
-	m_Device->TransitionImageLayout(m_AccumulationImage.get(), Arc::ImageLayout::General);
+		};
+		m_ResourceCache->CreateGpuImage(m_AccumulationImage1.get(), desc);
+		m_ResourceCache->CreateGpuImage(m_AccumulationImage2.get(), desc);
+		m_Device->TransitionImageLayout(m_AccumulationImage1.get(), Arc::ImageLayout::General);
+		m_Device->TransitionImageLayout(m_AccumulationImage2.get(), Arc::ImageLayout::General);
+	}
 
 	m_DatasetImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_DatasetImage.get(), Arc::GpuImageDesc{
@@ -102,19 +108,31 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.Shader = m_VolumeShader.get()
 	});
 
-	m_VolumeImageDescriptor = std::make_unique<Arc::DescriptorSet>();
-	m_ResourceCache->AllocateDescriptorSet(m_VolumeImageDescriptor.get(), Arc::DescriptorSetDesc{
+	m_VolumeImageDescriptor1 = std::make_unique<Arc::DescriptorSet>();
+	m_VolumeImageDescriptor2 = std::make_unique<Arc::DescriptorSet>();
+	{
+		Arc::DescriptorSetDesc desc = Arc::DescriptorSetDesc{
 		.Bindings = {
 			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute },
 			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute },
+			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute },
 			{ Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Compute }
-		}
-	});
+		}};
+		m_ResourceCache->AllocateDescriptorSet(m_VolumeImageDescriptor1.get(), desc);
+		m_ResourceCache->AllocateDescriptorSet(m_VolumeImageDescriptor2.get(), desc);
+	}
 
-	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor.get(), Arc::DescriptorWrite()
-		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(1, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(2, m_DatasetImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor1.get(), Arc::DescriptorWrite()
+		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage1.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(1, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+	);
+	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor2.get(), Arc::DescriptorWrite()
+		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(1, m_AccumulationImage1.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
 	);
 
 
@@ -151,6 +169,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	float dt = elapsedTime - lastTime;
 	m_Camera->Update(dt);
 	lastTime = elapsedTime;
+	m_IsEvenFrame = !m_IsEvenFrame;
 
 	Arc::FrameData frameData = m_PresentQueue->BeginFrame();
 	Arc::CommandBuffer* cmd = frameData.CommandBuffer;
@@ -182,25 +201,15 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
 			cmd->MemoryBarrier({
 			Arc::CommandBuffer::ImageBarrier{
-				.Handle = m_AccumulationImage->GetHandle(),
-				.OldLayout = Arc::ImageLayout::Undefined,
-				.NewLayout = Arc::ImageLayout::General,
-			},
-			Arc::CommandBuffer::ImageBarrier{
 				.Handle = m_OutputImage->GetHandle(),
 				.OldLayout = Arc::ImageLayout::Undefined,
 				.NewLayout = Arc::ImageLayout::General,
 			} });
-			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_VolumePipeline->GetLayout(), 0, { m_GlobalDataDescSet->GetHandle(frameIndex), m_VolumeImageDescriptor->GetHandle()});
+			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_VolumePipeline->GetLayout(), 0, { m_GlobalDataDescSet->GetHandle(frameIndex), m_IsEvenFrame ? m_VolumeImageDescriptor1->GetHandle() : m_VolumeImageDescriptor2->GetHandle() });
 			cmd->BindComputePipeline(m_VolumePipeline->GetHandle());
 			cmd->Dispatch(std::ceil(m_PresentQueue->GetExtent()[0] / 32.0f), std::ceil(m_PresentQueue->GetExtent()[1] / 32.0f), 1);
 		
 			cmd->MemoryBarrier({
-			Arc::CommandBuffer::ImageBarrier{
-				.Handle = m_AccumulationImage->GetHandle(),
-				.OldLayout = Arc::ImageLayout::General,
-				.NewLayout = Arc::ImageLayout::General
-			},
 			Arc::CommandBuffer::ImageBarrier{
 				.Handle = m_OutputImage->GetHandle(),
 				.OldLayout = Arc::ImageLayout::General,

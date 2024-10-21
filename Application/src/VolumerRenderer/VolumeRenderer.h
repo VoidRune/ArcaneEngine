@@ -27,7 +27,7 @@ private:
 	Arc::RenderGraph* m_RenderGraph;
 
 	std::unique_ptr<CameraFP> m_Camera;
-
+	bool m_IsEvenFrame = false;
 	struct GlobalFrameData
 	{
 		glm::mat4 projection;
@@ -51,14 +51,16 @@ private:
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
 	std::unique_ptr<Arc::GpuImage> m_OutputImage;
-	std::unique_ptr<Arc::GpuImage> m_AccumulationImage;
+	std::unique_ptr<Arc::GpuImage> m_AccumulationImage1;
+	std::unique_ptr<Arc::GpuImage> m_AccumulationImage2;
 	std::unique_ptr<Arc::GpuImage> m_DatasetImage;
 	std::unique_ptr<Arc::GpuImage> m_TransferFunctionImage;
 
 	// Compute Pass
 	std::unique_ptr<Arc::Shader> m_VolumeShader;
 	std::unique_ptr<Arc::ComputePipeline> m_VolumePipeline;
-	std::unique_ptr<Arc::DescriptorSet> m_VolumeImageDescriptor;
+	std::unique_ptr<Arc::DescriptorSet> m_VolumeImageDescriptor1;
+	std::unique_ptr<Arc::DescriptorSet> m_VolumeImageDescriptor2;
 	// Present Pass
 	std::unique_ptr<Arc::Shader> m_VertShader;
 	std::unique_ptr<Arc::Shader> m_FragShader;
