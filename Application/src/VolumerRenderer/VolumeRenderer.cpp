@@ -184,7 +184,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	globalFrameData.frameIndex++;
 	globalFrameData.bounceLimit = 8;
 	globalFrameData.anisotropy = 0.2f;
-	globalFrameData.extinction = 1.0f;
+	globalFrameData.extinction = 8.0f;
 
 	if (m_Camera->HasMoved)
 	{

@@ -108,21 +108,21 @@ void main()
     tmin = max(tmin, 0.0);
     float maxDist = tmax - tmin;
 
-    vec4 outputColor = vec4(rayDirection, 0);
+    vec4 outputColor = vec4(globalData.backgroundColor, 0);
     vec3 pos = rayOrigin + rayDirection * tmin;
     uint rng = globalData.frameIndex;
 
     if(intersect)
     {
-        int maxSteps = 20;
-        for (float i = 0; i < maxSteps; i++)
-        {
-            float ratio = (i + RandomValue(rng)) / maxSteps;
-            float r = texture(datasetImage, pos + rayDirection * maxDist * ratio).r;
-            outputColor += vec4(r) / maxSteps;
-        }
+        //int maxSteps = 20;
+        //for (float i = 0; i < maxSteps; i++)
+        //{
+        //    float ratio = (i + RandomValue(rng)) / maxSteps;
+        //    float r = texture(datasetImage, pos + rayDirection * maxDist * ratio).r;
+        //    outputColor += vec4(r) / maxSteps;
+        //}
 
-        /*
+        
         Photon photon;
         photon.position = rayOrigin + rayDirection * tmin;
         photon.direction = rayDirection;
@@ -154,7 +154,7 @@ void main()
 
             float intensity = texture(datasetImage, photon.position).r;
             //vec4 transferFunction = texture(colorGradient, vec2(intensity, 0.5));
-            vec4 transferFunction = vec4(0, 1, 1, intensity);
+            vec4 transferFunction = vec4(1, 0, 0, intensity * 5);
             float PNull = 1.0 - transferFunction.a;
 
             float PScattering;
@@ -182,10 +182,9 @@ void main()
                 // null collision
             }
             limit--;
-        }*/
+        }
 
-        //outputColor.rgb = photon.radiance;
-
+        outputColor.rgb = photon.radiance;
     }
 
     if(globalData.frameIndex > 1)
