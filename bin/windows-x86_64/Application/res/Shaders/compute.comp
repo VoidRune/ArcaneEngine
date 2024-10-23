@@ -20,7 +20,7 @@ layout(set = 1, binding = 0, rgba32f) uniform image2D accumulationImageIn;
 layout(set = 1, binding = 1, rgba32f) uniform image2D accumulationImageOut;
 layout(set = 1, binding = 2, rgba8) uniform image2D outputImage;
 layout(set = 1, binding = 3) uniform sampler3D datasetImage;
-//layout(set = 1, binding = 3) uniform sampler2D transferFunctionImage;
+layout(set = 1, binding = 4) uniform sampler2D transferFunctionImage;
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 
@@ -153,8 +153,8 @@ void main()
             }
 
             float intensity = texture(datasetImage, photon.position).r;
-            //vec4 transferFunction = texture(colorGradient, vec2(intensity, 0.5));
-            vec4 transferFunction = vec4(1, 0, 0, intensity * 5);
+            vec4 transferFunction = texture(transferFunctionImage, vec2(intensity, 0.5));
+            //vec4 transferFunction = vec4(1, 0, 0, intensity * 5);
             float PNull = 1.0 - transferFunction.a;
 
             float PScattering;

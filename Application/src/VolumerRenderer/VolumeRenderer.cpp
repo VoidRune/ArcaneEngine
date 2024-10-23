@@ -72,19 +72,30 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	});
 	{
 		std::vector<uint8_t> dataSet = DatasetLoader::LoadFromFile("res/Datasets/bonsai.raw");
-		m_Device->SetImageData(m_DatasetImage.get(), dataSet.data(), dataSet.size(), Arc::ImageLayout::General);
+		m_Device->SetImageData(m_DatasetImage.get(), dataSet.data(), dataSet.size(), Arc::ImageLayout::ShaderReadOnlyOptimal);
 	}
 
-	//m_TransferFunctionImage = std::make_unique<Arc::GpuImage>();
-	//m_ResourceCache->CreateGpuImage(m_DatasetImage.get(), Arc::GpuImageDesc{
-	//	.Extent = { 1, 1, 1 },
-	//	.Format = Arc::Format::R8G8B8A8_Unorm,
-	//	.UsageFlags = Arc::ImageUsage::Sampled | Arc::ImageUsage::TransferDst,
-	//	.AspectFlags = Arc::ImageAspect::Color,
-	//	.MipLevels = 1,
-	//});
-	//uint32_t data = 0x00FFFFFF;
-	//m_Device->SetImageData(m_TransferFunctionImage.get(), &data, sizeof(data), Arc::ImageLayout::General);
+	m_TransferFunctionImage = std::make_unique<Arc::GpuImage>();
+	uint32_t transferFunctionSize = 256;
+	m_ResourceCache->CreateGpuImage(m_TransferFunctionImage.get(), Arc::GpuImageDesc{
+		.Extent = { transferFunctionSize, 1, 1 },
+		.Format = Arc::Format::R8G8B8A8_Unorm,
+		.UsageFlags = Arc::ImageUsage::Sampled | Arc::ImageUsage::TransferDst,
+		.AspectFlags = Arc::ImageAspect::Color,
+		.MipLevels = 1,
+	});
+	{
+		std::vector<uint32_t> data(transferFunctionSize);
+		for (size_t i = 0; i < data.size(); i++)
+		{
+			int r = 0;
+			int g = 0;
+			int b = 255;
+			int a = i;
+			data[i] = a << 24 | b << 16 | g << 8 | r);
+		}
+		m_Device->SetImageData(m_TransferFunctionImage.get(), data.data(), data.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
+	}
 
 	m_GlobalDataBuffer = std::make_unique<Arc::GpuBufferArray>();
 	m_ResourceCache->CreateGpuBufferArray(m_GlobalDataBuffer.get(), Arc::GpuBufferDesc{
@@ -116,6 +127,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute },
 			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute },
 			{ Arc::DescriptorType::StorageImage, Arc::ShaderStage::Compute },
+			{ Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Compute },
 			{ Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Compute }
 		}};
 		m_ResourceCache->AllocateDescriptorSet(m_VolumeImageDescriptor1.get(), desc);
@@ -126,13 +138,15 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage1.get(), Arc::ImageLayout::General, nullptr))
 		.AddWrite(Arc::ImageWrite(1, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
 		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(4, m_TransferFunctionImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
 	);
 	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor2.get(), Arc::DescriptorWrite()
 		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
 		.AddWrite(Arc::ImageWrite(1, m_AccumulationImage1.get(), Arc::ImageLayout::General, nullptr))
 		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::General, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(4, m_TransferFunctionImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
 	);
 
 
