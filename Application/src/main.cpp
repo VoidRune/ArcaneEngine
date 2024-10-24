@@ -16,7 +16,7 @@ int main()
 	windowDesc.Height = 720;
 	windowDesc.Fullscreen = false;
 	auto window = std::make_unique<Arc::Window>(windowDesc);
-
+	
 	uint32_t inFlightFrameCount = 3;
 	Arc::PresentMode presentMode = Arc::PresentMode::Mailbox;
 

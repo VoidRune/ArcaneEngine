@@ -5,6 +5,7 @@
 #include "ArcaneEngine/Graphics/PresentQueue.h"
 #include "ArcaneEngine/Graphics/ResourceCache.h"
 #include "ArcaneEngine/Graphics/RenderGraph.h"
+#include "ArcaneEngine/Graphics/ImGui/ImGuiRenderer.h"
 #include "Core/CameraFP.h"
 #include <glm/glm.hpp>
 
@@ -25,6 +26,7 @@ private:
 	Arc::PresentQueue* m_PresentQueue;
 	Arc::ResourceCache* m_ResourceCache;
 	Arc::RenderGraph* m_RenderGraph;
+	std::unique_ptr<Arc::ImGuiRenderer> m_ImGuiRenderer;
 
 	std::unique_ptr<CameraFP> m_Camera;
 	bool m_IsEvenFrame = false;

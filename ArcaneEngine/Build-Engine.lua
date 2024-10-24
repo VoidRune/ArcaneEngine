@@ -29,6 +29,7 @@ project "ArcaneEngine"
 		"$(VULKAN_SDK)/Include",
 		"dependencies/glfw/include",
 		"dependencies/VulkanMemoryAllocator",
+		"dependencies",
 		--"dependencies/GameNetworkingSockets/include",
    	}
 

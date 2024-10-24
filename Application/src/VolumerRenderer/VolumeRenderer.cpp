@@ -9,7 +9,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_PresentQueue = presentQueue;
 	m_ResourceCache = m_Device->GetResourceCache();
 	m_RenderGraph = m_Device->GetRenderGraph();
-
+	m_ImGuiRenderer = std::make_unique<Arc::ImGuiRenderer>(window, device, presentQueue);
 
 	m_VertShader = std::make_unique<Arc::Shader>();
 	m_FragShader = std::make_unique<Arc::Shader>();
@@ -92,7 +92,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 			int g = 0;
 			int b = 255;
 			int a = i;
-			data[i] = a << 24 | b << 16 | g << 8 | r);
+			data[i] = a << 24 | b << 16 | g << 8 | r;
 		}
 		m_Device->SetImageData(m_TransferFunctionImage.get(), data.data(), data.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
 	}
@@ -238,6 +238,10 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, { m_PresentDescriptor->GetHandle() });
 			cmd->BindPipeline(m_PresentPipeline->GetHandle());
 			cmd->Draw(6, 1, 0, 0);
+
+			m_ImGuiRenderer->BeginFrame();
+			ImGui::ShowDemoWindow();
+			m_ImGuiRenderer->EndFrame(cmd->GetHandle());
 		}
 	});
 	m_RenderGraph->BuildGraph();
