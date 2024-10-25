@@ -117,6 +117,11 @@ namespace Arc
 		ImGui_ImplVulkan_CreateFontsTexture();
 	}
 
+	ImTextureID ImGuiRenderer::CreateImageId(ImageViewHandle imageView, SamplerHandle sampler)
+	{
+		return (ImTextureID)ImGui_ImplVulkan_AddTexture((VkSampler)sampler, (VkImageView)imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	}
+
 	ImGuiRenderer::~ImGuiRenderer()
 	{
 		ImGui_ImplVulkan_Shutdown();

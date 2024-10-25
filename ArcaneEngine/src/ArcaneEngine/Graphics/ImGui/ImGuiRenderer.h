@@ -11,6 +11,8 @@ namespace Arc
 		ImGuiRenderer(Window* window, Device* device, PresentQueue* presentQueue);
 		~ImGuiRenderer();
 
+		ImTextureID CreateImageId(ImageViewHandle imageView, SamplerHandle sampler);
+
 		void BeginFrame();
 		void EndFrame(CommandBufferHandle cmd);
 	private:

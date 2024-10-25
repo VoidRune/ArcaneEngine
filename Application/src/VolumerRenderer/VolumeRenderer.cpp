@@ -170,6 +170,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_Camera->Position = glm::vec3(0.5, 0.5, -0.5f);
 	m_Camera->MovementSpeed = 0.5f;
 	globalFrameData.frameIndex = 1;
+
+	m_ImGuiDisplayImage = m_ImGuiRenderer->CreateImageId(m_OutputImage->GetImageView(), m_LinearSampler->GetHandle());
 }
 
 VolumeRenderer::~VolumeRenderer()
@@ -233,7 +235,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	});
 	m_RenderGraph->SetPresentPass(Arc::PresentPass{
 		.LoadOp = Arc::AttachmentLoadOp::Clear,
-		.ClearColor = {1, 0.5, 0, 1},
+		.ClearColor = {1, 0.5, 1, 1},
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
 			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, { m_PresentDescriptor->GetHandle() });
 			cmd->BindPipeline(m_PresentPipeline->GetHandle());
@@ -241,6 +243,9 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 
 			m_ImGuiRenderer->BeginFrame();
 			ImGui::ShowDemoWindow();
+			ImGui::Begin("image");
+			ImGui::Image(m_ImGuiDisplayImage, ImGui::GetContentRegionAvail());
+			ImGui::End();
 			m_ImGuiRenderer->EndFrame(cmd->GetHandle());
 		}
 	});

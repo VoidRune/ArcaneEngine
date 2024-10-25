@@ -27,6 +27,7 @@ private:
 	Arc::ResourceCache* m_ResourceCache;
 	Arc::RenderGraph* m_RenderGraph;
 	std::unique_ptr<Arc::ImGuiRenderer> m_ImGuiRenderer;
+	ImTextureID m_ImGuiDisplayImage;
 
 	std::unique_ptr<CameraFP> m_Camera;
 	bool m_IsEvenFrame = false;

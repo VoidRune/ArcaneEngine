@@ -232,8 +232,8 @@ namespace Arc
 			imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
 			//imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 			//imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-			imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-			imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+			imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+			imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
 			imageBarrier.oldLayout = (VkImageLayout)barrier.OldLayout;
 			imageBarrier.newLayout = (VkImageLayout)barrier.NewLayout;
 

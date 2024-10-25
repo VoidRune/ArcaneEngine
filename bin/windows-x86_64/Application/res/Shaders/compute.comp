@@ -108,7 +108,7 @@ void main()
     tmin = max(tmin, 0.0);
     float maxDist = tmax - tmin;
 
-    vec4 outputColor = vec4(globalData.backgroundColor, 0);
+    vec4 outputColor = vec4(globalData.backgroundColor, 1);
     vec3 pos = rayOrigin + rayDirection * tmin;
     uint rng = globalData.frameIndex;
 
