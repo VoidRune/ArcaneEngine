@@ -10,6 +10,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_ResourceCache = m_Device->GetResourceCache();
 	m_RenderGraph = m_Device->GetRenderGraph();
 	m_ImGuiRenderer = std::make_unique<Arc::ImGuiRenderer>(window, device, presentQueue);
+	m_TransferFunctionEditor = std::make_unique<TransferFunctionEditor>();
 
 	m_VertShader = std::make_unique<Arc::Shader>();
 	m_FragShader = std::make_unique<Arc::Shader>();
@@ -241,11 +242,20 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 			cmd->BindPipeline(m_PresentPipeline->GetHandle());
 			cmd->Draw(6, 1, 0, 0);
 
+			//ImGui::Begin("Canvas", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
 			m_ImGuiRenderer->BeginFrame();
-			ImGui::ShowDemoWindow();
-			ImGui::Begin("image");
+			ImGui::DockSpaceOverViewport();
+			//ImGui::DockSpace(ImGui::GetID("Dockspace"), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+			ImGui::ShowDemoWindow();			
+			ImGui::Begin("Canvas", nullptr, ImGuiWindowFlags_NoTitleBar);
 			ImGui::Image(m_ImGuiDisplayImage, ImGui::GetContentRegionAvail());
 			ImGui::End();
+			m_TransferFunctionEditor->Render();
+			//ImDrawList* drawlist = ImGui::GetWindowDrawList();
+			//drawlist->AddCircleFilled({ 30, 30 }, 5.0f, IM_COL32(100, 255, 0, 200));
+			//drawlist->AddCircleFilled({ 60, 50 }, 5.0f, IM_COL32(100, 255, 0, 200));
+			//ImGui::End();
 			m_ImGuiRenderer->EndFrame(cmd->GetHandle());
 		}
 	});

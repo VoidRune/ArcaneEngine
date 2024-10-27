@@ -6,6 +6,7 @@
 #include "ArcaneEngine/Graphics/ResourceCache.h"
 #include "ArcaneEngine/Graphics/RenderGraph.h"
 #include "ArcaneEngine/Graphics/ImGui/ImGuiRenderer.h"
+#include "TransferFunctionEditor.h"
 #include "Core/CameraFP.h"
 #include <glm/glm.hpp>
 
@@ -27,6 +28,7 @@ private:
 	Arc::ResourceCache* m_ResourceCache;
 	Arc::RenderGraph* m_RenderGraph;
 	std::unique_ptr<Arc::ImGuiRenderer> m_ImGuiRenderer;
+	std::unique_ptr<TransferFunctionEditor> m_TransferFunctionEditor;
 	ImTextureID m_ImGuiDisplayImage;
 
 	std::unique_ptr<CameraFP> m_Camera;
