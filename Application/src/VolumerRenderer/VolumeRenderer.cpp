@@ -212,6 +212,9 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		void* data = m_ResourceCache->MapMemory(m_GlobalDataBuffer.get(), frameData.FrameIndex);
 		memcpy(data, &globalFrameData, sizeof(GlobalFrameData));
 		m_ResourceCache->UnmapMemory(m_GlobalDataBuffer.get(), frameData.FrameIndex);
+	
+		auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(256);
+		m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
 	}
 
 	m_RenderGraph->AddPass(Arc::RenderPass{

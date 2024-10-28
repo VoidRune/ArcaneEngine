@@ -8,6 +8,7 @@ public:
 	~TransferFunctionEditor();
 
 	void Render();
+	std::vector<uint32_t> GenerateTransferFunctionImage(int width);
 
 	struct Point
 	{
@@ -18,10 +19,11 @@ public:
 private:
 
 	void AddPoint();
+	void RemoveSelectedPoint();
 	void SortPoints();
 
 	std::vector<Point> m_Points;
 	int32_t m_SelectedPoint = -1;
 	int32_t m_LastSelectedPoint = 0;
-	int32_t m_CurrentPointId = 1;
+	int32_t m_CurrentPointId = 0;
 };
