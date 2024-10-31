@@ -203,7 +203,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	globalFrameData.anisotropy = 0.2f;
 	globalFrameData.extinction = 8.0f;
 
-	if (m_Camera->HasMoved)
+	if (m_Camera->HasMoved || m_TransferFunctionEditor->HasDataChanged())
 	{
 		globalFrameData.frameIndex = 1;
 	}
@@ -213,8 +213,11 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		memcpy(data, &globalFrameData, sizeof(GlobalFrameData));
 		m_ResourceCache->UnmapMemory(m_GlobalDataBuffer.get(), frameData.FrameIndex);
 	
-		auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(256);
-		m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
+		if (m_TransferFunctionEditor->HasDataChanged())
+		{
+			auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(256);
+			m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
+		}
 	}
 
 	m_RenderGraph->AddPass(Arc::RenderPass{

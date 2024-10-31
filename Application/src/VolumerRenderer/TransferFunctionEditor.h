@@ -8,7 +8,8 @@ public:
 	~TransferFunctionEditor();
 
 	void Render();
-	std::vector<uint32_t> GenerateTransferFunctionImage(int width);
+	bool HasDataChanged() { return m_HasDataChanged; }
+	std::vector<uint8_t> GenerateTransferFunctionImage(int width);
 
 	struct Point
 	{
@@ -26,4 +27,5 @@ private:
 	int32_t m_SelectedPoint = -1;
 	int32_t m_LastSelectedPoint = 0;
 	int32_t m_CurrentPointId = 0;
+	bool m_HasDataChanged = false;
 };

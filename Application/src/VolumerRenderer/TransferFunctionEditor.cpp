@@ -40,53 +40,45 @@ void TransferFunctionEditor::SortPoints()
 	});
 }
 
-std::vector<uint32_t> TransferFunctionEditor::GenerateTransferFunctionImage(int width)
+std::vector<uint8_t> TransferFunctionEditor::GenerateTransferFunctionImage(int width)
 {
-	// Create the 1D image array
-	std::vector<uint32_t> imageData(width); // RGBA for each pixel
+	std::vector<uint8_t> imageData(width * 4);
 
-	// Linear interpolation between points
-	for (int i = 0; i < width; ++i) {
-		float t = static_cast<float>(i) / (width - 1); // Normalized [0, 1] across image width
+	for (size_t i = 0; i < width; i++)
+	{
+		float f = i / float(width);
+		Point left = m_Points[0];
+		Point right = m_Points[m_Points.size() - 1];
 
-		// Find the two closest control points
-		auto upper = std::upper_bound(m_Points.begin(), m_Points.end(), t, [](float t, const Point& point) {
-			return t < point.X;
-		});
-
-		if (upper == m_Points.begin()) {
-			// If t is less than the first point, use the first point color
-			const auto& p = m_Points.front();
-			imageData[i] = (int)(p.R * 255) << 24 | (int)(p.G * 255) << 16 | (int)(p.R * 255) << 8 | (int)(p.Y * 255);
+		for (size_t j = 0; j < m_Points.size() - 1; j++)
+		{
+			if (m_Points[j].X >= f)
+				break;
+			left = m_Points[j];
+			right = m_Points[j + 1];
 		}
-		else if (upper == m_Points.end()) {
-			// If t is beyond the last point, use the last point color
-			const auto& p = m_Points.back();
-			imageData[i] = (int)(p.R * 255) << 24 | (int)(p.G * 255) << 16 | (int)(p.R * 255) << 8 | (int)(p.Y * 255);
-		}
-		else {
-			// Interpolate between the two nearest points
-			const auto& p1 = *(upper - 1);
-			const auto& p2 = *upper;
-			float localT = (t - p1.X) / (p2.X - p1.X); // Interpolation factor between p1 and p2
+		float lRatio = (right.X - f);
+		float rRatio = (f - left.X);
+		float div = (right.X - left.X);
 
-			// Interpolated color and opacity
-			int r = p1.R + localT * (p2.R - p1.R);
-			int g = p1.G + localT * (p2.G - p1.G);
-			int b = p1.B + localT * (p2.B - p1.B);
-			int a = p1.Y + localT * (p2.Y - p1.Y);
-
-			// Store interpolated color in image data
-			imageData[i] = r << 24 | g << 16 | b << 8 | a;
-		}
+		float r = (left.R * lRatio + right.R * rRatio) / div;
+		float g = (left.G * lRatio + right.G * rRatio) / div;
+		float b = (left.B * lRatio + right.B * rRatio) / div;
+		float density = (left.Y * lRatio + right.Y * rRatio) / div;
+		imageData[i * 4 + 0] = r * 255.0f;
+		imageData[i * 4 + 1] = g * 255.0f;
+		imageData[i * 4 + 2] = b * 255.0f;
+		imageData[i * 4 + 3] = density * 255.0f;
 	}
 
-	return imageData; // The generated 1D RGBA transfer function image
+	return imageData;
 
 }
 
 void TransferFunctionEditor::Render()
 {
+	m_HasDataChanged = false;
+
 	ImGui::Begin("Transfer Function Editor");
 
 	ImGui::BeginChild("A", ImVec2(0.0f, 100.0f), ImGuiWindowFlags_NoScrollbar );
@@ -116,6 +108,7 @@ void TransferFunctionEditor::Render()
 		ImVec2 mousePos = ImGui::GetMousePos();
 		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
 			(pow(mousePos.x - xPos, 2) + pow(mousePos.y - yPos, 2) < 100.0f)) {
+
 			m_SelectedPoint = point.id;
 			m_LastSelectedPoint = m_SelectedPoint;
 		}
@@ -125,10 +118,18 @@ void TransferFunctionEditor::Render()
 
 		if (m_SelectedPoint == point.id)
 		{
+			float lastX = point.X;
+			float lastY = point.Y;
+
 			if (point.id != 0 && point.id != 0xFFFFFF)
 				point.X = std::clamp((mousePos.x - editorPos.x) / editorSize.x, 0.0f, 1.0f);
 			point.Y = 1.0f - std::clamp((mousePos.y - editorPos.y) / editorSize.y, 0.0f, 1.0f);
 			drawlist->AddCircleFilled({ xPos, yPos }, 5.0f, IM_COL32(point.R * 255, point.G * 255, point.B * 255, 255));
+			
+			if (lastX != point.X || lastY != point.Y)
+			{
+				m_HasDataChanged = true;
+			}
 		}
 		else
 		{
@@ -152,7 +153,14 @@ void TransferFunctionEditor::Render()
 		if (p.id == m_LastSelectedPoint)
 			colorPtr = &p.R;
 
+	tempColor[0] = colorPtr[0];
+	tempColor[1] = colorPtr[1];
+	tempColor[2] = colorPtr[2];
 	ImGui::ColorPicker3("Edit Color", colorPtr, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
+	if (tempColor[0] != colorPtr[0] || tempColor[1] != colorPtr[1] || tempColor[2] != colorPtr[2])
+	{
+		m_HasDataChanged = true;
+	}
 
 	ImGui::End();
 }
