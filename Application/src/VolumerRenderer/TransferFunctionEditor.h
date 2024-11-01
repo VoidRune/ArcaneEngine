@@ -7,7 +7,7 @@ public:
 	TransferFunctionEditor();
 	~TransferFunctionEditor();
 
-	void Render();
+	void Render(ImTextureID transferFunctionImage);
 	bool HasDataChanged() { return m_HasDataChanged; }
 	std::vector<uint8_t> GenerateTransferFunctionImage(int width);
 

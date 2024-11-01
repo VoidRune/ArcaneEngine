@@ -18,6 +18,7 @@ TransferFunctionEditor::~TransferFunctionEditor()
 void TransferFunctionEditor::AddPoint()
 {
 	m_Points.push_back(Point(m_CurrentPointId++, 0.5, 0.5, 255, 0, 0));
+	m_HasDataChanged = true;
 }
 
 void TransferFunctionEditor::RemoveSelectedPoint()
@@ -29,6 +30,7 @@ void TransferFunctionEditor::RemoveSelectedPoint()
 		if (m_Points[i].id == m_LastSelectedPoint)
 		{
 			m_Points.erase(m_Points.begin() + i);
+			m_HasDataChanged = true;
 		}
 	}
 }
@@ -65,9 +67,9 @@ std::vector<uint8_t> TransferFunctionEditor::GenerateTransferFunctionImage(int w
 		float g = (left.G * lRatio + right.G * rRatio) / div;
 		float b = (left.B * lRatio + right.B * rRatio) / div;
 		float density = (left.Y * lRatio + right.Y * rRatio) / div;
-		imageData[i * 4 + 0] = r * 255.0f;
-		imageData[i * 4 + 1] = g * 255.0f;
-		imageData[i * 4 + 2] = b * 255.0f;
+		imageData[i * 4 + 0] = r;
+		imageData[i * 4 + 1] = g;
+		imageData[i * 4 + 2] = b;
 		imageData[i * 4 + 3] = density * 255.0f;
 	}
 
@@ -75,7 +77,7 @@ std::vector<uint8_t> TransferFunctionEditor::GenerateTransferFunctionImage(int w
 
 }
 
-void TransferFunctionEditor::Render()
+void TransferFunctionEditor::Render(ImTextureID transferFunctionImage)
 {
 	m_HasDataChanged = false;
 
@@ -89,8 +91,8 @@ void TransferFunctionEditor::Render()
 
 	ImVec2 mousePos = ImGui::GetMousePos();
 	bool pointSelected = false;
-	drawlist->AddRectFilled(editorPos, { editorPos.x + editorSize.x, editorPos.y + editorSize.y }, IM_COL32(100, 100, 100, 200));
-
+	//drawlist->AddRectFilled(editorPos, { editorPos.x + editorSize.x, editorPos.y + editorSize.y }, IM_COL32(100, 100, 100, 200));
+	drawlist->AddImage(transferFunctionImage, editorPos, { editorPos.x + editorSize.x, editorPos.y + editorSize.y });
 	SortPoints();
 	for (size_t i = 0; i < m_Points.size(); ++i)
 	{

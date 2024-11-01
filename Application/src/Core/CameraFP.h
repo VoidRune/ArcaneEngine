@@ -12,7 +12,7 @@ public:
 	CameraFP(Arc::Window* window);
 	~CameraFP();
 
-	void Update(double deltaTime);
+	void Update(double deltaTime, float aspectRatio);
 
 	float Theta = 0.0f;
 	float Phi = 0.0f;
@@ -44,5 +44,5 @@ public:
 
 private:
 	Arc::Window* m_Window;
-	void UpdateMatrices();
+	void UpdateMatrices(float aspectRatio);
 };

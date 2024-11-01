@@ -22,6 +22,9 @@ public:
 	void WaitForFrameEnd();
 
 private:
+
+	void ResizeCanvas(uint32_t width, uint32_t height);
+
 	Arc::Window* m_Window;
 	Arc::Device* m_Device;
 	Arc::PresentQueue* m_PresentQueue;
@@ -30,6 +33,8 @@ private:
 	std::unique_ptr<Arc::ImGuiRenderer> m_ImGuiRenderer;
 	std::unique_ptr<TransferFunctionEditor> m_TransferFunctionEditor;
 	ImTextureID m_ImGuiDisplayImage;
+	ImTextureID m_ImGuiTransferImage;
+	ImVec2 m_ImGuiCanvasSize;
 
 	std::unique_ptr<CameraFP> m_Camera;
 	bool m_IsEvenFrame = false;
@@ -41,11 +46,11 @@ private:
 		glm::mat4 inverseView;
 		glm::vec4 cameraPosition;
 		glm::vec4 cameraDirection;
-		uint32_t frameIndex;
-		uint32_t bounceLimit;
-		float extinction;
-		float anisotropy;
-		glm::vec3 backgroundColor;
+		uint32_t frameIndex = 0;
+		int32_t bounceLimit = 16;
+		float extinction = 200.0f;
+		float anisotropy = 0.2f;
+		alignas(16) glm::vec3 backgroundColor = { 1, 1, 1 };
 	} globalFrameData;
 
 	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;

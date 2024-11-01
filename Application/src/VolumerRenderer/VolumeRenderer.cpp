@@ -37,32 +37,6 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.AddressMode = Arc::SamplerAddressMode::Repeat
 	});
 
-	m_OutputImage = std::make_unique<Arc::GpuImage>();
-	m_ResourceCache->CreateGpuImage(m_OutputImage.get(), Arc::GpuImageDesc{
-		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
-		.Format = Arc::Format::R8G8B8A8_Unorm,
-		.UsageFlags = Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
-		.AspectFlags = Arc::ImageAspect::Color,
-		.MipLevels = 1,
-	});
-	//m_Device->TransitionImageLayout(m_OutputImage.get(), Arc::ImageLayout::General);
-
-	m_AccumulationImage1 = std::make_unique<Arc::GpuImage>();
-	m_AccumulationImage2 = std::make_unique<Arc::GpuImage>();
-	{
-		Arc::GpuImageDesc desc = Arc::GpuImageDesc{
-		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
-		.Format = Arc::Format::R32G32B32A32_Sfloat,
-		.UsageFlags = Arc::ImageUsage::Storage,
-		.AspectFlags = Arc::ImageAspect::Color,
-		.MipLevels = 1,
-		};
-		m_ResourceCache->CreateGpuImage(m_AccumulationImage1.get(), desc);
-		m_ResourceCache->CreateGpuImage(m_AccumulationImage2.get(), desc);
-		m_Device->TransitionImageLayout(m_AccumulationImage1.get(), Arc::ImageLayout::General);
-		m_Device->TransitionImageLayout(m_AccumulationImage2.get(), Arc::ImageLayout::General);
-	}
-
 	m_DatasetImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_DatasetImage.get(), Arc::GpuImageDesc{
 		.Extent = { 512, 512, 182 },
@@ -86,16 +60,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.MipLevels = 1,
 	});
 	{
-		std::vector<uint32_t> data(transferFunctionSize);
-		for (size_t i = 0; i < data.size(); i++)
-		{
-			int r = 0;
-			int g = 0;
-			int b = 255;
-			int a = i;
-			data[i] = a << 24 | b << 16 | g << 8 | r;
-		}
-		m_Device->SetImageData(m_TransferFunctionImage.get(), data.data(), data.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
+		auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(transferFunctionSize);
+		m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
 	}
 
 	m_GlobalDataBuffer = std::make_unique<Arc::GpuBufferArray>();
@@ -135,21 +101,6 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		m_ResourceCache->AllocateDescriptorSet(m_VolumeImageDescriptor2.get(), desc);
 	}
 
-	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor1.get(), Arc::DescriptorWrite()
-		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage1.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(1, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
-		.AddWrite(Arc::ImageWrite(4, m_TransferFunctionImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
-	);
-	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor2.get(), Arc::DescriptorWrite()
-		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(1, m_AccumulationImage1.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
-		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
-		.AddWrite(Arc::ImageWrite(4, m_TransferFunctionImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
-	);
-
 
 	m_PresentPipeline = std::make_unique<Arc::Pipeline>();
 	m_ResourceCache->CreatePipeline(m_PresentPipeline.get(), Arc::PipelineDesc{
@@ -163,16 +114,13 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 			{ Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::Fragment }
 		}
 	});
-	m_Device->UpdateDescriptorSet(m_PresentDescriptor.get(), Arc::DescriptorWrite()
-		.AddWrite(Arc::ImageWrite(0, m_OutputImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_NearestSampler.get()))
-	);
 
 	m_Camera = std::make_unique<CameraFP>(m_Window);
 	m_Camera->Position = glm::vec3(0.5, 0.5, -0.5f);
 	m_Camera->MovementSpeed = 0.5f;
 	globalFrameData.frameIndex = 1;
 
-	m_ImGuiDisplayImage = m_ImGuiRenderer->CreateImageId(m_OutputImage->GetImageView(), m_LinearSampler->GetHandle());
+	m_ImGuiTransferImage = m_ImGuiRenderer->CreateImageId(m_TransferFunctionImage->GetImageView(), m_LinearSampler->GetHandle());
 }
 
 VolumeRenderer::~VolumeRenderer()
@@ -184,7 +132,6 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 {
 	static float lastTime = 0.0f;
 	float dt = elapsedTime - lastTime;
-	m_Camera->Update(dt);
 	lastTime = elapsedTime;
 	m_IsEvenFrame = !m_IsEvenFrame;
 
@@ -197,17 +144,36 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	globalFrameData.inverseView = m_Camera->InverseView;
 	globalFrameData.cameraPosition = glm::vec4(m_Camera->Position, 0.0f);
 	globalFrameData.cameraDirection = glm::vec4(m_Camera->Forward, 0.0f);
-	globalFrameData.backgroundColor = glm::vec3(1, 1, 1);
 	globalFrameData.frameIndex++;
-	globalFrameData.bounceLimit = 8;
-	globalFrameData.anisotropy = 0.2f;
-	globalFrameData.extinction = 8.0f;
 
-	if (m_Camera->HasMoved || m_TransferFunctionEditor->HasDataChanged())
+	m_ImGuiRenderer->BeginFrame();
+	ImGui::DockSpaceOverViewport();
+	ImGui::Begin("Canvas", nullptr, ImGuiWindowFlags_NoTitleBar);
+	ImVec2 canvasRegion = ImGui::GetContentRegionAvail();
+
+	m_Camera->Update(dt, canvasRegion.x / canvasRegion.y);
+	if (m_ImGuiCanvasSize.x != canvasRegion.x || m_ImGuiCanvasSize.y != canvasRegion.y)
+	{
+		m_ImGuiCanvasSize.x = canvasRegion.x;
+		m_ImGuiCanvasSize.y = canvasRegion.y;
+		globalFrameData.frameIndex = 1;
+		ResizeCanvas(m_ImGuiCanvasSize.x, m_ImGuiCanvasSize.y);
+	}
+
+	ImGui::Image(m_ImGuiDisplayImage, canvasRegion);
+	ImGui::End();
+	m_TransferFunctionEditor->Render(m_ImGuiTransferImage);
+	ImGui::Begin("Volume Settings", nullptr);
+	bool guiChange = ImGui::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 128);
+	guiChange |= ImGui::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f);
+	guiChange |= ImGui::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f);
+	guiChange |= ImGui::ColorEdit3("Background", &globalFrameData.backgroundColor.r);
+	ImGui::End();
+
+	if (guiChange || m_Camera->HasMoved || m_TransferFunctionEditor->HasDataChanged())
 	{
 		globalFrameData.frameIndex = 1;
 	}
-
 	{
 		void* data = m_ResourceCache->MapMemory(m_GlobalDataBuffer.get(), frameData.FrameIndex);
 		memcpy(data, &globalFrameData, sizeof(GlobalFrameData));
@@ -215,7 +181,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	
 		if (m_TransferFunctionEditor->HasDataChanged())
 		{
-			auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(256);
+			auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(m_TransferFunctionImage->GetExtent()[0]);
 			m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
 		}
 	}
@@ -230,7 +196,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 			} });
 			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_VolumePipeline->GetLayout(), 0, { m_GlobalDataDescSet->GetHandle(frameIndex), m_IsEvenFrame ? m_VolumeImageDescriptor1->GetHandle() : m_VolumeImageDescriptor2->GetHandle() });
 			cmd->BindComputePipeline(m_VolumePipeline->GetHandle());
-			cmd->Dispatch(std::ceil(m_PresentQueue->GetExtent()[0] / 32.0f), std::ceil(m_PresentQueue->GetExtent()[1] / 32.0f), 1);
+			cmd->Dispatch(std::ceil(m_ImGuiCanvasSize.x / 32.0f), std::ceil(m_ImGuiCanvasSize.y / 32.0f), 1);
 		
 			cmd->MemoryBarrier({
 			Arc::CommandBuffer::ImageBarrier{
@@ -247,27 +213,67 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, { m_PresentDescriptor->GetHandle() });
 			cmd->BindPipeline(m_PresentPipeline->GetHandle());
 			cmd->Draw(6, 1, 0, 0);
-
-			//ImGui::Begin("Canvas", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-
-			m_ImGuiRenderer->BeginFrame();
-			ImGui::DockSpaceOverViewport();
-			//ImGui::DockSpace(ImGui::GetID("Dockspace"), ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-			ImGui::ShowDemoWindow();			
-			ImGui::Begin("Canvas", nullptr, ImGuiWindowFlags_NoTitleBar);
-			ImGui::Image(m_ImGuiDisplayImage, ImGui::GetContentRegionAvail());
-			ImGui::End();
-			m_TransferFunctionEditor->Render();
-			//ImDrawList* drawlist = ImGui::GetWindowDrawList();
-			//drawlist->AddCircleFilled({ 30, 30 }, 5.0f, IM_COL32(100, 255, 0, 200));
-			//drawlist->AddCircleFilled({ 60, 50 }, 5.0f, IM_COL32(100, 255, 0, 200));
-			//ImGui::End();
 			m_ImGuiRenderer->EndFrame(cmd->GetHandle());
 		}
 	});
 	m_RenderGraph->BuildGraph();
 	m_RenderGraph->Execute(frameData, m_PresentQueue->GetExtent());
 	m_PresentQueue->EndFrame();
+}
+
+void VolumeRenderer::ResizeCanvas(uint32_t width, uint32_t height)
+{
+	m_Device->WaitIdle();
+	if(m_OutputImage.get())
+		m_ResourceCache->ReleaseResource(m_OutputImage.get());
+	m_OutputImage = std::make_unique<Arc::GpuImage>();
+	m_ResourceCache->CreateGpuImage(m_OutputImage.get(), Arc::GpuImageDesc{
+		.Extent = { width, height, 1},
+		.Format = Arc::Format::R8G8B8A8_Unorm,
+		.UsageFlags = Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
+		.AspectFlags = Arc::ImageAspect::Color,
+		.MipLevels = 1,
+	});
+	if (m_AccumulationImage1.get())
+		m_ResourceCache->ReleaseResource(m_AccumulationImage1.get());
+	if (m_AccumulationImage2.get())
+		m_ResourceCache->ReleaseResource(m_AccumulationImage2.get());
+	m_AccumulationImage1 = std::make_unique<Arc::GpuImage>();
+	m_AccumulationImage2 = std::make_unique<Arc::GpuImage>();
+	{
+		Arc::GpuImageDesc desc = Arc::GpuImageDesc{
+		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+		.Format = Arc::Format::R32G32B32A32_Sfloat,
+		.UsageFlags = Arc::ImageUsage::Storage,
+		.AspectFlags = Arc::ImageAspect::Color,
+		.MipLevels = 1,
+		};
+		m_ResourceCache->CreateGpuImage(m_AccumulationImage1.get(), desc);
+		m_ResourceCache->CreateGpuImage(m_AccumulationImage2.get(), desc);
+		m_Device->TransitionImageLayout(m_AccumulationImage1.get(), Arc::ImageLayout::General);
+		m_Device->TransitionImageLayout(m_AccumulationImage2.get(), Arc::ImageLayout::General);
+	}
+
+	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor1.get(), Arc::DescriptorWrite()
+		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage1.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(1, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(4, m_TransferFunctionImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
+	);
+	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor2.get(), Arc::DescriptorWrite()
+		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(1, m_AccumulationImage1.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(4, m_TransferFunctionImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
+	);
+
+	m_Device->UpdateDescriptorSet(m_PresentDescriptor.get(), Arc::DescriptorWrite()
+		.AddWrite(Arc::ImageWrite(0, m_OutputImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_NearestSampler.get()))
+	);
+
+	m_ImGuiDisplayImage = m_ImGuiRenderer->CreateImageId(m_OutputImage->GetImageView(), m_LinearSampler->GetHandle());
 }
 
 void VolumeRenderer::SwapchainResized(void* presentQueue)
