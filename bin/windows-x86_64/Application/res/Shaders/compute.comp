@@ -152,7 +152,9 @@ void main()
                 break;
             }
 
-            float intensity = texture(datasetImage, photon.position).r;
+            vec3 samplePoint = photon.position;
+            samplePoint.y = 1 - samplePoint.y;
+            float intensity = texture(datasetImage, samplePoint).r;
             vec4 transferFunction = texture(transferFunctionImage, vec2(intensity, 0.5));
             //vec4 transferFunction = vec4(1, 0, 0, intensity * 5);
             float PNull = 1.0 - transferFunction.a;

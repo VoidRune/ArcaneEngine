@@ -27,7 +27,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_ResourceCache->CreateSampler(m_LinearSampler.get(), Arc::SamplerDesc{
 		.MinFilter = Arc::Filter::Linear,
 		.MagFilter = Arc::Filter::Linear,
-		.AddressMode = Arc::SamplerAddressMode::Repeat
+		.AddressMode = Arc::SamplerAddressMode::ClampToEdge
 	});
 
 	m_NearestSampler = std::make_unique<Arc::Sampler>();
