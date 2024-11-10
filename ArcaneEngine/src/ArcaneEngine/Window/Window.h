@@ -12,6 +12,7 @@ namespace Arc
 		uint32_t Width = 1280;
 		uint32_t Height = 720;
 		bool Fullscreen = false;
+		bool Titlebar = true;
 	};
 
 	class Window

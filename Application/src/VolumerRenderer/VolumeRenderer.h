@@ -65,6 +65,7 @@ private:
 	std::unique_ptr<Arc::GpuImage> m_AccumulationImage2;
 	std::unique_ptr<Arc::GpuImage> m_DatasetImage;
 	std::unique_ptr<Arc::GpuImage> m_TransferFunctionImage;
+	std::unique_ptr<Arc::GpuImage> m_MaxExtinctionImage;
 
 	// Compute Pass
 	std::unique_ptr<Arc::Shader> m_VolumeShader;

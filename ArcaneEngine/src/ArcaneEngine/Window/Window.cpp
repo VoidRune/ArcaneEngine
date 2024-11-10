@@ -20,6 +20,8 @@ namespace Arc
 		glfwInit();
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
+		if (!desc.Titlebar)
+			glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 		int width = desc.Width;

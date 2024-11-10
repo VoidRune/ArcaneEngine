@@ -9,7 +9,8 @@ public:
 
 	void Render(ImTextureID transferFunctionImage);
 	bool HasDataChanged() { return m_HasDataChanged; }
-	std::vector<uint8_t> GenerateTransferFunctionImage(int width);
+	std::vector<uint32_t> GenerateTransferFunctionImage(int width);
+	std::vector<uint8_t> GetMaxExtinctionGrid(std::vector<uint32_t>& transferFunction, int division, std::vector<uint8_t>& dataset, int w, int h, int l);
 
 	struct Point
 	{

@@ -21,6 +21,7 @@ layout(set = 1, binding = 1, rgba32f) uniform image2D accumulationImageOut;
 layout(set = 1, binding = 2, rgba8) uniform image2D outputImage;
 layout(set = 1, binding = 3) uniform sampler3D datasetImage;
 layout(set = 1, binding = 4) uniform sampler2D transferFunctionImage;
+layout(set = 1, binding = 5) uniform sampler3D maxExtinctionImage;
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 
@@ -114,13 +115,13 @@ void main()
 
     if(intersect)
     {
-        //int maxSteps = 20;
-        //for (float i = 0; i < maxSteps; i++)
-        //{
-        //    float ratio = (i + RandomValue(rng)) / maxSteps;
-        //    float r = texture(datasetImage, pos + rayDirection * maxDist * ratio).r;
-        //    outputColor += vec4(r) / maxSteps;
-        //}
+        int maxSteps = 20;
+        for (float i = 0; i < maxSteps; i++)
+        {
+            float ratio = (i + RandomValue(rng)) / maxSteps;
+            float r = texture(maxExtinctionImage, pos + rayDirection * maxDist * ratio).r * 100.0f;
+            outputColor += vec4(r) / maxSteps;
+        }
 
         
         Photon photon;
@@ -155,8 +156,9 @@ void main()
             vec3 samplePoint = photon.position;
             samplePoint.y = 1 - samplePoint.y;
             float intensity = texture(datasetImage, samplePoint).r;
+            //float maxExtinction = texture(maxExtinctionImage, samplePoint).r;
             vec4 transferFunction = texture(transferFunctionImage, vec2(intensity, 0.5));
-            //vec4 transferFunction = vec4(1, 0, 0, intensity * 5);
+            //transferFunction.a = maxExtinction;
             float PNull = 1.0 - transferFunction.a;
 
             float PScattering;
@@ -186,7 +188,7 @@ void main()
             limit--;
         }
 
-        outputColor.rgb = photon.radiance;
+        outputColor.rgb += photon.radiance;
     }
 
     if(globalData.frameIndex > 1)
