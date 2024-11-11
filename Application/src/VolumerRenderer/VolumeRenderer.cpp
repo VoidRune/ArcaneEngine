@@ -65,13 +65,13 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.MipLevels = 1,
 	});
 	{
-		std::vector<uint8_t> dataSet = DatasetLoader::LoadFromFile("res/Datasets/bonsai.raw");
-		m_Device->SetImageData(m_DatasetImage.get(), dataSet.data(), dataSet.size(), Arc::ImageLayout::ShaderReadOnlyOptimal);
+		m_DataSet = DatasetLoader::LoadFromFile("res/Datasets/bonsai.raw");
+		m_Device->SetImageData(m_DatasetImage.get(), m_DataSet.data(), m_DataSet.size(), Arc::ImageLayout::ShaderReadOnlyOptimal);
 
 		auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(transferFunctionSize);
 		m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
 		
-		auto maxData = m_TransferFunctionEditor->GetMaxExtinctionGrid(transferData, 8, dataSet, 512, 512, 182);
+		auto maxData = m_TransferFunctionEditor->GetMaxExtinctionGrid(transferData, 8, m_DataSet, 512, 512, 182);
 		m_Device->SetImageData(m_MaxExtinctionImage.get(), maxData.data(), maxData.size() * sizeof(uint8_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
 	}
 
@@ -195,6 +195,9 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		{
 			auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(m_TransferFunctionImage->GetExtent()[0]);
 			m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
+			
+			auto maxData = m_TransferFunctionEditor->GetMaxExtinctionGrid(transferData, 8, m_DataSet, 512, 512, 182);
+			m_Device->SetImageData(m_MaxExtinctionImage.get(), maxData.data(), maxData.size() * sizeof(uint8_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
 		}
 	}
 

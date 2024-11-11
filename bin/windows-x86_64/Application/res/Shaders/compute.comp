@@ -33,10 +33,10 @@ struct Photon {
     uint bounces;
 };
 
-/*
-bool PerformVoxelTraversal(inout Photon p)
+
+bool PerformVoxelTraversal(inout Photon p, inout uint rng)
 {
-    float gridSize = textureSize(muTexture, 0).r;
+    float gridSize = textureSize(maxExtinctionImage, 0).r;
 
     vec3 invDir = 1 / p.direction;
     vec3 rayGradient = abs(invDir / gridSize);
@@ -51,7 +51,7 @@ bool PerformVoxelTraversal(inout Photon p)
     if(p.direction.z > 0)
         lengthStepped.z = (cellIndex.z + 1.0f - p.position.z * gridSize) * rayGradient.z;
 
-    float unif = -log(RandomValue(rng)) / data.extinction;
+    float unif = -log(RandomValue(rng)) / globalData.extinction;
 
     float umin = 0.0f;
     float umax = 0.0f;
@@ -76,8 +76,10 @@ bool PerformVoxelTraversal(inout Photon p)
             return false;
         }
 
+    	vec3 samplePoint = midpoint;
+        samplePoint.y = 1 - samplePoint.y;
 
-        float mu = texture(muTexture, midpoint).r;
+        float mu = texture(maxExtinctionImage, samplePoint).r;
         float s = umax - umin;
         float opticalThicness = mu * s;
         
@@ -89,7 +91,7 @@ bool PerformVoxelTraversal(inout Photon p)
         }
         unif -= opticalThicness;
     }
-}*/
+}
 
 
 void main() 
@@ -115,13 +117,13 @@ void main()
 
     if(intersect)
     {
-        int maxSteps = 20;
-        for (float i = 0; i < maxSteps; i++)
-        {
-            float ratio = (i + RandomValue(rng)) / maxSteps;
-            float r = texture(maxExtinctionImage, pos + rayDirection * maxDist * ratio).r * 100.0f;
-            outputColor += vec4(r) / maxSteps;
-        }
+        //int maxSteps = 20;
+        //for (float i = 0; i < maxSteps; i++)
+        //{
+        //    float ratio = (i + RandomValue(rng)) / maxSteps;
+        //    float r = texture(maxExtinctionImage, pos + rayDirection * maxDist * ratio).r * 100.0f;
+        //    outputColor += vec4(r) / maxSteps;
+        //}
 
         
         Photon photon;
@@ -135,23 +137,23 @@ void main()
         int limit = 1000;
         while(limit > 0)
         {
-            //if(!PerformVoxelTraversal(photon))
-            //{
-            //    vec3 envSample = data.backgroundColor;
-            //    vec3 radiance = photon.transmittance * envSample.rgb;
-            //    photon.radiance += (radiance - photon.radiance);
-            //    break;
-            //}
-
-            float step = -log(RandomValue(rng)) / globalData.extinction;
-            photon.position += step * photon.direction;
-            if (any(greaterThan(photon.position, vec3(1))) || any(lessThan(photon.position, vec3(0)))) {
-                // out of bounds
+            if(!PerformVoxelTraversal(photon, rng))
+            {
                 vec3 envSample = globalData.backgroundColor;
                 vec3 radiance = photon.transmittance * envSample.rgb;
-                photon.radiance += (radiance - photon.radiance);                
+                photon.radiance += (radiance - photon.radiance);
                 break;
             }
+
+            //float step = -log(RandomValue(rng)) / globalData.extinction;
+            //photon.position += step * photon.direction;
+            //if (any(greaterThan(photon.position, vec3(1))) || any(lessThan(photon.position, vec3(0)))) {
+            //    // out of bounds
+            //    vec3 envSample = globalData.backgroundColor;
+            //    vec3 radiance = photon.transmittance * envSample.rgb;
+            //    photon.radiance += (radiance - photon.radiance);                
+            //    break;
+            //}
 
             vec3 samplePoint = photon.position;
             samplePoint.y = 1 - samplePoint.y;
@@ -188,7 +190,7 @@ void main()
             limit--;
         }
 
-        outputColor.rgb += photon.radiance;
+        outputColor.rgb = photon.radiance;
     }
 
     if(globalData.frameIndex > 1)

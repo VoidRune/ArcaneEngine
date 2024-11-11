@@ -56,6 +56,7 @@ private:
 	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;
 	std::unique_ptr<Arc::DescriptorSetArray> m_GlobalDataDescSet;
 
+	std::vector<uint8_t> m_DataSet;
 
 	// Resources
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;

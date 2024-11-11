@@ -97,7 +97,7 @@ std::vector<uint8_t> TransferFunctionEditor::GetMaxExtinctionGrid(std::vector<ui
 				uint8_t density = (transferFunction[d] & 0xFF000000) >> 24;
 				if (density > max)
 				{
-					std::cout << (int)density << std::endl;
+					//std::cout << (int)density << std::endl;
 					max = density;
 				}
 			}
