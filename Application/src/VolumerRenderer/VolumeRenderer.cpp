@@ -236,9 +236,9 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		.LoadOp = Arc::AttachmentLoadOp::Clear,
 		.ClearColor = {1, 0.5, 1, 1},
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
-			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, { m_PresentDescriptor->GetHandle() });
-			cmd->BindPipeline(m_PresentPipeline->GetHandle());
-			cmd->Draw(6, 1, 0, 0);
+			//cmd->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, { m_PresentDescriptor->GetHandle() });
+			//cmd->BindPipeline(m_PresentPipeline->GetHandle());
+			//cmd->Draw(6, 1, 0, 0);
 			m_ImGuiRenderer->EndFrame(cmd->GetHandle());
 		}
 	});

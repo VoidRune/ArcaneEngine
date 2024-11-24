@@ -102,10 +102,14 @@ bool PerformVoxelTraversal(inout Photon p, inout uint rng, out float extinction)
 
 void main() 
 {
-
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
 	vec2 size = imageSize(outputImage);
-    vec2 uv = px / size;
+    uint rng = globalData.frameIndex;
+
+    // added tiny blur effect for antialiasing
+    float blurAmount = 1.0f;
+    vec2 blur = vec2(RandomValue(rng) * blurAmount, RandomValue(rng) * blurAmount) * 2.0 - 1.0;
+    vec2 uv = (px + blur) / size;
 
     vec3 rayOrigin = globalData.cameraPosition.xyz;
     vec4 rayTarget = globalData.inverseProjection * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
@@ -113,13 +117,12 @@ void main()
 
     float tmin;
     float tmax;
-    bool intersect = RayBox(rayOrigin, rayDirection, vec3(0, 0, 0), vec3(1, 1, 1), tmin, tmax);
+    bool intersect = RayBox(rayOrigin, rayDirection, vec3(0.0f), vec3(1.0f), tmin, tmax);
     tmin = max(tmin, 0.0);
     float maxDist = tmax - tmin;
 
     vec4 outputColor = vec4(globalData.backgroundColor, 1);
     vec3 pos = rayOrigin + rayDirection * tmin;
-    uint rng = globalData.frameIndex;
 
     if(intersect)
     {
