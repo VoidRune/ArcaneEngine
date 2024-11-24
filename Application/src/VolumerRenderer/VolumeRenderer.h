@@ -57,6 +57,7 @@ private:
 	std::unique_ptr<Arc::DescriptorSetArray> m_GlobalDataDescSet;
 
 	std::vector<uint8_t> m_DataSet;
+	uint32_t m_ExtinctionGridSize = 16;
 
 	// Resources
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
@@ -66,7 +67,8 @@ private:
 	std::unique_ptr<Arc::GpuImage> m_AccumulationImage2;
 	std::unique_ptr<Arc::GpuImage> m_DatasetImage;
 	std::unique_ptr<Arc::GpuImage> m_TransferFunctionImage;
-	std::unique_ptr<Arc::GpuImage> m_MaxExtinctionImage;
+	std::unique_ptr<Arc::GpuImage> m_MaxExtinctionImage1;
+	std::unique_ptr<Arc::GpuImage> m_MaxExtinctionImage2;
 
 	// Compute Pass
 	std::unique_ptr<Arc::Shader> m_VolumeShader;

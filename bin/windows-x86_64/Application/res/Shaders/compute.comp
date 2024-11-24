@@ -21,7 +21,8 @@ layout(set = 1, binding = 1, rgba32f) uniform image2D accumulationImageOut;
 layout(set = 1, binding = 2, rgba8) uniform image2D outputImage;
 layout(set = 1, binding = 3) uniform sampler3D datasetImage;
 layout(set = 1, binding = 4) uniform sampler2D transferFunctionImage;
-layout(set = 1, binding = 5) uniform sampler3D maxExtinctionImage;
+layout(set = 1, binding = 5) uniform sampler3D extinctionGrid;
+layout(set = 1, binding = 6, r8) uniform image3D outputExtinctionGrid;
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 
@@ -34,31 +35,38 @@ struct Photon {
 };
 
 
-bool PerformVoxelTraversal(inout Photon p, inout uint rng)
+float FetchAndUpdateExtinction(vec3 samplePoint, float gridSize) {
+    float currentExtinction = texture(extinctionGrid, samplePoint).r;
+    float localDensity = texture(transferFunctionImage, vec2(texture(datasetImage, samplePoint).r, 0.5)).a;
+    float updatedExtinction = max(currentExtinction, localDensity + 1e-4f);
+    if (updatedExtinction > currentExtinction) {
+        ivec3 superVoxel = ivec3(samplePoint * gridSize);
+        imageStore(outputExtinctionGrid, superVoxel, vec4(updatedExtinction));
+    }
+    return updatedExtinction;
+}
+
+bool PerformVoxelTraversal(inout Photon p, inout uint rng, out float extinction)
 {
-    float gridSize = textureSize(maxExtinctionImage, 0).r;
+    int gridSize = textureSize(extinctionGrid, 0).r;
 
     vec3 invDir = 1 / p.direction;
     vec3 rayGradient = abs(invDir / gridSize);
 
     ivec3 cellIndex =  ivec3(p.position * gridSize);
     vec3 lengthStepped = (p.position * gridSize - vec3(cellIndex)) * rayGradient;
+    
+    if(p.direction.x > 0) lengthStepped.x = (cellIndex.x + 1.0f - p.position.x * gridSize) * rayGradient.x;
+    if(p.direction.y > 0) lengthStepped.y = (cellIndex.y + 1.0f - p.position.y * gridSize) * rayGradient.y;
+    if(p.direction.z > 0) lengthStepped.z = (cellIndex.z + 1.0f - p.position.z * gridSize) * rayGradient.z;
 
-    if(p.direction.x > 0)
-        lengthStepped.x = (cellIndex.x + 1.0f - p.position.x * gridSize) * rayGradient.x;
-    if(p.direction.y > 0)
-        lengthStepped.y = (cellIndex.y + 1.0f - p.position.y * gridSize) * rayGradient.y;
-    if(p.direction.z > 0)
-        lengthStepped.z = (cellIndex.z + 1.0f - p.position.z * gridSize) * rayGradient.z;
-
-    float unif = -log(RandomValue(rng)) / globalData.extinction;
-
+    float freePath = -log(RandomValue(rng)) / globalData.extinction;
     float umin = 0.0f;
     float umax = 0.0f;
 
     while(true)
     {
-        float umin = umax;
+        umin = umax;
         if (lengthStepped.x < lengthStepped.y && lengthStepped.x < lengthStepped.z) {
             umax = lengthStepped.x; 
             lengthStepped.x += rayGradient.x;
@@ -71,25 +79,23 @@ bool PerformVoxelTraversal(inout Photon p, inout uint rng)
         }
 
         vec3 midpoint = p.position + p.direction * (umin + umax) * 0.5;
-
         if (any(greaterThan(midpoint, vec3(1 + 1e-4))) || any(lessThan(midpoint, vec3(0 - 1e-4)))) {
             return false;
         }
 
-    	vec3 samplePoint = midpoint;
-        samplePoint.y = 1 - samplePoint.y;
+        vec3 samplePoint = clamp(vec3(midpoint.x, 1.0 - midpoint.y, midpoint.z), vec3(0.0f), vec3(1.0f));
+        extinction = FetchAndUpdateExtinction(samplePoint, gridSize);
 
-        float mu = texture(maxExtinctionImage, samplePoint).r;
-        float s = umax - umin;
-        float opticalThicness = mu * s;
+        float d = umax - umin;
+        float opticalThickness = extinction * d;
         
-        if (opticalThicness >= unif)
+        if (opticalThickness >= freePath)
         {
-            float t = unif / mu;
+            float t = freePath / extinction;
             p.position = p.position + p.direction * (umin + t);
             return true;
         }
-        unif -= opticalThicness;
+        freePath -= opticalThickness;
     }
 }
 
@@ -117,12 +123,15 @@ void main()
 
     if(intersect)
     {
+        outputColor = vec4(0, 0, 0, 1);
         //int maxSteps = 20;
         //for (float i = 0; i < maxSteps; i++)
         //{
         //    float ratio = (i + RandomValue(rng)) / maxSteps;
-        //    float r = texture(maxExtinctionImage, pos + rayDirection * maxDist * ratio).r * 100.0f;
-        //    outputColor += vec4(r) / maxSteps;
+        //    vec3 point = (pos + rayDirection * maxDist * ratio);
+        //    point.y = 1.0 - point.y;
+        //    float r = texture(extinctionGrid, point).r * 10.0f;
+        //    outputColor.r += r / maxSteps;
         //}
 
         
@@ -134,10 +143,10 @@ void main()
         photon.radiance = vec3(0);
 
         uint rng = globalData.frameIndex;
-        int limit = 1000;
-        while(limit > 0)
+        for (int limit = 0; limit < 1000; limit++)
         {
-            if(!PerformVoxelTraversal(photon, rng))
+            float extinction = 0.0f;
+            if(!PerformVoxelTraversal(photon, rng, extinction))
             {
                 vec3 envSample = globalData.backgroundColor;
                 vec3 radiance = photon.transmittance * envSample.rgb;
@@ -157,19 +166,30 @@ void main()
 
             vec3 samplePoint = photon.position;
             samplePoint.y = 1 - samplePoint.y;
-            float intensity = texture(datasetImage, samplePoint).r;
+            float datasetIndex = texture(datasetImage, samplePoint).r;
             //float maxExtinction = texture(maxExtinctionImage, samplePoint).r;
-            vec4 transferFunction = texture(transferFunctionImage, vec2(intensity, 0.5));
-            //transferFunction.a = maxExtinction;
-            float PNull = 1.0 - transferFunction.a;
+            vec4 transferFunction = texture(transferFunctionImage, vec2(datasetIndex, 0.5));
 
-            float PScattering;
-            if (photon.bounces >= globalData.bounceLimit) {
-                PScattering = 0.0;
-            } else {
-                PScattering = transferFunction.a * max3(transferFunction.rgb);
-            }
-            float PAbsorption = 1.0 - PNull - PScattering;
+
+
+            //extinction = 1;
+            float absorption = 0.1f;
+            float scattering = 0.9f;
+
+            float real = min(extinction, transferFunction.a);
+            float PNull = (extinction - real) / extinction;
+            float PAbsorption = (real * absorption) / extinction;
+            float PScattering = (real * scattering) / extinction;
+
+            
+            //float PScattering;
+            //float PNull = 1.0f - transferFunction.a;
+            //if (photon.bounces >= globalData.bounceLimit) {
+            //    PScattering = 0.0;
+            //} else {
+            //    PScattering = transferFunction.a * max3(transferFunction.rgb);
+            //}
+            //float PAbsorption = 1.0 - PNull - PScattering;
 
             float rand = RandomValue(rng);
             if (rand < PAbsorption) {
@@ -180,17 +200,14 @@ void main()
             } else if (rand < PAbsorption + PScattering) {
                 // scattering
                 photon.transmittance *= photon.transmittance * transferFunction.rgb;
-
-                float anisotropy = globalData.anisotropy;
-                photon.direction = sampleHenyeyGreenstein(rng, anisotropy, photon.direction);
+                photon.direction = sampleHenyeyGreenstein(rng, globalData.anisotropy, photon.direction);
                 photon.bounces++;
             } else {
                 // null collision
             }
-            limit--;
         }
 
-        outputColor.rgb = photon.radiance;
+        outputColor.rgb += photon.radiance;
     }
 
     if(globalData.frameIndex > 1)

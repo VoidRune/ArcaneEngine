@@ -5,9 +5,9 @@
 TransferFunctionEditor::TransferFunctionEditor()
 {
 	m_Points.push_back(Point(m_CurrentPointId++, 0.0, 0.0, 255, 0, 0));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.1, 0.0, 255, 0, 0));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.2, 0.6, 255, 255, 0));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.4, 0.1, 0, 255, 0));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.01, 0.0, 255, 0, 0));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.1, 1.0, 255, 255, 0));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.4, 0.6, 0, 255, 0));
 	m_Points.push_back(Point(m_CurrentPointId++, 0.7, 0.2, 255, 0, 0));
 	m_Points.push_back(Point(0xFFFFFF, 1.0, 0.0, 255, 0, 0));
 }
@@ -71,9 +71,7 @@ std::vector<uint32_t> TransferFunctionEditor::GenerateTransferFunctionImage(int 
 		float density = ((left.Y * lRatio + right.Y * rRatio) * 255.0f) / div;
 		imageData[i] = (uint8_t)r << 0 | (uint8_t)g << 8 | (uint8_t)b << 16 | (uint8_t)density << 24;
 	}
-
 	return imageData;
-
 }
 
 std::vector<uint8_t> TransferFunctionEditor::GetMaxExtinctionGrid(std::vector<uint32_t>& transferFunction, int division, std::vector<uint8_t>& dataset, int w, int h, int l)
@@ -156,7 +154,7 @@ void TransferFunctionEditor::Render(ImTextureID transferFunctionImage)
 			if (point.id != 0 && point.id != 0xFFFFFF)
 				point.X = std::clamp((mousePos.x - editorPos.x) / editorSize.x, 0.0f, 1.0f);
 			point.Y = 1.0f - std::clamp((mousePos.y - editorPos.y) / editorSize.y, 0.0f, 1.0f);
-			drawlist->AddCircleFilled({ xPos, yPos }, 5.0f, IM_COL32(point.R * 255, point.G * 255, point.B * 255, 255));
+			drawlist->AddCircleFilled({ xPos, yPos }, 4.0f, IM_COL32(255, 255, 255, 255));
 			
 			if (lastX != point.X || lastY != point.Y)
 			{
@@ -165,7 +163,7 @@ void TransferFunctionEditor::Render(ImTextureID transferFunctionImage)
 		}
 		else
 		{
-			drawlist->AddCircle({ xPos, yPos }, 5.0f, IM_COL32(point.R * 255, point.G * 255, point.B * 255, 255));
+			drawlist->AddCircleFilled({ xPos, yPos }, 4.0f, IM_COL32(255, 255, 255, 120));
 		}
 	}
 	ImGui::EndChild();
