@@ -64,7 +64,7 @@ bool PerformVoxelTraversal(inout Photon p, inout uint rng, out float extinction)
     float umin = 0.0f;
     float umax = 0.0f;
 
-    while(true)
+    for(int limit = 0; limit < gridSize * 2; limit++)
     {
         umin = umax;
         if (lengthStepped.x < lengthStepped.y && lengthStepped.x < lengthStepped.z) {
@@ -79,11 +79,11 @@ bool PerformVoxelTraversal(inout Photon p, inout uint rng, out float extinction)
         }
 
         vec3 midpoint = p.position + p.direction * (umin + umax) * 0.5;
-        if (any(greaterThan(midpoint, vec3(1 + 1e-4))) || any(lessThan(midpoint, vec3(0 - 1e-4)))) {
+        if (any(greaterThan(midpoint, vec3(1))) || any(lessThan(midpoint, vec3(0)))) {
             return false;
         }
 
-        vec3 samplePoint = clamp(vec3(midpoint.x, 1.0 - midpoint.y, midpoint.z), vec3(0.0f), vec3(1.0f));
+        vec3 samplePoint = vec3(midpoint.x, 1.0 - midpoint.y, midpoint.z);
         extinction = FetchAndUpdateExtinction(samplePoint, gridSize);
 
         float d = umax - umin;
@@ -97,8 +97,8 @@ bool PerformVoxelTraversal(inout Photon p, inout uint rng, out float extinction)
         }
         freePath -= opticalThickness;
     }
+    return false;
 }
-
 
 void main() 
 {
@@ -107,8 +107,8 @@ void main()
     uint rng = globalData.frameIndex;
 
     // added tiny blur effect for antialiasing
-    float blurAmount = 1.0f;
-    vec2 blur = vec2(RandomValue(rng) * blurAmount, RandomValue(rng) * blurAmount) * 2.0 - 1.0;
+    float blurAmount = 0.5f;
+    vec2 blur = RandomCircle(rng) * blurAmount;
     vec2 uv = (px + blur) / size;
 
     vec3 rayOrigin = globalData.cameraPosition.xyz;
@@ -145,8 +145,7 @@ void main()
         photon.transmittance = vec3(1.0f);
         photon.radiance = vec3(0);
 
-        uint rng = globalData.frameIndex;
-        for (int limit = 0; limit < 1000; limit++)
+        for (int limit = 0; limit < 256; limit++)
         {
             float extinction = 0.0f;
             if(!PerformVoxelTraversal(photon, rng, extinction))
@@ -170,10 +169,7 @@ void main()
             vec3 samplePoint = photon.position;
             samplePoint.y = 1 - samplePoint.y;
             float datasetIndex = texture(datasetImage, samplePoint).r;
-            //float maxExtinction = texture(maxExtinctionImage, samplePoint).r;
             vec4 transferFunction = texture(transferFunctionImage, vec2(datasetIndex, 0.5));
-
-
 
             //extinction = 1;
             float absorption = 0.1f;

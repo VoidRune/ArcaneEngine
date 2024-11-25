@@ -18,14 +18,14 @@ float sampleHenyeyGreensteinAngleCosine(inout uint state, float g) {
     return (1.0 + g2 - c * c) / (2.0 * g);
 }
 
-vec2 random_disk(inout uint state) {
+vec2 RandomCircle(inout uint state) {
     float radius = sqrt(RandomValue(state));
     float angle = 6.2831853 * RandomValue(state);
     return radius * vec2(cos(angle), sin(angle));
 }
 
-vec3 random_sphere(inout uint state) {
-    vec2 disk = random_disk(state);
+vec3 RandomSphere(inout uint state) {
+    vec2 disk = RandomCircle(state);
     float norm = dot(disk, disk);
     float radius = 2.0 * sqrt(1.0 - norm);
     float z = 1.0 - 2.0 * norm;
@@ -34,7 +34,7 @@ vec3 random_sphere(inout uint state) {
 
 vec3 sampleHenyeyGreenstein(inout uint state, float g, vec3 direction) {
     // generate random direction and adjust it so that the angle is HG-sampled
-    vec3 u = random_sphere(state);
+    vec3 u = RandomSphere(state);
     if (abs(g) < 1e-5) {
         return u;
     }
