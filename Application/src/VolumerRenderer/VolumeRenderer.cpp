@@ -46,19 +46,14 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.MipLevels = 1,
 	});
 
-	m_MaxExtinctionImage1 = std::make_unique<Arc::GpuImage>();
-	m_MaxExtinctionImage2 = std::make_unique<Arc::GpuImage>();
-	{
-		Arc::GpuImageDesc desc = Arc::GpuImageDesc{
+	m_MaxExtinctionImage = std::make_unique<Arc::GpuImage>();
+	m_ResourceCache->CreateGpuImage(m_MaxExtinctionImage.get(), Arc::GpuImageDesc{
 		.Extent = { m_ExtinctionGridSize, m_ExtinctionGridSize, m_ExtinctionGridSize },
 		.Format = Arc::Format::R8_Unorm,
 		.UsageFlags = Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled | Arc::ImageUsage::TransferDst,
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
-		};
-		m_ResourceCache->CreateGpuImage(m_MaxExtinctionImage1.get(), desc);
-		m_ResourceCache->CreateGpuImage(m_MaxExtinctionImage2.get(), desc);
-	}
+	});
 
 	m_TransferFunctionImage = std::make_unique<Arc::GpuImage>();
 	uint32_t transferFunctionSize = 256;
@@ -79,8 +74,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		auto extinctionData = m_TransferFunctionEditor->GetMaxExtinctionGrid(transferData, m_ExtinctionGridSize, m_DataSet, 512, 512, 182);
 		std::vector<uint8_t> startingData(m_ExtinctionGridSize * m_ExtinctionGridSize * m_ExtinctionGridSize);
 		for (auto& val : startingData) val = 0.001f;
-		m_Device->SetImageData(m_MaxExtinctionImage1.get(), extinctionData.data(), extinctionData.size() * sizeof(uint8_t), Arc::ImageLayout::General);
-		m_Device->SetImageData(m_MaxExtinctionImage2.get(), extinctionData.data(), extinctionData.size() * sizeof(uint8_t), Arc::ImageLayout::General);
+		m_Device->SetImageData(m_MaxExtinctionImage.get(), extinctionData.data(), extinctionData.size() * sizeof(uint8_t), Arc::ImageLayout::General);
 	}
 
 	m_GlobalDataBuffer = std::make_unique<Arc::GpuBufferArray>();
@@ -286,8 +280,8 @@ void VolumeRenderer::ResizeCanvas(uint32_t width, uint32_t height)
 		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
 		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
 		.AddWrite(Arc::ImageWrite(4, m_TransferFunctionImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
-		.AddWrite(Arc::ImageWrite(5, m_MaxExtinctionImage1.get(), Arc::ImageLayout::General, m_NearestSampler.get()))
-		.AddWrite(Arc::ImageWrite(6, m_MaxExtinctionImage2.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(5, m_MaxExtinctionImage.get(), Arc::ImageLayout::General, m_NearestSampler.get()))
+		.AddWrite(Arc::ImageWrite(6, m_MaxExtinctionImage.get(), Arc::ImageLayout::General, nullptr))
 	);
 	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor2.get(), Arc::DescriptorWrite()
 		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
@@ -295,8 +289,8 @@ void VolumeRenderer::ResizeCanvas(uint32_t width, uint32_t height)
 		.AddWrite(Arc::ImageWrite(2, m_OutputImage.get(), Arc::ImageLayout::General, nullptr))
 		.AddWrite(Arc::ImageWrite(3, m_DatasetImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
 		.AddWrite(Arc::ImageWrite(4, m_TransferFunctionImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
-		.AddWrite(Arc::ImageWrite(5, m_MaxExtinctionImage2.get(), Arc::ImageLayout::General, m_NearestSampler.get()))
-		.AddWrite(Arc::ImageWrite(6, m_MaxExtinctionImage1.get(), Arc::ImageLayout::General, nullptr))
+		.AddWrite(Arc::ImageWrite(5, m_MaxExtinctionImage.get(), Arc::ImageLayout::General, m_NearestSampler.get()))
+		.AddWrite(Arc::ImageWrite(6, m_MaxExtinctionImage.get(), Arc::ImageLayout::General, nullptr))
 	);
 
 	m_Device->UpdateDescriptorSet(m_PresentDescriptor.get(), Arc::DescriptorWrite()
