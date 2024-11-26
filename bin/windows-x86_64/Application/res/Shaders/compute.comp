@@ -23,6 +23,7 @@ layout(set = 1, binding = 3) uniform sampler3D datasetImage;
 layout(set = 1, binding = 4) uniform sampler2D transferFunctionImage;
 layout(set = 1, binding = 5) uniform sampler3D extinctionGrid;
 layout(set = 1, binding = 6, r8) uniform image3D outputExtinctionGrid;
+
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 
@@ -39,26 +40,29 @@ float FetchAndUpdateExtinction(vec3 samplePoint, float gridSize) {
     float currentExtinction = texture(extinctionGrid, samplePoint).r;
     float localDensity = texture(transferFunctionImage, vec2(texture(datasetImage, samplePoint).r, 0.5)).a;
     float updatedExtinction = max(currentExtinction, localDensity + 1e-4f);
+    
     if (updatedExtinction > currentExtinction) {
         ivec3 superVoxel = ivec3(samplePoint * gridSize);
         imageStore(outputExtinctionGrid, superVoxel, vec4(updatedExtinction));
     }
+    
     return updatedExtinction;
 }
 
-bool PerformVoxelTraversal(inout Photon p, inout uint rng, out float extinction)
+bool SuperVoxelTraversal(inout Photon p, inout uint rng, out float extinction)
 {
     int gridSize = textureSize(extinctionGrid, 0).r;
-
     vec3 invDir = 1 / p.direction;
     vec3 rayGradient = abs(invDir / gridSize);
 
-    ivec3 cellIndex =  ivec3(p.position * gridSize);
-    vec3 lengthStepped = (p.position * gridSize - vec3(cellIndex)) * rayGradient;
-    
-    if(p.direction.x > 0) lengthStepped.x = (cellIndex.x + 1.0f - p.position.x * gridSize) * rayGradient.x;
-    if(p.direction.y > 0) lengthStepped.y = (cellIndex.y + 1.0f - p.position.y * gridSize) * rayGradient.y;
-    if(p.direction.z > 0) lengthStepped.z = (cellIndex.z + 1.0f - p.position.z * gridSize) * rayGradient.z;
+    vec3 cellIndexF = p.position * gridSize;
+    ivec3 cellIndexI =  ivec3(cellIndexF);
+    vec3 lengthStepped = (cellIndexF - cellIndexI);
+
+    if(p.direction.x > 0) lengthStepped.x = 1.0f - lengthStepped.x;
+    if(p.direction.y > 0) lengthStepped.y = 1.0f - lengthStepped.y;
+    if(p.direction.z > 0) lengthStepped.z = 1.0f - lengthStepped.z;
+    lengthStepped *= rayGradient;
 
     float freePath = -log(RandomValue(rng)) / globalData.extinction;
     float umin = 0.0f;
@@ -126,17 +130,17 @@ void main()
 
     if(intersect)
     {
-        outputColor = vec4(0, 0, 0, 1);
         //int maxSteps = 20;
+        //float extinctionSum = 0.0f;
         //for (float i = 0; i < maxSteps; i++)
         //{
         //    float ratio = (i + RandomValue(rng)) / maxSteps;
         //    vec3 point = (pos + rayDirection * maxDist * ratio);
         //    point.y = 1.0 - point.y;
-        //    float r = texture(extinctionGrid, point).r * 10.0f;
-        //    outputColor.r += r / maxSteps;
+        //    float r = texture(extinctionGrid, point).r;
+        //    extinctionSum += r / maxSteps;
         //}
-
+        //outputColor.rgb = extinctionSum.rrr;
         
         Photon photon;
         photon.position = rayOrigin + rayDirection * tmin;
@@ -148,7 +152,7 @@ void main()
         for (int limit = 0; limit < 256; limit++)
         {
             float extinction = 0.0f;
-            if(!PerformVoxelTraversal(photon, rng, extinction))
+            if(!SuperVoxelTraversal(photon, rng, extinction))
             {
                 vec3 envSample = globalData.backgroundColor;
                 vec3 radiance = photon.transmittance * envSample.rgb;
@@ -171,14 +175,13 @@ void main()
             float datasetIndex = texture(datasetImage, samplePoint).r;
             vec4 transferFunction = texture(transferFunctionImage, vec2(datasetIndex, 0.5));
 
-            //extinction = 1;
-            float absorption = 0.1f;
-            float scattering = 0.9f;
+            float absorption = (photon.bounces >= globalData.bounceLimit) ? 1.0f : 0.1f;
+            float scattering = 1.0f - absorption;
 
             float real = min(extinction, transferFunction.a);
-            float PNull = (extinction - real) / extinction;
-            float PAbsorption = (real * absorption) / extinction;
-            float PScattering = (real * scattering) / extinction;
+            //float PNull = (extinction - real) / extinction;
+            float PAbsorption = (absorption * real) / extinction;
+            float PScattering = (scattering * real) / extinction;
 
             
             //float PScattering;
@@ -206,7 +209,7 @@ void main()
             }
         }
 
-        outputColor.rgb += photon.radiance;
+        outputColor.rgb = photon.radiance;
     }
 
     if(globalData.frameIndex > 1)
