@@ -162,8 +162,49 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	globalFrameData.frameIndex++;
 
 	m_ImGuiRenderer->BeginFrame();
-	ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_AutoHideTabBar);
+
+	ImGuiWindowFlags dockspace_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	ImGui::SetNextWindowPos(viewport->WorkPos);
+	ImGui::SetNextWindowSize(viewport->WorkSize);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	dockspace_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+	dockspace_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+	ImGui::Begin("Dockspace", nullptr, dockspace_flags);
+	ImGui::PopStyleVar(3);
+	
+	// Set up dockspace
+	ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
+	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+
+
+	//ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_AutoHideTabBar);
+	//ImGui::DockSpaceOverViewport();
+	if (ImGui::BeginMenuBar()){
+		if (ImGui::BeginMenu("File")){
+			ImGui::MenuItem("New");
+			ImGui::MenuItem("Open");
+			ImGui::MenuItem("Save");
+			ImGui::MenuItem("Exit");
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Edit")){
+			ImGui::MenuItem("Undo");
+			ImGui::MenuItem("Redo");
+			ImGui::EndMenu();
+		}
+		ImGui::EndMenuBar();
+	}
+	ImGuiWindowClass window_class;
+	window_class.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_AutoHideTabBar;
+	ImGui::SetNextWindowClass(&window_class);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 	ImGui::Begin("Canvas", nullptr, ImGuiWindowFlags_NoTitleBar);
+	ImGui::PopStyleVar();
 	ImVec2 canvasRegion = ImGui::GetContentRegionAvail();
 
 	m_Camera->Update(dt, canvasRegion.x / canvasRegion.y);
@@ -177,12 +218,16 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 
 	ImGui::Image(m_ImGuiDisplayImage, canvasRegion);
 	ImGui::End();
+
+
 	m_TransferFunctionEditor->Render(m_ImGuiTransferImage);
 	ImGui::Begin("Volume Settings", nullptr, ImGuiWindowFlags_NoCollapse);
 	bool guiChange = ImGui::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 128);
 	guiChange |= ImGui::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f);
 	guiChange |= ImGui::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f);
 	guiChange |= ImGui::ColorEdit3("Background", &globalFrameData.backgroundColor.r);
+	ImGui::End();
+
 	ImGui::End();
 
 	if (guiChange || m_Camera->HasMoved || m_TransferFunctionEditor->HasDataChanged())
