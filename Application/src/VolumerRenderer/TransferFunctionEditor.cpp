@@ -4,12 +4,12 @@
 
 TransferFunctionEditor::TransferFunctionEditor()
 {
-	m_Points.push_back(Point(m_CurrentPointId++, 0.0, 0.0, { 255, 0, 0 }));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.01, 0.0, { 255, 0, 0 }));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.1, 1.0, { 255, 255, 0 }));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.4, 0.6, { 0, 255, 0 }));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.7, 0.2, { 255, 0, 0 }));
-	m_Points.push_back(Point(0xFFFFFF, 1.0, 0.0, { 255, 0, 0 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.0, 0.0, { 1, 0, 0 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.01, 0.0, { 1, 0, 0 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.1, 1.0, { 1, 1, 0 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.4, 0.6, { 0, 1, 0 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.7, 0.2, { 1, 0, 0 }));
+	m_Points.push_back(Point(0xFFFFFF, 1.0, 0.0, { 1, 0, 0 }));
 }
 
 TransferFunctionEditor::~TransferFunctionEditor()
@@ -19,7 +19,7 @@ TransferFunctionEditor::~TransferFunctionEditor()
 
 void TransferFunctionEditor::AddPoint()
 {
-	m_Points.push_back(Point(m_CurrentPointId++, 0.5, 0.5, { 255, 0, 0 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.5, 0.5, { 1, 0, 0 }));
 	m_HasDataChanged = true;
 }
 
@@ -65,9 +65,9 @@ std::vector<uint32_t> TransferFunctionEditor::GenerateTransferFunctionImage(int 
 		float rRatio = (f - left.X);
 		float div = (right.X - left.X);
 
-		float r = (left.RGB[0] * lRatio + right.RGB[0] * rRatio) / div;
-		float g = (left.RGB[1] * lRatio + right.RGB[1] * rRatio) / div;
-		float b = (left.RGB[2] * lRatio + right.RGB[2] * rRatio) / div;
+		float r = (left.RGB[0] * lRatio + right.RGB[0] * rRatio) * 255.0f / div;
+		float g = (left.RGB[1] * lRatio + right.RGB[1] * rRatio) * 255.0f / div;
+		float b = (left.RGB[2] * lRatio + right.RGB[2] * rRatio) * 255.0f / div;
 		float density = ((left.Y * lRatio + right.Y * rRatio) * 255.0f) / div;
 		imageData[i] = (uint8_t)r << 0 | (uint8_t)g << 8 | (uint8_t)b << 16 | (uint8_t)density << 24;
 	}
