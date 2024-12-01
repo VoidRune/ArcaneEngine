@@ -1,9 +1,20 @@
 #include "DatasetLoader.h"
 #include "ArcaneEngine/Core/Log.h"
 #include <fstream>
+#include <filesystem>
 
 namespace DatasetLoader
 {
+	std::vector<std::string> GetDirectoryFiles(std::string path)
+	{
+		std::vector<std::string> files;
+		for (const auto& entry : std::filesystem::directory_iterator(path))
+		{
+			files.push_back(entry.path().filename().string());
+		}
+		return files;
+	}
+
 	std::vector<uint8_t> LoadFromFile(std::string filePath)
 	{
 		std::vector<uint8_t> data;

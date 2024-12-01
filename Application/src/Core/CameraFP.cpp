@@ -15,7 +15,7 @@ CameraFP::CameraFP(Arc::Window* window)
     WorldUp = { 0.0f, 1.0f, 0.0f };
 
     this->m_Window = window;
-    UpdateMatrices(1);
+    UpdateMatrices();
 }
 
 CameraFP::~CameraFP()
@@ -23,7 +23,7 @@ CameraFP::~CameraFP()
 
 }
 
-void CameraFP::Update(double deltaTime, float aspectRatio)
+void CameraFP::Update(double deltaTime)
 {
     HasMoved = false;
     double mouseX = Arc::Input::GetMouseX();
@@ -71,12 +71,12 @@ void CameraFP::Update(double deltaTime, float aspectRatio)
     if (Arc::Input::IsKeyDown(Arc::KeyCode::F)) { speedBoost = 10.0f; }
 
     Position += velocity * MovementSpeed * speedBoost * (float)deltaTime;
-    UpdateMatrices(aspectRatio);
+    UpdateMatrices();
 }
 
-void CameraFP::UpdateMatrices(float aspectRatio)
+void CameraFP::UpdateMatrices()
 {
-    Projection = glm::perspective(glm::radians(Fov), aspectRatio, NearPlane, FarPlane);
+    Projection = glm::perspective(glm::radians(Fov), AspectRatio, NearPlane, FarPlane);
     Projection[1][1] *= -1;
     View = glm::lookAt(Position, Position + Forward, WorldUp);
     InverseView = glm::inverse(View);

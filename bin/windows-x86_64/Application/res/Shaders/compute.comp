@@ -49,16 +49,14 @@ float FetchAndUpdateExtinction(vec3 samplePoint, float gridSize) {
     return updatedExtinction;
 }
 
-bool SuperVoxelTraversal(inout Photon p, inout uint rng, out float extinction)
+bool SuperVoxelTraversal(inout Photon p, inout uint rng, inout float extinction)
 {
     int gridSize = textureSize(extinctionGrid, 0).r;
-    vec3 invDir = 1 / p.direction;
-    vec3 rayGradient = abs(invDir / gridSize);
+    vec3 rayGradient = abs(1 / (p.direction * gridSize));
 
     vec3 cellIndexF = p.position * gridSize;
-    ivec3 cellIndexI =  ivec3(cellIndexF);
-    vec3 lengthStepped = (cellIndexF - cellIndexI);
-
+    vec3 lengthStepped = (cellIndexF - ivec3(cellIndexF));
+ 
     if(p.direction.x > 0) lengthStepped.x = 1.0f - lengthStepped.x;
     if(p.direction.y > 0) lengthStepped.y = 1.0f - lengthStepped.y;
     if(p.direction.z > 0) lengthStepped.z = 1.0f - lengthStepped.z;
@@ -149,7 +147,7 @@ void main()
         photon.transmittance = vec3(1.0f);
         photon.radiance = vec3(0);
 
-        for (int limit = 0; limit < 256; limit++)
+        for (int limit = 0; limit < 512; limit++)
         {
             float extinction = 0.0f;
             if(!SuperVoxelTraversal(photon, rng, extinction))
@@ -169,7 +167,7 @@ void main()
             //    photon.radiance += (radiance - photon.radiance);                
             //    break;
             //}
-
+     
             vec3 samplePoint = photon.position;
             samplePoint.y = 1 - samplePoint.y;
             float datasetIndex = texture(datasetImage, samplePoint).r;

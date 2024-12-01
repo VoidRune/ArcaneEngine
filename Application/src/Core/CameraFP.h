@@ -12,7 +12,7 @@ public:
 	CameraFP(Arc::Window* window);
 	~CameraFP();
 
-	void Update(double deltaTime, float aspectRatio);
+	void Update(double deltaTime);
 
 	float Theta = 0.0f;
 	float Phi = 0.0f;
@@ -25,6 +25,7 @@ public:
 
 	float Sensitivity = 0.3f;
 	float MovementSpeed = 2.0f;
+	float AspectRatio = 1.0f;
 	double LastMouseX;
 	double LastMouseY;
 	uint32_t HasMoved;
@@ -44,5 +45,5 @@ public:
 
 private:
 	Arc::Window* m_Window;
-	void UpdateMatrices(float aspectRatio);
+	void UpdateMatrices();
 };

@@ -7,6 +7,7 @@
 #include "ArcaneEngine/Graphics/RenderGraph.h"
 #include "ArcaneEngine/Graphics/ImGui/ImGuiRenderer.h"
 #include "TransferFunctionEditor.h"
+#include "UI/UserInterface.h"
 #include "Core/CameraFP.h"
 #include <glm/glm.hpp>
 
@@ -23,7 +24,10 @@ public:
 
 private:
 
+	bool LoadDataset(std::string fileName);
 	void ResizeCanvas(uint32_t width, uint32_t height);
+	void UpdateDescriptorSets();
+	void UpdateTransferAndExtinctionImages();
 
 	Arc::Window* m_Window;
 	Arc::Device* m_Device;
@@ -32,6 +36,7 @@ private:
 	Arc::RenderGraph* m_RenderGraph;
 	std::unique_ptr<Arc::ImGuiRenderer> m_ImGuiRenderer;
 	std::unique_ptr<TransferFunctionEditor> m_TransferFunctionEditor;
+	std::unique_ptr<UserInterface> m_UserInterface;
 	ImTextureID m_ImGuiDisplayImage;
 	ImTextureID m_ImGuiTransferImage;
 	ImVec2 m_ImGuiCanvasSize;
@@ -56,7 +61,10 @@ private:
 	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;
 	std::unique_ptr<Arc::DescriptorSetArray> m_GlobalDataDescSet;
 
-	std::vector<uint8_t> m_DataSet;
+	std::string m_DatasetDirectory = "res/Datasets/";
+	std::vector<std::string> m_Files;
+	std::string m_SelectedDataset = "";
+	glm::ivec3 m_DataSetSize = {0, 0, 0};
 	uint32_t m_ExtinctionGridSize = 16;
 
 	// Resources

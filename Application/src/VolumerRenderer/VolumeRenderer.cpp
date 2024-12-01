@@ -1,6 +1,9 @@
 #include "VolumeRenderer.h"
 #include "ArcaneEngine/Graphics/ShaderCompiler.h"
 #include "DataSetLoader.h"
+#include "ArcaneEngine/Core/Timer.h"
+#include "ArcaneEngine/Core/Log.h"
+#include <regex>
 
 VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue)
 {
@@ -11,6 +14,7 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_RenderGraph = m_Device->GetRenderGraph();
 	m_ImGuiRenderer = std::make_unique<Arc::ImGuiRenderer>(window, device, presentQueue);
 	m_TransferFunctionEditor = std::make_unique<TransferFunctionEditor>();
+	m_UserInterface = std::make_unique<UserInterface>();
 
 	m_VertShader = std::make_unique<Arc::Shader>();
 	m_FragShader = std::make_unique<Arc::Shader>();
@@ -37,15 +41,6 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.AddressMode = Arc::SamplerAddressMode::Repeat
 	});
 
-	m_DatasetImage = std::make_unique<Arc::GpuImage>();
-	m_ResourceCache->CreateGpuImage(m_DatasetImage.get(), Arc::GpuImageDesc{
-		.Extent = { 512, 512, 182 },
-		.Format = Arc::Format::R8_Unorm,
-		.UsageFlags = Arc::ImageUsage::Sampled | Arc::ImageUsage::TransferDst,
-		.AspectFlags = Arc::ImageAspect::Color,
-		.MipLevels = 1,
-	});
-
 	m_MaxExtinctionImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_MaxExtinctionImage.get(), Arc::GpuImageDesc{
 		.Extent = { m_ExtinctionGridSize, m_ExtinctionGridSize, m_ExtinctionGridSize },
@@ -64,18 +59,16 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
 	});
-	{
-		m_DataSet = DatasetLoader::LoadFromFile("res/Datasets/bonsai.raw");
-		m_Device->SetImageData(m_DatasetImage.get(), m_DataSet.data(), m_DataSet.size(), Arc::ImageLayout::ShaderReadOnlyOptimal);
 
-		auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(transferFunctionSize);
-		m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
-		
-		auto extinctionData = m_TransferFunctionEditor->GetMaxExtinctionGrid(transferData, m_ExtinctionGridSize, m_DataSet, 512, 512, 182);
-		std::vector<uint8_t> startingData(m_ExtinctionGridSize * m_ExtinctionGridSize * m_ExtinctionGridSize);
-		for (auto& val : startingData) val = 0.001f;
-		m_Device->SetImageData(m_MaxExtinctionImage.get(), extinctionData.data(), extinctionData.size() * sizeof(uint8_t), Arc::ImageLayout::General);
-	}
+	m_Files = DatasetLoader::GetDirectoryFiles(m_DatasetDirectory);
+	auto select = m_Files.front();
+	auto selectIt = std::find_if(m_Files.begin(), m_Files.end(), [&](const std::string& filename) {
+		return filename.find("bonsai") != std::string::npos;
+	});
+	if (selectIt != m_Files.end()) { select = *selectIt; }
+	LoadDataset(select);
+
+	UpdateTransferAndExtinctionImages();
 
 	m_GlobalDataBuffer = std::make_unique<Arc::GpuBufferArray>();
 	m_ResourceCache->CreateGpuBufferArray(m_GlobalDataBuffer.get(), Arc::GpuBufferDesc{
@@ -161,74 +154,38 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	globalFrameData.cameraDirection = glm::vec4(m_Camera->Forward, 0.0f);
 	globalFrameData.frameIndex++;
 
+	m_Camera->Update(dt);
+
 	m_ImGuiRenderer->BeginFrame();
-
-	ImGuiWindowFlags dockspace_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(viewport->WorkPos);
-	ImGui::SetNextWindowSize(viewport->WorkSize);
-	ImGui::SetNextWindowViewport(viewport->ID);
-	dockspace_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-	dockspace_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-	ImGui::Begin("Dockspace", nullptr, dockspace_flags);
-	ImGui::PopStyleVar(3);
-	
-	// Set up dockspace
-	ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
-	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
-
-
-	//ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_AutoHideTabBar);
-	//ImGui::DockSpaceOverViewport();
-	if (ImGui::BeginMenuBar()){
-		if (ImGui::BeginMenu("File")){
-			ImGui::MenuItem("New");
-			ImGui::MenuItem("Open");
-			ImGui::MenuItem("Save");
-			ImGui::MenuItem("Exit");
-			ImGui::EndMenu();
+	m_UserInterface->SetupDockspace();
+	m_UserInterface->RenderMenuBar(m_Files, [&](std::string file) {
+		if (LoadDataset(file))
+		{
+			UpdateDescriptorSets();
+			globalFrameData.frameIndex = 1;
 		}
-		if (ImGui::BeginMenu("Edit")){
-			ImGui::MenuItem("Undo");
-			ImGui::MenuItem("Redo");
-			ImGui::EndMenu();
-		}
-		ImGui::EndMenuBar();
-	}
-	ImGuiWindowClass window_class;
-	window_class.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_AutoHideTabBar;
-	ImGui::SetNextWindowClass(&window_class);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-	ImGui::Begin("Canvas", nullptr, ImGuiWindowFlags_NoTitleBar);
-	ImGui::PopStyleVar();
-	ImVec2 canvasRegion = ImGui::GetContentRegionAvail();
-
-	m_Camera->Update(dt, canvasRegion.x / canvasRegion.y);
-	if (m_ImGuiCanvasSize.x != canvasRegion.x || m_ImGuiCanvasSize.y != canvasRegion.y)
+	});
+	m_UserInterface->RenderCanvas(m_ImGuiDisplayImage, [&](float width, float height)
 	{
-		m_ImGuiCanvasSize.x = canvasRegion.x;
-		m_ImGuiCanvasSize.y = canvasRegion.y;
-		globalFrameData.frameIndex = 1;
-		ResizeCanvas(m_ImGuiCanvasSize.x, m_ImGuiCanvasSize.y);
-	}
-
-	ImGui::Image(m_ImGuiDisplayImage, canvasRegion);
-	ImGui::End();
-
+		m_Camera->AspectRatio = width / height;
+		if (m_ImGuiCanvasSize.x != width || m_ImGuiCanvasSize.y != height)
+		{
+			m_ImGuiCanvasSize.x = width;
+			m_ImGuiCanvasSize.y = height;
+			globalFrameData.frameIndex = 1;
+			ResizeCanvas(m_ImGuiCanvasSize.x, m_ImGuiCanvasSize.y);
+		}
+	});
 
 	m_TransferFunctionEditor->Render(m_ImGuiTransferImage);
 	ImGui::Begin("Volume Settings", nullptr, ImGuiWindowFlags_NoCollapse);
-	bool guiChange = ImGui::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 128);
+	bool guiChange = ImGui::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 32);
 	guiChange |= ImGui::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f);
 	guiChange |= ImGui::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f);
 	guiChange |= ImGui::ColorEdit3("Background", &globalFrameData.backgroundColor.r);
 	ImGui::End();
 
-	ImGui::End();
+	m_UserInterface->EndDockspace();
 
 	if (guiChange || m_Camera->HasMoved || m_TransferFunctionEditor->HasDataChanged())
 	{
@@ -241,13 +198,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	
 		if (m_TransferFunctionEditor->HasDataChanged())
 		{
-			auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(m_TransferFunctionImage->GetExtent()[0]);
-			m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
-			
-			//std::vector<uint8_t> startingData(m_ExtinctionGridSize * m_ExtinctionGridSize * m_ExtinctionGridSize);
-			//for (auto& val : startingData) val = 0.001f;
-			//m_Device->SetImageData(m_MaxExtinctionImage1.get(), startingData.data(), startingData.size() * sizeof(uint8_t), Arc::ImageLayout::General);	
-			//m_Device->SetImageData(m_MaxExtinctionImage2.get(), startingData.data(), startingData.size() * sizeof(uint8_t), Arc::ImageLayout::General);
+			UpdateTransferAndExtinctionImages();
 		}
 	}
 
@@ -286,6 +237,48 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	m_PresentQueue->EndFrame();
 }
 
+bool VolumeRenderer::LoadDataset(std::string fileName)
+{
+	if (m_SelectedDataset == fileName)
+		return false;
+
+	glm::ivec3 size = { 0, 0, 0 };
+	std::smatch match;
+	if (std::regex_search(fileName, match, std::regex(R"((\d+)x(\d+)x(\d+))")) && match.size() == 4)
+	{
+		size.x = std::stoi(match[1]);
+		size.y = std::stoi(match[2]);
+		size.z = std::stoi(match[3]);
+	}
+	else
+	{
+		ARC_LOG_ERROR(std::string("Dimensions not found in the filename! " + fileName));
+		return false;
+	}
+
+	m_SelectedDataset = fileName;
+	if (m_DataSetSize.x != size.x || m_DataSetSize.y != size.y || m_DataSetSize.z != size.z)
+	{
+		m_Device->WaitIdle();
+		if (m_DatasetImage.get())
+			m_ResourceCache->ReleaseResource(m_DatasetImage.get());
+		m_DatasetImage = std::make_unique<Arc::GpuImage>();
+		m_ResourceCache->CreateGpuImage(m_DatasetImage.get(), Arc::GpuImageDesc{
+			.Extent = { (uint32_t)size.x, (uint32_t)size.y, (uint32_t)size.z },
+			.Format = Arc::Format::R8_Unorm,
+			.UsageFlags = Arc::ImageUsage::Sampled | Arc::ImageUsage::TransferDst,
+			.AspectFlags = Arc::ImageAspect::Color,
+			.MipLevels = 1,
+		});
+
+		m_DataSetSize = size;
+	}
+	std::vector<uint8_t> dataSet = DatasetLoader::LoadFromFile("res/Datasets/" + fileName);
+	m_Device->SetImageData(m_DatasetImage.get(), dataSet.data(), dataSet.size(), Arc::ImageLayout::ShaderReadOnlyOptimal);
+	
+	return true;
+}
+
 void VolumeRenderer::ResizeCanvas(uint32_t width, uint32_t height)
 {
 	m_Device->WaitIdle();
@@ -319,6 +312,17 @@ void VolumeRenderer::ResizeCanvas(uint32_t width, uint32_t height)
 		m_Device->TransitionImageLayout(m_AccumulationImage2.get(), Arc::ImageLayout::General);
 	}
 
+	UpdateDescriptorSets();
+
+	m_Device->UpdateDescriptorSet(m_PresentDescriptor.get(), Arc::DescriptorWrite()
+		.AddWrite(Arc::ImageWrite(0, m_OutputImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_NearestSampler.get()))
+	);
+
+	m_ImGuiDisplayImage = m_ImGuiRenderer->CreateImageId(m_OutputImage->GetImageView(), m_LinearSampler->GetHandle());
+}
+
+void VolumeRenderer::UpdateDescriptorSets()
+{
 	m_Device->UpdateDescriptorSet(m_VolumeImageDescriptor1.get(), Arc::DescriptorWrite()
 		.AddWrite(Arc::ImageWrite(0, m_AccumulationImage1.get(), Arc::ImageLayout::General, nullptr))
 		.AddWrite(Arc::ImageWrite(1, m_AccumulationImage2.get(), Arc::ImageLayout::General, nullptr))
@@ -337,12 +341,16 @@ void VolumeRenderer::ResizeCanvas(uint32_t width, uint32_t height)
 		.AddWrite(Arc::ImageWrite(5, m_MaxExtinctionImage.get(), Arc::ImageLayout::General, m_NearestSampler.get()))
 		.AddWrite(Arc::ImageWrite(6, m_MaxExtinctionImage.get(), Arc::ImageLayout::General, nullptr))
 	);
+}
 
-	m_Device->UpdateDescriptorSet(m_PresentDescriptor.get(), Arc::DescriptorWrite()
-		.AddWrite(Arc::ImageWrite(0, m_OutputImage.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_NearestSampler.get()))
-	);
+void VolumeRenderer::UpdateTransferAndExtinctionImages()
+{
+	auto transferData = m_TransferFunctionEditor->GenerateTransferFunctionImage(m_TransferFunctionImage->GetExtent()[0]);
+	m_Device->SetImageData(m_TransferFunctionImage.get(), transferData.data(), transferData.size() * sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
 
-	m_ImGuiDisplayImage = m_ImGuiRenderer->CreateImageId(m_OutputImage->GetImageView(), m_LinearSampler->GetHandle());
+	std::vector<uint8_t> startingData(m_ExtinctionGridSize * m_ExtinctionGridSize * m_ExtinctionGridSize);
+	for (auto& val : startingData) val = 0.001f;
+	m_Device->SetImageData(m_MaxExtinctionImage.get(), startingData.data(), startingData.size() * sizeof(uint8_t), Arc::ImageLayout::General);
 }
 
 void VolumeRenderer::SwapchainResized(void* presentQueue)
@@ -352,7 +360,24 @@ void VolumeRenderer::SwapchainResized(void* presentQueue)
 
 void VolumeRenderer::RecompileShaders()
 {
+	m_Device->WaitIdle();
+	Arc::Timer timer;
+	Arc::ShaderDesc shaderDesc;
+	if (Arc::ShaderCompiler::Compile("res/Shaders/compute.comp", shaderDesc))
+	{
+		if (m_VolumeShader.get())
+			m_ResourceCache->ReleaseResource(m_VolumeShader.get());
+		m_VolumeShader = std::make_unique<Arc::Shader>();
+		m_ResourceCache->CreateShader(m_VolumeShader.get(), shaderDesc);
 
+		if (m_VolumePipeline.get())
+			m_ResourceCache->ReleaseResource(m_VolumePipeline.get());
+		m_VolumePipeline = std::make_unique<Arc::ComputePipeline>();
+		m_ResourceCache->CreateComputePipeline(m_VolumePipeline.get(), Arc::ComputePipelineDesc{
+			.Shader = m_VolumeShader.get()
+			});
+	}
+	ARC_LOG("Recompiled shaders! " + std::to_string(timer.elapsed_mili()) + "ms");
 }
 
 void VolumeRenderer::WaitForFrameEnd()

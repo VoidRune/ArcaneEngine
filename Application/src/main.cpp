@@ -34,6 +34,8 @@ int main()
 			window->SetClosed(true);
 		if (Arc::Input::IsKeyPressed(Arc::KeyCode::F1))
 			window->SetFullscreen(!window->IsFullscreen());
+		if (Arc::Input::IsKeyPressed(Arc::KeyCode::F2))
+			volumeRenderer->RecompileShaders();
 
 		if (presentQueue->OutOfDate())
 		{

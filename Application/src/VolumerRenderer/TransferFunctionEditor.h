@@ -12,17 +12,18 @@ public:
 	std::vector<uint32_t> GenerateTransferFunctionImage(int width);
 	std::vector<uint8_t> GetMaxExtinctionGrid(std::vector<uint32_t>& transferFunction, int division, std::vector<uint8_t>& dataset, int w, int h, int l);
 
-	struct Point
-	{
-		int32_t id;
-		float X, Y;
-		float R, G, B;
-	};
 private:
 
 	void AddPoint();
 	void RemoveSelectedPoint();
 	void SortPoints();
+
+	struct Point
+	{
+		int32_t id;
+		float X, Y;
+		float RGB[3];
+	};
 
 	std::vector<Point> m_Points;
 	int32_t m_SelectedPoint = -1;
