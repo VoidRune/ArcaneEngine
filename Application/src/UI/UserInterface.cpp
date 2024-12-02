@@ -56,6 +56,20 @@ void UserInterface::RenderMenuBar(const std::vector<std::string>& files, std::fu
 	}
 }
 
+bool UserInterface::RenderSettings(SliderInt bounceLimit,
+									SliderFloat extinction,
+									SliderFloat anisotropy,
+									ColorEdit backgroundColor)
+{
+	ImGui::Begin("Volume Settings", nullptr, ImGuiWindowFlags_NoCollapse);
+	bool guiChange = ImGui::SliderInt(bounceLimit.Name, bounceLimit.Value, bounceLimit.Min, bounceLimit.Max);
+	guiChange |= ImGui::SliderFloat(extinction.Name, extinction.Value, extinction.Min, extinction.Max);
+	guiChange |= ImGui::SliderFloat(anisotropy.Name, anisotropy.Value, anisotropy.Min, anisotropy.Max);
+	guiChange |= ImGui::ColorEdit3(backgroundColor.Name, backgroundColor.Value);
+	ImGui::End();
+	return guiChange;
+}
+
 void UserInterface::RenderCanvas(ImTextureID& displayImage, std::function<void(float, float)>&& func)
 {
 	ImGuiWindowClass window_class;

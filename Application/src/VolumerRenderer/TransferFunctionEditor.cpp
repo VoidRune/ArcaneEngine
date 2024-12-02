@@ -68,7 +68,7 @@ std::vector<uint32_t> TransferFunctionEditor::GenerateTransferFunctionImage(int 
 		float r = (left.RGB[0] * lRatio + right.RGB[0] * rRatio) * 255.0f / div;
 		float g = (left.RGB[1] * lRatio + right.RGB[1] * rRatio) * 255.0f / div;
 		float b = (left.RGB[2] * lRatio + right.RGB[2] * rRatio) * 255.0f / div;
-		float density = ((left.Y * lRatio + right.Y * rRatio) * 255.0f) / div;
+		float density = (left.Y * lRatio + right.Y * rRatio) * 255.0f / div;
 		imageData[i] = (uint8_t)r << 0 | (uint8_t)g << 8 | (uint8_t)b << 16 | (uint8_t)density << 24;
 	}
 	return imageData;

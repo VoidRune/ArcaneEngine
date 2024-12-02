@@ -178,13 +178,10 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	});
 
 	m_TransferFunctionEditor->Render(m_ImGuiTransferImage);
-	ImGui::Begin("Volume Settings", nullptr, ImGuiWindowFlags_NoCollapse);
-	bool guiChange = ImGui::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 32);
-	guiChange |= ImGui::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f);
-	guiChange |= ImGui::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f);
-	guiChange |= ImGui::ColorEdit3("Background", &globalFrameData.backgroundColor.r);
-	ImGui::End();
-
+	bool guiChange = m_UserInterface->RenderSettings(UserInterface::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 32),
+					UserInterface::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f),
+					UserInterface::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f),
+					UserInterface::ColorEdit("Background", &globalFrameData.backgroundColor.r));
 	m_UserInterface->EndDockspace();
 
 	if (guiChange || m_Camera->HasMoved || m_TransferFunctionEditor->HasDataChanged())
