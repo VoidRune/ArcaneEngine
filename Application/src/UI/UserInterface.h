@@ -36,6 +36,7 @@ public:
 						SliderFloat extinction,
 						SliderFloat anisotropy,
 						ColorEdit backgroundColor);
+	bool RenderDebugSettings(int* enableDebugDraw, int* maxScatteringEvent, int* maxNullEvent);
 private:
 
 };

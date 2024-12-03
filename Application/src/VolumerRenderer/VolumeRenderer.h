@@ -55,7 +55,8 @@ private:
 		int32_t bounceLimit = 16;
 		float extinction = 200.0f;
 		float anisotropy = 0.2f;
-		alignas(16) glm::vec3 backgroundColor = { 1, 1, 1 };
+		alignas(16) glm::vec4 backgroundColor = { 1, 1, 1, 1 };
+		alignas(16) glm::ivec4 debugDraw = { 0, 1, 1, 0 };
 	} globalFrameData;
 
 	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;

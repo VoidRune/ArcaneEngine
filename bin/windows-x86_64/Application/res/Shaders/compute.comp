@@ -13,7 +13,8 @@ layout(set = 0, binding = 0) uniform GlobalFrameData{
     int bounceLimit;
     float extinction;
     float anisotropy;
-    vec3 backgroundColor;
+    vec4 backgroundColor;
+    ivec4 debugDraw;
 } globalData;
 
 layout(set = 1, binding = 0, rgba32f) uniform image2D accumulationImageIn;
@@ -123,8 +124,10 @@ void main()
     tmin = max(tmin, 0.0);
     float maxDist = tmax - tmin;
 
-    vec4 outputColor = vec4(globalData.backgroundColor, 1);
+    vec4 outputColor = vec4(globalData.backgroundColor.rgb, 1);
     vec3 pos = rayOrigin + rayDirection * tmin;
+    int scatteringEventCount = 0;
+    int nullEventCount = 0;
 
     if(intersect)
     {
@@ -152,7 +155,7 @@ void main()
             float extinction = 0.0f;
             if(!SuperVoxelTraversal(photon, rng, extinction))
             {
-                vec3 envSample = globalData.backgroundColor;
+                vec3 envSample = globalData.backgroundColor.rgb;
                 vec3 radiance = photon.transmittance * envSample.rgb;
                 photon.radiance += (radiance - photon.radiance);
                 break;
@@ -162,7 +165,7 @@ void main()
             //photon.position += step * photon.direction;
             //if (any(greaterThan(photon.position, vec3(1))) || any(lessThan(photon.position, vec3(0)))) {
             //    // out of bounds
-            //    vec3 envSample = globalData.backgroundColor;
+            //    vec3 envSample = globalData.backgroundColor.rgb;
             //    vec3 radiance = photon.transmittance * envSample.rgb;
             //    photon.radiance += (radiance - photon.radiance);                
             //    break;
@@ -202,12 +205,19 @@ void main()
                 photon.transmittance *= photon.transmittance * transferFunction.rgb;
                 photon.direction = sampleHenyeyGreenstein(rng, globalData.anisotropy, photon.direction);
                 photon.bounces++;
+                scatteringEventCount++;
+
             } else {
                 // null collision
+                nullEventCount++;
             }
         }
 
         outputColor.rgb = photon.radiance;
+        if (globalData.debugDraw.x == 1)
+        {
+            outputColor.rgb = vec3(scatteringEventCount / float(globalData.debugDraw.y), nullEventCount / float(globalData.debugDraw.z), 0); 
+        }
     }
 
     if(globalData.frameIndex > 1)

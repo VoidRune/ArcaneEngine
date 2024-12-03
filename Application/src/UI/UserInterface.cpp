@@ -70,6 +70,18 @@ bool UserInterface::RenderSettings(SliderInt bounceLimit,
 	return guiChange;
 }
 
+bool UserInterface::RenderDebugSettings(int* enableDebugDraw, int* maxScatteringEvent, int* maxNullEvent)
+{
+	ImGui::Begin("Debug draw", nullptr, ImGuiWindowFlags_NoCollapse);
+	bool enableDebug = *enableDebugDraw == 1;
+	bool guiChange = ImGui::Checkbox("Debug draw", &enableDebug);
+	*enableDebugDraw = enableDebug ? 1 : 0;
+	guiChange |= ImGui::SliderInt("Scattering", maxScatteringEvent, 1, 20);
+	guiChange |= ImGui::SliderInt("Null-collision", maxNullEvent, 1, 200);
+	ImGui::End();
+	return guiChange;
+}
+
 void UserInterface::RenderCanvas(ImTextureID& displayImage, std::function<void(float, float)>&& func)
 {
 	ImGuiWindowClass window_class;

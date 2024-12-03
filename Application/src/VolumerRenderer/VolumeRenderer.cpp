@@ -176,9 +176,10 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 			ResizeCanvas(m_ImGuiCanvasSize.x, m_ImGuiCanvasSize.y);
 		}
 	});
+	bool guiChange = m_UserInterface->RenderDebugSettings(&globalFrameData.debugDraw.x, &globalFrameData.debugDraw.y, &globalFrameData.debugDraw.z);
 
 	m_TransferFunctionEditor->Render(m_ImGuiTransferImage);
-	bool guiChange = m_UserInterface->RenderSettings(UserInterface::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 32),
+	guiChange |= m_UserInterface->RenderSettings(UserInterface::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 32),
 					UserInterface::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f),
 					UserInterface::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f),
 					UserInterface::ColorEdit("Background", &globalFrameData.backgroundColor.r));
