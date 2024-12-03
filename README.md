@@ -94,6 +94,16 @@ resourceCache->FreeResources();
 
 Note that Vulkan SDK is not included in this project and needs to be downloaded manually!
 
+## Volume renderer
+The application implements a physically-based, unbiased volumetric path tracer using Monte Carlo methods for path sampling. To handle heterogeneous media, null-collision methods introduce a fictitious medium, effectively creating a locally homogeneous representation within the heterogeneous medium.
+
+Delta tracking is employed to sample the distance to the next interaction event, determining whether a particle is absorbed, scattered, or undergoes a null collision based on rejection sampling. For null-collision methods to perform efficiently, they require knowledge of the maximum density, known as the majorant.
+
+To address this, progressive null tracking is implemented, which dynamically stores bounding majorants that gradually converge to their true values over multiple frames. This approach allows for efficient skipping of large sections of the medium with lower density, improving computational performance without sacrificing accuracy.
+
+![Absorption emission](/images/img1.png)
+![Multiple scattering](/images/img2.png)
+
 ## Dependencies
 * [Vulkan SDK](https://vulkan.lunarg.com)
 * [GLFW](https://www.glfw.org)
