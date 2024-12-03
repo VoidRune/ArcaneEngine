@@ -1,4 +1,5 @@
 #include "VolumeRenderer.h"
+#include "ArcaneEngine/Window/Input.h"
 #include "ArcaneEngine/Graphics/ShaderCompiler.h"
 #include "DataSetLoader.h"
 #include "ArcaneEngine/Core/Timer.h"
@@ -155,37 +156,57 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	globalFrameData.frameIndex++;
 
 	m_Camera->Update(dt);
+	if (Arc::Input::IsKeyPressed(Arc::KeyCode::F3))
+		m_RenderWithGUI = !m_RenderWithGUI;
 
-	m_ImGuiRenderer->BeginFrame();
-	m_UserInterface->SetupDockspace();
-	m_UserInterface->RenderMenuBar(m_Files, [&](std::string file) {
-		if (LoadDataset(file))
-		{
-			UpdateDescriptorSets();
-			globalFrameData.frameIndex = 1;
-		}
-	});
-	m_UserInterface->RenderCanvas(m_ImGuiDisplayImage, [&](float width, float height)
+	if (!m_RenderWithGUI)
 	{
-		m_Camera->AspectRatio = width / height;
-		if (m_ImGuiCanvasSize.x != width || m_ImGuiCanvasSize.y != height)
+		float w = m_Window->Width();
+		float h = m_Window->Height();
+		m_Camera->AspectRatio = w / h;
+		if (m_ImGuiCanvasSize.x != w || m_ImGuiCanvasSize.y != h)
 		{
-			m_ImGuiCanvasSize.x = width;
-			m_ImGuiCanvasSize.y = height;
+			m_ImGuiCanvasSize.x = w;
+			m_ImGuiCanvasSize.y = h;
 			globalFrameData.frameIndex = 1;
 			ResizeCanvas(m_ImGuiCanvasSize.x, m_ImGuiCanvasSize.y);
 		}
-	});
-	bool guiChange = m_UserInterface->RenderDebugSettings(&globalFrameData.debugDraw.x, &globalFrameData.debugDraw.y, &globalFrameData.debugDraw.z);
+	}
 
-	m_TransferFunctionEditor->Render(m_ImGuiTransferImage);
-	guiChange |= m_UserInterface->RenderSettings(UserInterface::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 32),
-					UserInterface::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f),
-					UserInterface::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f),
-					UserInterface::ColorEdit("Background", &globalFrameData.backgroundColor.r));
-	m_UserInterface->EndDockspace();
+	bool guiChanged = false;
+	if (m_RenderWithGUI)
+	{
+		m_ImGuiRenderer->BeginFrame();
+		m_UserInterface->SetupDockspace();
+		m_UserInterface->RenderMenuBar(m_Files, [&](std::string file) {
+			if (LoadDataset(file))
+			{
+				UpdateDescriptorSets();
+				globalFrameData.frameIndex = 1;
+			}
+			});
+		m_UserInterface->RenderCanvas(m_ImGuiDisplayImage, [&](float width, float height)
+			{
+				m_Camera->AspectRatio = width / height;
+				if (m_ImGuiCanvasSize.x != width || m_ImGuiCanvasSize.y != height)
+				{
+					m_ImGuiCanvasSize.x = width;
+					m_ImGuiCanvasSize.y = height;
+					globalFrameData.frameIndex = 1;
+					ResizeCanvas(m_ImGuiCanvasSize.x, m_ImGuiCanvasSize.y);
+				}
+			});
+		guiChanged |= m_UserInterface->RenderDebugSettings(&globalFrameData.debugDraw.x, &globalFrameData.debugDraw.y, &globalFrameData.debugDraw.z);
 
-	if (guiChange || m_Camera->HasMoved || m_TransferFunctionEditor->HasDataChanged())
+		m_TransferFunctionEditor->Render(m_ImGuiTransferImage);
+		guiChanged |= m_UserInterface->RenderSettings(UserInterface::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 32),
+			UserInterface::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f),
+			UserInterface::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f),
+			UserInterface::ColorEdit("Background", &globalFrameData.backgroundColor.r));
+		m_UserInterface->EndDockspace();
+	}
+
+	if (guiChanged || m_Camera->HasMoved || m_TransferFunctionEditor->HasDataChanged())
 	{
 		globalFrameData.frameIndex = 1;
 	}
@@ -224,10 +245,16 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		.LoadOp = Arc::AttachmentLoadOp::Clear,
 		.ClearColor = {1, 0.5, 1, 1},
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
-			//cmd->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, { m_PresentDescriptor->GetHandle() });
-			//cmd->BindPipeline(m_PresentPipeline->GetHandle());
-			//cmd->Draw(6, 1, 0, 0);
-			m_ImGuiRenderer->EndFrame(cmd->GetHandle());
+			if (m_RenderWithGUI)
+			{
+				m_ImGuiRenderer->EndFrame(cmd->GetHandle());
+			}
+			else
+			{
+				cmd->BindDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, { m_PresentDescriptor->GetHandle() });
+				cmd->BindPipeline(m_PresentPipeline->GetHandle());
+				cmd->Draw(6, 1, 0, 0);
+			}
 		}
 	});
 	m_RenderGraph->BuildGraph();
@@ -298,7 +325,7 @@ void VolumeRenderer::ResizeCanvas(uint32_t width, uint32_t height)
 	m_AccumulationImage2 = std::make_unique<Arc::GpuImage>();
 	{
 		Arc::GpuImageDesc desc = Arc::GpuImageDesc{
-		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+		.Extent = { width, height, 1},
 		.Format = Arc::Format::R32G32B32A32_Sfloat,
 		.UsageFlags = Arc::ImageUsage::Storage,
 		.AspectFlags = Arc::ImageAspect::Color,

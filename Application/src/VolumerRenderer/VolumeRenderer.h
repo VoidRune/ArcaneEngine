@@ -43,6 +43,7 @@ private:
 
 	std::unique_ptr<CameraFP> m_Camera;
 	bool m_IsEvenFrame = false;
+	bool m_RenderWithGUI = true;
 	struct GlobalFrameData
 	{
 		glm::mat4 projection;
