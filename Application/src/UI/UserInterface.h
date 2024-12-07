@@ -35,7 +35,8 @@ public:
 	bool RenderSettings(SliderInt bounceLimit,
 						SliderFloat extinction,
 						SliderFloat anisotropy,
-						ColorEdit backgroundColor);
+						ColorEdit backgroundColor,
+						float* enableEnvironment);
 	bool RenderDebugSettings(int* enableDebugDraw, int* maxScatteringEvent, int* maxNullEvent);
 private:
 

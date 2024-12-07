@@ -59,13 +59,17 @@ void UserInterface::RenderMenuBar(const std::vector<std::string>& files, std::fu
 bool UserInterface::RenderSettings(SliderInt bounceLimit,
 									SliderFloat extinction,
 									SliderFloat anisotropy,
-									ColorEdit backgroundColor)
+									ColorEdit backgroundColor,
+									float* enableEnvironment)
 {
 	ImGui::Begin("Volume Settings", nullptr, ImGuiWindowFlags_NoCollapse);
 	bool guiChange = ImGui::SliderInt(bounceLimit.Name, bounceLimit.Value, bounceLimit.Min, bounceLimit.Max);
 	guiChange |= ImGui::SliderFloat(extinction.Name, extinction.Value, extinction.Min, extinction.Max);
 	guiChange |= ImGui::SliderFloat(anisotropy.Name, anisotropy.Value, anisotropy.Min, anisotropy.Max);
 	guiChange |= ImGui::ColorEdit3(backgroundColor.Name, backgroundColor.Value);
+	bool env = (*enableEnvironment == 1.0f);
+	guiChange |= ImGui::Checkbox("Environment enabled", &env);
+	*enableEnvironment = env;
 	ImGui::End();
 	return guiChange;
 }

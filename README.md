@@ -103,6 +103,7 @@ To address this, progressive null tracking is implemented, which dynamically sto
 
 ![Absorption emission](/images/img1.png)
 ![Multiple scattering](/images/img2.png)
+![Environment](/images/img3.png)
 
 ## Dependencies
 * [Vulkan SDK](https://vulkan.lunarg.com)

@@ -13,7 +13,8 @@ layout(set = 0, binding = 0) uniform GlobalFrameData{
     int bounceLimit;
     float extinction;
     float anisotropy;
-    vec4 backgroundColor;
+    vec3 backgroundColor;
+    float environmentEnabled;
     ivec4 debugDraw;
 } globalData;
 
@@ -103,13 +104,35 @@ bool SuperVoxelTraversal(inout Photon p, inout uint rng, inout float extinction)
     return false;
 }
 
+vec3 SampleEnvironment(vec3 dir)
+{
+    if (globalData.environmentEnabled == 1.0f)
+    {
+        const vec3 colGround = vec3(0.9f);
+        const vec3 colSkyHorizon = vec3(1.0f);
+        const vec3 colSkyZenith = vec3(0.08, 0.37, 0.73);
+        const vec3 sunDir = normalize(vec3(1));
+
+        float sun = pow(max(0, dot(dir, sunDir)), 100) * 100;
+        float skyGradientT = pow(smoothstep(0, 0.4, dir.y), 0.45);
+        float groundToSkyT = smoothstep(-0.01, 0.0, dir.y);
+        vec3 skyGradient = mix(colSkyHorizon, colSkyZenith, skyGradientT);
+
+        return mix(colGround, skyGradient, groundToSkyT) + sun * float(groundToSkyT >= 1.0);
+    }
+    else
+    {
+        return globalData.backgroundColor;
+    }
+}
+
 void main() 
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
 	vec2 size = imageSize(outputImage);
     uint rng = globalData.frameIndex;
-
-    // added tiny blur effect for antialiasing
+    rng = rng * px.x * px.y;
+    // added tiny blur effect for anti-aliasing
     float blurAmount = 0.5f;
     vec2 blur = RandomCircle(rng) * blurAmount;
     vec2 uv = (px + blur) / size;
@@ -124,7 +147,7 @@ void main()
     tmin = max(tmin, 0.0);
     float maxDist = tmax - tmin;
 
-    vec4 outputColor = vec4(globalData.backgroundColor.rgb, 1);
+    vec4 outputColor = vec4(1);
     vec3 pos = rayOrigin + rayDirection * tmin;
     int scatteringEventCount = 0;
     int nullEventCount = 0;
@@ -155,8 +178,9 @@ void main()
             float extinction = 0.0f;
             if(!SuperVoxelTraversal(photon, rng, extinction))
             {
-                vec3 envSample = globalData.backgroundColor.rgb;
-                vec3 radiance = photon.transmittance * envSample.rgb;
+                //vec3 envSample = globalData.backgroundColor.rgb;
+                vec3 envSample = SampleEnvironment(photon.direction);
+                vec3 radiance = photon.transmittance * envSample;
                 photon.radiance += (radiance - photon.radiance);
                 break;
             }
@@ -184,31 +208,20 @@ void main()
             float PAbsorption = (absorption * real) / extinction;
             float PScattering = (scattering * real) / extinction;
 
-            
-            //float PScattering;
-            //float PNull = 1.0f - transferFunction.a;
-            //if (photon.bounces >= globalData.bounceLimit) {
-            //    PScattering = 0.0;
-            //} else {
-            //    PScattering = transferFunction.a * max3(transferFunction.rgb);
-            //}
-            //float PAbsorption = 1.0 - PNull - PScattering;
-
             float rand = RandomValue(rng);
             if (rand < PAbsorption) {
-                // absorption
+                // ABSORPTION
                 vec3 radiance = vec3(0);
                 photon.radiance += (radiance - photon.radiance);
                 break;
             } else if (rand < PAbsorption + PScattering) {
-                // scattering
+                // SCATTERING
                 photon.transmittance *= photon.transmittance * transferFunction.rgb;
                 photon.direction = sampleHenyeyGreenstein(rng, globalData.anisotropy, photon.direction);
                 photon.bounces++;
                 scatteringEventCount++;
-
             } else {
-                // null collision
+                // NULL COLLISION
                 nullEventCount++;
             }
         }
@@ -218,6 +231,10 @@ void main()
         {
             outputColor.rgb = vec3(scatteringEventCount / float(globalData.debugDraw.y), nullEventCount / float(globalData.debugDraw.z), 0); 
         }
+    }
+    else
+    {
+        outputColor.rgb = SampleEnvironment(rayDirection);
     }
 
     if(globalData.frameIndex > 1)

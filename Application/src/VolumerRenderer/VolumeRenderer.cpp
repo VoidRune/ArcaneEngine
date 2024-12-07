@@ -202,7 +202,8 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		guiChanged |= m_UserInterface->RenderSettings(UserInterface::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 32),
 			UserInterface::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f),
 			UserInterface::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f),
-			UserInterface::ColorEdit("Background", &globalFrameData.backgroundColor.r));
+			UserInterface::ColorEdit("Background", &globalFrameData.backgroundColor.r),
+			&globalFrameData.enableEnvironment);
 		m_UserInterface->EndDockspace();
 	}
 
@@ -401,6 +402,7 @@ void VolumeRenderer::RecompileShaders()
 		m_ResourceCache->CreateComputePipeline(m_VolumePipeline.get(), Arc::ComputePipelineDesc{
 			.Shader = m_VolumeShader.get()
 			});
+		globalFrameData.frameIndex = 0;
 	}
 	ARC_LOG("Recompiled shaders! " + std::to_string(timer.elapsed_mili()) + "ms");
 }
