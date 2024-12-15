@@ -32,8 +32,8 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 struct Photon {
     vec3 position;
     vec3 direction;
-    vec3 transmittance;
-    vec3 radiance;
+    vec3 light;
+    vec3 contribution;
     uint bounces;
 };
 
@@ -104,6 +104,7 @@ bool SuperVoxelTraversal(inout Photon p, inout uint rng, inout float extinction)
     return false;
 }
 
+const vec3 sunDir = normalize(vec3(1));
 vec3 SampleEnvironment(vec3 dir)
 {
     if (globalData.environmentEnabled == 1.0f)
@@ -111,7 +112,6 @@ vec3 SampleEnvironment(vec3 dir)
         const vec3 colGround = vec3(0.9f);
         const vec3 colSkyHorizon = vec3(1.0f);
         const vec3 colSkyZenith = vec3(0.08, 0.37, 0.73);
-        const vec3 sunDir = normalize(vec3(1));
 
         float sun = pow(max(0, dot(dir, sunDir)), 100) * 100;
         float skyGradientT = pow(smoothstep(0, 0.4, dir.y), 0.45);
@@ -153,35 +153,21 @@ void main()
     int nullEventCount = 0;
 
     if(intersect)
-    {
-        //int maxSteps = 20;
-        //float extinctionSum = 0.0f;
-        //for (float i = 0; i < maxSteps; i++)
-        //{
-        //    float ratio = (i + RandomValue(rng)) / maxSteps;
-        //    vec3 point = (pos + rayDirection * maxDist * ratio);
-        //    point.y = 1.0 - point.y;
-        //    float r = texture(extinctionGrid, point).r;
-        //    extinctionSum += r / maxSteps;
-        //}
-        //outputColor.rgb = extinctionSum.rrr;
-        
+    {        
         Photon photon;
         photon.position = rayOrigin + rayDirection * tmin;
         photon.direction = rayDirection;
         photon.bounces = 0;
-        photon.transmittance = vec3(1.0f);
-        photon.radiance = vec3(0);
+        photon.light = vec3(0);
+        photon.contribution = vec3(1);
 
         for (int limit = 0; limit < 512; limit++)
         {
             float extinction = 0.0f;
             if(!SuperVoxelTraversal(photon, rng, extinction))
             {
-                //vec3 envSample = globalData.backgroundColor.rgb;
-                vec3 envSample = SampleEnvironment(photon.direction);
-                vec3 radiance = photon.transmittance * envSample;
-                photon.radiance += (radiance - photon.radiance);
+                vec3 emittedLight = SampleEnvironment(photon.direction);
+                photon.light += emittedLight * photon.contribution;
                 break;
             }
 
@@ -211,13 +197,20 @@ void main()
             float rand = RandomValue(rng);
             if (rand < PAbsorption) {
                 // ABSORPTION
-                vec3 radiance = vec3(0);
-                photon.radiance += (radiance - photon.radiance);
+                vec3 emittedLight = vec3(0);
+                photon.light += emittedLight * photon.contribution;
                 break;
             } else if (rand < PAbsorption + PScattering) {
                 // SCATTERING
-                photon.transmittance *= photon.transmittance * transferFunction.rgb;
+                //float g = 0.6;
+                //photon.direction = sampleHenyeyGreenstein(rng, g, sunDir);
+                //float pdf = HenyeyGreensteinPDF(g, dot(photon.direction, sunDir));
+                //photon.contribution *= transferFunction.rgb / pdf;
+                //photon.contribution = min(photon.contribution, vec3(10));
+
                 photon.direction = sampleHenyeyGreenstein(rng, globalData.anisotropy, photon.direction);
+                photon.contribution *= transferFunction.rgb;
+                
                 photon.bounces++;
                 scatteringEventCount++;
             } else {
@@ -226,7 +219,7 @@ void main()
             }
         }
 
-        outputColor.rgb = photon.radiance;
+        outputColor.rgb = photon.light;
         if (globalData.debugDraw.x == 1)
         {
             outputColor.rgb = vec3(scatteringEventCount / float(globalData.debugDraw.y), nullEventCount / float(globalData.debugDraw.z), 0); 

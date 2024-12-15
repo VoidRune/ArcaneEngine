@@ -1,4 +1,3 @@
-
 float RandomValue(inout uint state)
 {
     //pcg hash
@@ -8,9 +7,9 @@ float RandomValue(inout uint state)
     return result / 4294967295.0;
 }
 
-float HenyeyGreenstein(float g, float costh)
+float HenyeyGreensteinPDF(float g, float costh)
 {
-    return (1.0 / (4.0 * 3.14159265359)) * ((1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * costh, 15));
+    return (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * costh, 1.5f);
 }
 
 float sampleHenyeyGreensteinAngleCosine(inout uint state, float g) {
