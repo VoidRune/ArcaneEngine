@@ -204,13 +204,26 @@ void main()
                 // SCATTERING
                 //float g = 0.6;
                 //photon.direction = sampleHenyeyGreenstein(rng, g, sunDir);
-                //float pdf = HenyeyGreensteinPDF(g, dot(photon.direction, sunDir));
-                //photon.contribution *= transferFunction.rgb / pdf;
-                //photon.contribution = min(photon.contribution, vec3(10));
+                //float pdfIS = HenyeyGreensteinPDF(g, dot(photon.direction, sunDir));
+                //photon.contribution *= transferFunction.rgb / pdfIS;
+                //photon.contribution = min(photon.contribution, vec3(16));
 
-                photon.direction = sampleHenyeyGreenstein(rng, globalData.anisotropy, photon.direction);
-                photon.contribution *= transferFunction.rgb;
-                
+                //photon.direction = sampleHenyeyGreenstein(rng, globalData.anisotropy, photon.direction);
+                //photon.contribution *= transferFunction.rgb;
+
+                float g = 0.6;
+                vec3 oldDir = photon.direction;
+                float w = abs(globalData.anisotropy);
+                if (RandomValue(rng) < w){
+                    photon.direction = sampleHenyeyGreenstein(rng, globalData.anisotropy, photon.direction);                    
+                }else{
+                    photon.direction = sampleHenyeyGreenstein(rng, g, sunDir);          
+                }
+                float pdf = HenyeyGreensteinPDF(globalData.anisotropy, dot(photon.direction, oldDir));;
+                float pdfIS = HenyeyGreensteinPDF(g, dot(photon.direction, sunDir));
+                photon.contribution *= transferFunction.rgb * pdf / (w * pdf + (1 - w) * max(pdfIS, 1e-4));
+                photon.contribution = min(photon.contribution, vec3(16));
+
                 photon.bounces++;
                 scatteringEventCount++;
             } else {
