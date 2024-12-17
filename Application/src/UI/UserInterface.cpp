@@ -60,7 +60,8 @@ bool UserInterface::RenderSettings(SliderInt bounceLimit,
 									SliderFloat extinction,
 									SliderFloat anisotropy,
 									ColorEdit backgroundColor,
-									float* enableEnvironment)
+									float* enableEnvironment,
+									bool* accumulateFrames)
 {
 	ImGui::Begin("Volume Settings", nullptr, ImGuiWindowFlags_NoCollapse);
 	bool guiChange = ImGui::SliderInt(bounceLimit.Name, bounceLimit.Value, bounceLimit.Min, bounceLimit.Max);
@@ -69,6 +70,7 @@ bool UserInterface::RenderSettings(SliderInt bounceLimit,
 	guiChange |= ImGui::ColorEdit3(backgroundColor.Name, backgroundColor.Value);
 	bool env = (*enableEnvironment == 1.0f);
 	guiChange |= ImGui::Checkbox("Environment enabled", &env);
+	guiChange |= ImGui::Checkbox("Accumulate frames", accumulateFrames);
 	*enableEnvironment = env;
 	ImGui::End();
 	return guiChange;

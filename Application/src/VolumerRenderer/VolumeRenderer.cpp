@@ -153,7 +153,8 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	globalFrameData.inverseView = m_Camera->InverseView;
 	globalFrameData.cameraPosition = glm::vec4(m_Camera->Position, 0.0f);
 	globalFrameData.cameraDirection = glm::vec4(m_Camera->Forward, 0.0f);
-	globalFrameData.frameIndex++;
+	if (m_AccumulateFrames)
+		globalFrameData.frameIndex++;
 
 	m_Camera->Update(dt);
 	if (Arc::Input::IsKeyPressed(Arc::KeyCode::F3))
@@ -203,7 +204,8 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 			UserInterface::SliderFloat("Extinction", &globalFrameData.extinction, 0.1f, 300.0f),
 			UserInterface::SliderFloat("Anisotropy", &globalFrameData.anisotropy, -1.0f, 1.0f),
 			UserInterface::ColorEdit("Background", &globalFrameData.backgroundColor.r),
-			&globalFrameData.enableEnvironment);
+			&globalFrameData.enableEnvironment,
+			&m_AccumulateFrames);
 		m_UserInterface->EndDockspace();
 	}
 

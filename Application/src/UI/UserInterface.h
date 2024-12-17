@@ -36,7 +36,8 @@ public:
 						SliderFloat extinction,
 						SliderFloat anisotropy,
 						ColorEdit backgroundColor,
-						float* enableEnvironment);
+						float* enableEnvironment,
+						bool* accumulateFrames);
 	bool RenderDebugSettings(int* enableDebugDraw, int* maxScatteringEvent, int* maxNullEvent);
 private:
 
