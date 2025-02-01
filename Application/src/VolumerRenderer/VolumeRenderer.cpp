@@ -167,10 +167,11 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		globalFrameData.frameIndex - 1 == 64 ||
 		globalFrameData.frameIndex - 1 == 128 ||
 		globalFrameData.frameIndex - 1 == 256 ||
-		globalFrameData.frameIndex - 1 == 512)
+		globalFrameData.frameIndex - 1 == 512 ||
+		(globalFrameData.frameIndex - 1) % 20000 == 0)
 	{
 		std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
-		std::string path = "img" + std::to_string(globalFrameData.frameIndex) + ".png";
+		std::string path = "img" + std::to_string(globalFrameData.frameIndex - 1) + ".png";
 		stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
 		ARC_LOG("Screenshot saved to disk");
 	}
