@@ -31,6 +31,6 @@ namespace DatasetLoader
 		{
 			ARC_LOG_WARNING(std::string("Could not load dataset: " + filePath));
 		}
-		return data;
+		return std::move(data);
 	}
 }

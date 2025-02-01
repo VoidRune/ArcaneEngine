@@ -22,6 +22,7 @@ namespace Arc
 		void UpdateDescriptorSet(DescriptorSetArray* descriptorArray, const DescriptorWrite& write);
 		void TransitionImageLayout(GpuImage* image, ImageLayout newLayout);
 		void SetImageData(GpuImage* image, const void* data, uint32_t size, ImageLayout newLayout);
+		std::vector<uint8_t> GetImageData(GpuImage* image);
 
 		InstanceHandle GetInstance() { return m_Instance; }
 		PhysicalDeviceHandle GetPhysicalDevice() { return m_PhysicalDevice; }

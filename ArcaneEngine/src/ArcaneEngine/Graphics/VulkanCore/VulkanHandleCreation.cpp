@@ -56,26 +56,20 @@ namespace Arc
 
 
         uint32_t extensionCount = 0;
-        //const char** extensions = glfwGetRequiredInstanceExtensions(&extensionCount);
         std::vector<const char*> extensions;
         for (const char* ext : info.instanceExtensions)
         {
             extensions.push_back(ext);
         }
+
         std::vector<const char*> validationLayers;
+        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
 
         if (info.enableValidationLayers)
         {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             validationLayers.push_back("VK_LAYER_KHRONOS_validation");
-            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-            createInfo.ppEnabledLayerNames = validationLayers.data();
-        }
 
-
-        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
-        if (info.enableValidationLayers)
-        {
             debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
             debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
             debugCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;  
@@ -84,6 +78,8 @@ namespace Arc
             createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
         }
 
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
         createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         createInfo.ppEnabledExtensionNames = extensions.data();
 

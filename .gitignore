@@ -1,6 +1,9 @@
 # Folders
 build/
 
+# Extensions
+**.raw
+
 # Visual Studio files and folder
 **.pdb
 **.idb

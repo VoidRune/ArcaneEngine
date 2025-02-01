@@ -202,7 +202,7 @@ void main()
                 break;
             } else if (rand < PAbsorption + PScattering) {
                 // SCATTERING
-                if (globalData.environmentEnabled == 1.0f)
+                if (true && globalData.environmentEnabled == 1.0f)
                 {
                     // Importance sampling
                     float g = 0.6;

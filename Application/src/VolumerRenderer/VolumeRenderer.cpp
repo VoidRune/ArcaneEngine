@@ -4,6 +4,7 @@
 #include "DataSetLoader.h"
 #include "ArcaneEngine/Core/Timer.h"
 #include "ArcaneEngine/Core/Log.h"
+#include "stb/stb_image_write.h"
 #include <regex>
 
 VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue)
@@ -147,18 +148,33 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	Arc::FrameData frameData = m_PresentQueue->BeginFrame();
 	Arc::CommandBuffer* cmd = frameData.CommandBuffer;
 
-	globalFrameData.projection = m_Camera->Projection;
-	globalFrameData.view = m_Camera->View;
-	globalFrameData.inverseProjection = m_Camera->InverseProjection;
-	globalFrameData.inverseView = m_Camera->InverseView;
-	globalFrameData.cameraPosition = glm::vec4(m_Camera->Position, 0.0f);
-	globalFrameData.cameraDirection = glm::vec4(m_Camera->Forward, 0.0f);
+	if (Arc::Input::IsKeyPressed(Arc::KeyCode::F3))
+		m_RenderWithGUI = !m_RenderWithGUI;
+	if (Arc::Input::IsKeyPressed(Arc::KeyCode::R))
+	{
+		m_AccumulateFrames = !m_AccumulateFrames;
+		if (!m_AccumulateFrames)
+		{
+			globalFrameData.frameIndex = 1;
+		}
+	}
+
 	if (m_AccumulateFrames)
 		globalFrameData.frameIndex++;
 
-	m_Camera->Update(dt);
-	if (Arc::Input::IsKeyPressed(Arc::KeyCode::F3))
-		m_RenderWithGUI = !m_RenderWithGUI;
+	if (Arc::Input::IsKeyPressed(Arc::KeyCode::G) ||
+		globalFrameData.frameIndex - 1 == 16 || 
+		globalFrameData.frameIndex - 1 == 64 ||
+		globalFrameData.frameIndex - 1 == 128 ||
+		globalFrameData.frameIndex - 1 == 256 ||
+		globalFrameData.frameIndex - 1 == 512)
+	{
+		std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
+		std::string path = "img" + std::to_string(globalFrameData.frameIndex) + ".png";
+		stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
+		ARC_LOG("Screenshot saved to disk");
+	}
+
 
 	if (!m_RenderWithGUI)
 	{
@@ -173,6 +189,15 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 			ResizeCanvas(m_ImGuiCanvasSize.x, m_ImGuiCanvasSize.y);
 		}
 	}
+
+	m_Camera->Update(dt);
+
+	globalFrameData.projection = m_Camera->Projection;
+	globalFrameData.view = m_Camera->View;
+	globalFrameData.inverseProjection = m_Camera->InverseProjection;
+	globalFrameData.inverseView = m_Camera->InverseView;
+	globalFrameData.cameraPosition = glm::vec4(m_Camera->Position, 0.0f);
+	globalFrameData.cameraDirection = glm::vec4(m_Camera->Forward, 0.0f);
 
 	bool guiChanged = false;
 	if (m_RenderWithGUI)
@@ -232,6 +257,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 				.OldLayout = Arc::ImageLayout::Undefined,
 				.NewLayout = Arc::ImageLayout::General,
 			} });
+
 			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_VolumePipeline->GetLayout(), 0, { m_GlobalDataDescSet->GetHandle(frameIndex), m_IsEvenFrame ? m_VolumeImageDescriptor1->GetHandle() : m_VolumeImageDescriptor2->GetHandle() });
 			cmd->BindComputePipeline(m_VolumePipeline->GetHandle());
 			cmd->Dispatch(std::ceil(m_ImGuiCanvasSize.x / 32.0f), std::ceil(m_ImGuiCanvasSize.y / 32.0f), 1);
@@ -316,7 +342,7 @@ void VolumeRenderer::ResizeCanvas(uint32_t width, uint32_t height)
 	m_ResourceCache->CreateGpuImage(m_OutputImage.get(), Arc::GpuImageDesc{
 		.Extent = { width, height, 1},
 		.Format = Arc::Format::R8G8B8A8_Unorm,
-		.UsageFlags = Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
+		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
 	});
