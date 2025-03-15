@@ -2,42 +2,77 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <mutex>
+#include <format>
 
 namespace Arc
 {
-	void GetTimeStamp(char* timestamp, int bufferSize)
-	{
-		time_t now = time(0);
-		tm* timeinfo = localtime(&now);
-		strftime(timestamp, bufferSize,
-			"%d-%m-%Y %H:%M:%S", timeinfo);
-	}
+    std::ofstream logFile;
+    std::mutex logMutex;
 
-	void LogInfo(const std::string& msg)
-	{
-		char timestamp[20];
-		GetTimeStamp(timestamp, sizeof(timestamp));
-		std::cout << "[" << timestamp << "] INFO: " << msg << std::endl;
-	}
+    void SetLogFile(const std::string& filename)
+    {
+        logFile.open(filename, std::ios::app);
+        if (!logFile)
+        {
+            std::cerr << "[ERROR] Failed to open log file: " << filename << std::endl;
+        }
+    }
 
-	void LogWarning(const std::string& msg)
-	{
-		char timestamp[20];
-		GetTimeStamp(timestamp, sizeof(timestamp));
-		std::cout << "[" << timestamp << "] WARN: " << msg << std::endl;
-	}
+    std::string GetTimeStamp()
+    {
+        auto now = std::chrono::system_clock::now();
+        auto timeT = std::chrono::system_clock::to_time_t(now);
+        tm localTime{};
+        localtime_s(&localTime, &timeT);
 
-	void LogError(const std::string& msg)
-	{
-		char timestamp[20];
-		GetTimeStamp(timestamp, sizeof(timestamp));
-		std::cout << "[" << timestamp << "] ERROR: " << msg << std::endl;
-	}
+        char buffer[20];
+        strftime(buffer, sizeof(buffer), "%d-%m-%Y %H:%M:%S", &localTime);
+        return std::string(buffer);
+    }
 
-	void LogFatal(const std::string& msg)
-	{
-		char timestamp[20];
-		GetTimeStamp(timestamp, sizeof(timestamp));
-		std::cout << "[" << timestamp << "] FATAL: " << msg << std::endl;
-	}
+    template<typename... Args>
+    void LogMessage(const std::string& level, std::string_view format, Args&&... args)
+    {
+        std::lock_guard<std::mutex> lock(logMutex);  // Prevent race conditions
+
+        std::string timestamp = GetTimeStamp();
+        std::string message = std::vformat(format, std::make_format_args(args...));
+
+        std::cout << "[" << timestamp << "] " << level << ": " << message << std::endl;
+        if (logFile.is_open())
+        {
+            logFile << "[" << timestamp << "] " << level << ": " << message << std::endl;
+        }
+    }
+
+    template<typename... Args>
+    void LogInfo(std::string_view format, Args&&... args)
+    {
+        LogMessage("INFO", format, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    void LogWarning(std::string_view format, Args&&... args)
+    {
+        LogMessage("WARN", format, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    void LogError(std::string_view format, Args&&... args)
+    {
+        LogMessage("ERROR", format, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    void LogFatal(std::string_view format, Args&&... args)
+    {
+        LogMessage("FATAL", format, std::forward<Args>(args)...);
+    }
+
+    // Explicit template instantiations to prevent linker issues
+    template void LogInfo<>(std::string_view);
+    template void LogWarning<>(std::string_view);
+    template void LogError<>(std::string_view);
+    template void LogFatal<>(std::string_view);
 }
