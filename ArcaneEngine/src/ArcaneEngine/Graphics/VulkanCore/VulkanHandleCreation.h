@@ -113,4 +113,11 @@ namespace Arc
 		DeviceHandle logicalDevice = {};
 	};
 	SemaphoreHandle CreateSemaphoreHandle(SemaphoreCreateInfo& info);
+
+	struct QueryPoolInfo
+	{
+		DeviceHandle logicalDevice = {};
+		uint32_t maxTimestampCount = 0;
+	};
+	QueryPoolHandle CreateQueryPoolHandle(QueryPoolInfo& info);
 }

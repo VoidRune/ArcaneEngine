@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <memory>
 
 #define ARC_DEFINE_HANDLE(object) using object = void*;
 

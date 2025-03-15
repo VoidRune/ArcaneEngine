@@ -138,6 +138,9 @@ VolumeRenderer::~VolumeRenderer()
 
 }
 
+static float nextTime = 1.0f;
+static float timer = 0.0f;
+
 void VolumeRenderer::RenderFrame(float elapsedTime)
 {
 	static float lastTime = 0.0f;
@@ -159,21 +162,44 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		}
 	}
 
+	timer += dt;
 	if (m_AccumulateFrames)
 		globalFrameData.frameIndex++;
+	else
+	{
+		nextTime = 1.0f;
+		timer = 0.0f;
+	}
+
+	//if (timer >= nextTime)
+	//{
+	//	if (nextTime == 1.0f)
+	//		nextTime = 2.0f;
+	//	else if (nextTime == 2.0f)
+	//		nextTime = 3.0f;
+	//	else if (nextTime == 3.0f)
+	//		nextTime = 4.0f;
+	//	else if (nextTime == 4.0f)
+	//		nextTime = 10000000.0f;
+	//
+	//	ARC_LOG("Frame" + std::to_string(globalFrameData.frameIndex));
+	//
+	//	//std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
+	//	//std::string path = "imgTime" + std::to_string(timer) + ".png";
+	//	//stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
+	//	//ARC_LOG("Screenshot saved to disk");
+	//}
 
 	if (Arc::Input::IsKeyPressed(Arc::KeyCode::G) ||
-		globalFrameData.frameIndex - 1 == 16 || 
-		globalFrameData.frameIndex - 1 == 64 ||
-		globalFrameData.frameIndex - 1 == 128 ||
-		globalFrameData.frameIndex - 1 == 256 ||
-		globalFrameData.frameIndex - 1 == 512 ||
-		(globalFrameData.frameIndex - 1) % 20000 == 0)
+		(globalFrameData.frameIndex - 1) % 50 == 0 &&
+		(globalFrameData.frameIndex - 1) != 0 && 
+		(globalFrameData.frameIndex - 1) <= 4000 || 
+		(globalFrameData.frameIndex - 1) % 40000 == 0 && (globalFrameData.frameIndex - 1) != 0)
 	{
-		std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
-		std::string path = "img" + std::to_string(globalFrameData.frameIndex - 1) + ".png";
-		stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
-		ARC_LOG("Screenshot saved to disk");
+		//std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
+		//std::string path = "img" + std::to_string(globalFrameData.frameIndex - 1) + ".png";
+		//stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
+		//ARC_LOG("Screenshot saved to disk");
 	}
 
 
@@ -259,10 +285,13 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 				.NewLayout = Arc::ImageLayout::General,
 			} });
 
-			cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_VolumePipeline->GetLayout(), 0, { m_GlobalDataDescSet->GetHandle(frameIndex), m_IsEvenFrame ? m_VolumeImageDescriptor1->GetHandle() : m_VolumeImageDescriptor2->GetHandle() });
-			cmd->BindComputePipeline(m_VolumePipeline->GetHandle());
-			cmd->Dispatch(std::ceil(m_ImGuiCanvasSize.x / 32.0f), std::ceil(m_ImGuiCanvasSize.y / 32.0f), 1);
-		
+			{
+				auto gpuTimer = m_Device->GetTimestampQuery()->AddScopedTimer("Compute", cmd);
+				cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_VolumePipeline->GetLayout(), 0, { m_GlobalDataDescSet->GetHandle(frameIndex), m_IsEvenFrame ? m_VolumeImageDescriptor1->GetHandle() : m_VolumeImageDescriptor2->GetHandle() });
+				cmd->BindComputePipeline(m_VolumePipeline->GetHandle());
+				cmd->Dispatch(std::ceil(m_ImGuiCanvasSize.x / 32.0f), std::ceil(m_ImGuiCanvasSize.y / 32.0f), 1);
+			}
+
 			cmd->MemoryBarrier({
 			Arc::CommandBuffer::ImageBarrier{
 				.Handle = m_OutputImage->GetHandle(),
@@ -290,6 +319,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	m_RenderGraph->BuildGraph();
 	m_RenderGraph->Execute(frameData, m_PresentQueue->GetExtent());
 	m_PresentQueue->EndFrame();
+	m_Device->GetTimestampQuery()->QueryResults();
 }
 
 bool VolumeRenderer::LoadDataset(std::string fileName)

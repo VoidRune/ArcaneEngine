@@ -131,7 +131,7 @@ void main()
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
 	vec2 size = imageSize(outputImage);
     uint rng = globalData.frameIndex;
-    rng = rng * px.x * px.y;
+    rng = rng * (px.x + 73) * (px.y + 91);
     // added tiny blur effect for anti-aliasing
     float blurAmount = 0.5f;
     vec2 blur = RandomCircle(rng) * blurAmount;

@@ -5,6 +5,7 @@
 #include "VulkanObjects/DescriptorWrite.h"
 #include "ResourceCache.h"
 #include "RenderGraph.h"
+#include "TimestampQuery.h"
 #include <vector>
 
 namespace Arc
@@ -36,6 +37,7 @@ namespace Arc
 
 		ResourceCache* GetResourceCache() { return m_ResourceCache.get(); }
 		RenderGraph* GetRenderGraph() { return m_RenderGraph.get(); }
+		TimestampQuery* GetTimestampQuery() { return m_TimestampQuery.get(); }
 
 	private:
 
@@ -59,5 +61,6 @@ namespace Arc
 
 		std::unique_ptr<ResourceCache> m_ResourceCache;
 		std::unique_ptr<RenderGraph> m_RenderGraph;
+		std::unique_ptr<TimestampQuery> m_TimestampQuery;
 	};
 }

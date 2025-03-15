@@ -510,4 +510,21 @@ namespace Arc
         VK_CHECK(vkCreateSemaphore((VkDevice)info.logicalDevice, &semaphoreInfo, nullptr, &semaphore));
         return semaphore;
     }
+
+    QueryPoolHandle CreateQueryPoolHandle(QueryPoolInfo& info)
+    {
+        VkQueryPoolCreateInfo queryPoolCreateInfo{};
+        queryPoolCreateInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+        queryPoolCreateInfo.pNext = nullptr;
+        queryPoolCreateInfo.flags = 0;
+
+        queryPoolCreateInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+        queryPoolCreateInfo.queryCount = info.maxTimestampCount;
+
+        VkQueryPool queryPool;
+        VK_CHECK(vkCreateQueryPool((VkDevice)info.logicalDevice, &queryPoolCreateInfo, nullptr, &queryPool));
+        vkResetQueryPool((VkDevice)info.logicalDevice, queryPool, 0, info.maxTimestampCount);
+
+        return queryPool;
+    }
 }

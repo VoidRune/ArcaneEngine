@@ -118,7 +118,6 @@ namespace Arc
             {
                 auto sampler = (Sampler*)resource;
                 vkDestroySampler((VkDevice)m_LogicalDevice, (VkSampler)sampler->m_Sampler, nullptr);
-                m_Resources.erase(sampler);
             }
             break;
             case ResourceType::Shader:

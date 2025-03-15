@@ -18,12 +18,14 @@ namespace Arc
 
         m_ResourceCache = std::make_unique<ResourceCache>(this);
         m_RenderGraph = std::make_unique<RenderGraph>();
-	}
+        m_TimestampQuery = std::make_unique<TimestampQuery>(m_LogicalDevice, m_PhysicalDevice);
+    }
 
 	Device::~Device()
 	{
-        m_ResourceCache.reset();
+        m_TimestampQuery.reset();
         m_RenderGraph.reset();
+        m_ResourceCache.reset();
 
         VK_CHECK(vkDeviceWaitIdle((VkDevice)m_LogicalDevice));
         vkDestroyCommandPool((VkDevice)m_LogicalDevice, (VkCommandPool)m_CommandPool, nullptr);
