@@ -55,11 +55,11 @@ private:
 		glm::vec4 cameraDirection;
 		uint32_t frameIndex = 0;
 		int32_t bounceLimit = 16;
-		float extinction = 200.0f;
+		float extinction = 250.0f;
 		float anisotropy = 0.2f;
 		alignas(16) glm::vec3 backgroundColor = { 1, 1, 1 };
 		float enableEnvironment = 0.0f;
-		alignas(16) glm::ivec4 debugDraw = { 0, 1, 1, 0 };
+		alignas(16) glm::ivec4 debugDraw = { 0, 1, 1, 1 };
 	} globalFrameData;
 
 	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;
@@ -69,7 +69,7 @@ private:
 	std::vector<std::string> m_Files;
 	std::string m_SelectedDataset = "";
 	glm::ivec3 m_DataSetSize = {0, 0, 0};
-	uint32_t m_ExtinctionGridSize = 16;
+	uint32_t m_ExtinctionGridSize = 64;
 
 	// Resources
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;

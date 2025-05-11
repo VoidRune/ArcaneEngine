@@ -149,6 +149,7 @@ void main()
 
     vec4 outputColor = vec4(1);
     vec3 pos = rayOrigin + rayDirection * tmin;
+    int absorptionEventCount = 0;
     int scatteringEventCount = 0;
     int nullEventCount = 0;
 
@@ -161,25 +162,31 @@ void main()
         photon.light = vec3(0);
         photon.contribution = vec3(1);
 
+        #define NULLTRACKING
         for (int limit = 0; limit < 512; limit++)
         {
             float extinction = 0.0f;
+
+            #ifdef NULLTRACKING
             if(!SuperVoxelTraversal(photon, rng, extinction))
             {
                 vec3 emittedLight = SampleEnvironment(photon.direction);
                 photon.light += emittedLight * photon.contribution;
                 break;
             }
+            #else
+            extinction = 1.0f;
+            float step = -log(RandomValue(rng)) / globalData.extinction;
+            photon.position += step * photon.direction;
+            if (any(greaterThan(photon.position, vec3(1))) || any(lessThan(photon.position, vec3(0)))) {
+                // out of bounds
+                vec3 envSample = globalData.backgroundColor.rgb;
+                vec3 radiance = photon.contribution * envSample.rgb;
+                photon.light += (radiance - photon.light);                
+                break;
+            }
+            #endif
 
-            //float step = -log(RandomValue(rng)) / globalData.extinction;
-            //photon.position += step * photon.direction;
-            //if (any(greaterThan(photon.position, vec3(1))) || any(lessThan(photon.position, vec3(0)))) {
-            //    // out of bounds
-            //    vec3 envSample = globalData.backgroundColor.rgb;
-            //    vec3 radiance = photon.transmittance * envSample.rgb;
-            //    photon.radiance += (radiance - photon.radiance);                
-            //    break;
-            //}
      
             vec3 samplePoint = photon.position;
             samplePoint.y = 1 - samplePoint.y;
@@ -199,10 +206,11 @@ void main()
                 // ABSORPTION
                 vec3 emittedLight = vec3(0);
                 photon.light += emittedLight * photon.contribution;
+                absorptionEventCount++;
                 break;
             } else if (rand < PAbsorption + PScattering) {
                 // SCATTERING
-                if (true && globalData.environmentEnabled == 1.0f)
+                if (false && globalData.environmentEnabled == 1.0f)
                 {
                     // Importance sampling
                     float g = 0.6;
@@ -233,7 +241,7 @@ void main()
         outputColor.rgb = photon.light;
         if (globalData.debugDraw.x == 1)
         {
-            outputColor.rgb = vec3(scatteringEventCount / float(globalData.debugDraw.y), nullEventCount / float(globalData.debugDraw.z), 0); 
+            outputColor.rgb = vec3(scatteringEventCount / float(globalData.debugDraw.z), nullEventCount / float(globalData.debugDraw.w), absorptionEventCount / float(globalData.debugDraw.y)); 
         }
     }
     else
@@ -244,5 +252,9 @@ void main()
     if(globalData.frameIndex > 1)
         outputColor += imageLoad(accumulationImageIn, px);
     imageStore(accumulationImageOut, px, outputColor);
+    //vec4 a = outputColor / globalData.frameIndex;
+    //vec4 mapped = vec4(1.0) - exp(-a * 3.0);
+    //mapped = pow(mapped, vec4(1.0 / 2.2));
+
     imageStore(outputImage, px, outputColor / globalData.frameIndex);
 }

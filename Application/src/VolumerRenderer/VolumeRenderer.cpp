@@ -130,6 +130,9 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_Camera->MovementSpeed = 0.5f;
 	globalFrameData.frameIndex = 1;
 
+	m_Camera->Position = glm::vec3(0.5, 1.5, 0.5f);
+	m_Camera->Pitch = -89.9f;
+
 	m_ImGuiTransferImage = m_ImGuiRenderer->CreateImageId(m_TransferFunctionImage->GetImageView(), m_LinearSampler->GetHandle());
 }
 
@@ -138,7 +141,7 @@ VolumeRenderer::~VolumeRenderer()
 
 }
 
-static float nextTime = 1.0f;
+static float nextTime = 10.0f;
 static float timer = 0.0f;
 
 void VolumeRenderer::RenderFrame(float elapsedTime)
@@ -167,39 +170,51 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		globalFrameData.frameIndex++;
 	else
 	{
-		nextTime = 1.0f;
+		nextTime = 10.0f;
 		timer = 0.0f;
 	}
 
-	//if (timer >= nextTime)
-	//{
-	//	if (nextTime == 1.0f)
-	//		nextTime = 2.0f;
-	//	else if (nextTime == 2.0f)
-	//		nextTime = 3.0f;
-	//	else if (nextTime == 3.0f)
-	//		nextTime = 4.0f;
-	//	else if (nextTime == 4.0f)
-	//		nextTime = 10000000.0f;
-	//
-	//	ARC_LOG("Frame" + std::to_string(globalFrameData.frameIndex));
-	//
-	//	//std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
-	//	//std::string path = "imgTime" + std::to_string(timer) + ".png";
-	//	//stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
-	//	//ARC_LOG("Screenshot saved to disk");
-	//}
-
-	if (Arc::Input::IsKeyPressed(Arc::KeyCode::G) ||
-		(globalFrameData.frameIndex - 1) % 50 == 0 &&
-		(globalFrameData.frameIndex - 1) != 0 && 
-		(globalFrameData.frameIndex - 1) <= 4000 || 
-		(globalFrameData.frameIndex - 1) % 40000 == 0 && (globalFrameData.frameIndex - 1) != 0)
+	if (Arc::Input::IsKeyPressed(Arc::KeyCode::T))
 	{
-		//std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
-		//std::string path = "img" + std::to_string(globalFrameData.frameIndex - 1) + ".png";
-		//stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
-		//ARC_LOG("Screenshot saved to disk");
+		m_Device->GetTimestampQuery()->ResetAccumulatedTime();
+	}
+
+	/*
+	if (timer >= nextTime)
+	{
+		nextTime = 10000000.0f;
+		//if(nextTime > 10.0f)
+		//	nextTime = 10000000.0f;
+		//
+		//nextTime += 0.5f;
+
+		//if (nextTime == 1.0f)
+		//	nextTime = 2.0f;
+		//else if (nextTime == 2.0f)
+		//	nextTime = 3.0f;
+		//else if (nextTime == 3.0f)
+		//	nextTime = 4.0f;
+		//else if (nextTime == 4.0f)
+		//	nextTime = 10000000.0f;
+	
+		ARC_LOG("Frame" + std::to_string(globalFrameData.frameIndex));
+	
+		std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
+		std::string path = "imgTime" + std::to_string(timer) + ".png";
+		stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
+		ARC_LOG("Screenshot saved to disk");
+	}*/
+
+	if (Arc::Input::IsKeyPressed(Arc::KeyCode::G))// ||
+		//(globalFrameData.frameIndex - 1) % 50 == 0 &&
+		//(globalFrameData.frameIndex - 1) != 0 && 
+		//(globalFrameData.frameIndex - 1) <= 4000 || 
+		//(globalFrameData.frameIndex - 1) % 40000 == 0 && (globalFrameData.frameIndex - 1) != 0)
+	{
+		std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
+		std::string path = "img" + std::to_string(globalFrameData.frameIndex - 1) + ".png";
+		stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
+		ARC_LOG("Screenshot saved to disk");
 	}
 
 
@@ -249,7 +264,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 					ResizeCanvas(m_ImGuiCanvasSize.x, m_ImGuiCanvasSize.y);
 				}
 			});
-		guiChanged |= m_UserInterface->RenderDebugSettings(&globalFrameData.debugDraw.x, &globalFrameData.debugDraw.y, &globalFrameData.debugDraw.z);
+		guiChanged |= m_UserInterface->RenderDebugSettings(&globalFrameData.debugDraw.x, &globalFrameData.debugDraw.y, &globalFrameData.debugDraw.z, &globalFrameData.debugDraw.w);
 
 		m_TransferFunctionEditor->Render(m_ImGuiTransferImage);
 		guiChanged |= m_UserInterface->RenderSettings(UserInterface::SliderInt("Bounce limit", &globalFrameData.bounceLimit, 0, 32),

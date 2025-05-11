@@ -35,7 +35,7 @@ void CameraFP::Update(double deltaTime)
         Pitch -= (mouseY - LastMouseY) * Sensitivity;
 
         Yaw = fmod(Yaw, 360.0f);
-        Pitch = std::clamp(Pitch, -89.0f, 89.0f);
+        Pitch = std::clamp(Pitch, -89.9f, 89.9f);
         if (LastMouseX != mouseX || LastMouseY != mouseY)
             HasMoved = true;
     }

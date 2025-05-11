@@ -1,23 +1,42 @@
 #pragma once
-#include <string_view>
 #include <string>
 #include <format>
 
 namespace Arc
 {
     void SetLogFile(const std::string& filename);
+    void LogMessageInternal(const std::string& level, const std::string& message);
 
     template<typename... Args>
-    void LogInfo(std::string_view format, Args&&... args);
+    inline void LogMessage(const std::string& level, std::string_view format, Args&&... args)
+    {
+        std::string message = std::vformat(format, std::make_format_args(args...));
+        LogMessageInternal(level, message);
+    }
 
     template<typename... Args>
-    void LogWarning(std::string_view format, Args&&... args);
+    inline void LogInfo(std::string_view format, Args&&... args)
+    {
+        LogMessage("INFO", format, std::forward<Args>(args)...);
+    }
 
     template<typename... Args>
-    void LogError(std::string_view format, Args&&... args);
+    inline void LogWarning(std::string_view format, Args&&... args)
+    {
+        LogMessage("WARN", format, std::forward<Args>(args)...);
+    }
 
     template<typename... Args>
-    void LogFatal(std::string_view format, Args&&... args);
+    inline void LogError(std::string_view format, Args&&... args)
+    {
+        LogMessage("ERROR", format, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    inline void LogFatal(std::string_view format, Args&&... args)
+    {
+        LogMessage("FATAL", format, std::forward<Args>(args)...);
+    }
 }
 
 #if defined(DEBUG) || defined(RELEASE)

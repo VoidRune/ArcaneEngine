@@ -121,7 +121,7 @@ namespace Arc::ShaderCompiler
 		shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(source.data(), shaderStageShaderc, debugName.c_str(), options);
 		if (module.GetCompilationStatus() != shaderc_compilation_status_success)
 		{
-			ARC_LOG_ERROR(std::string("Failed to compile shader: ") + module.GetErrorMessage());
+			ARC_LOG_ERROR("Failed to compile shader: {}", module.GetErrorMessage());
 			return false;
 		}
 

@@ -26,6 +26,8 @@ namespace Arc
 		ScopedTimer AddScopedTimer(const std::string& name, CommandBuffer* cmd);
 		void QueryResults();
 
+		void ResetAccumulatedTime() { m_AccumulatedTimestamps.clear(); }
+
 	private:
 
 		struct Timestamp
@@ -40,5 +42,13 @@ namespace Arc
 		uint32_t m_TimestampCount;
 		double m_TimestampPeriod;
 		std::unordered_map<std::string, Timestamp> m_Timestamps;
+
+
+		struct AccumulatedTime
+		{
+			double timeSum;
+			uint32_t count;
+		};
+		std::unordered_map<std::string, AccumulatedTime> m_AccumulatedTimestamps;
 	};
 }

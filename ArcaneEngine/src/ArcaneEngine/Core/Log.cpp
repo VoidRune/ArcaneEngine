@@ -1,9 +1,9 @@
 #include "Log.h"
+
+#include <chrono>
 #include <iostream>
 #include <fstream>
-#include <chrono>
 #include <mutex>
-#include <format>
 
 namespace Arc
 {
@@ -31,13 +31,11 @@ namespace Arc
         return std::string(buffer);
     }
 
-    template<typename... Args>
-    void LogMessage(const std::string& level, std::string_view format, Args&&... args)
+    void LogMessageInternal(const std::string& level, const std::string& message)
     {
-        std::lock_guard<std::mutex> lock(logMutex);  // Prevent race conditions
+        std::lock_guard<std::mutex> lock(logMutex);
 
         std::string timestamp = GetTimeStamp();
-        std::string message = std::vformat(format, std::make_format_args(args...));
 
         std::cout << "[" << timestamp << "] " << level << ": " << message << std::endl;
         if (logFile.is_open())
@@ -45,34 +43,4 @@ namespace Arc
             logFile << "[" << timestamp << "] " << level << ": " << message << std::endl;
         }
     }
-
-    template<typename... Args>
-    void LogInfo(std::string_view format, Args&&... args)
-    {
-        LogMessage("INFO", format, std::forward<Args>(args)...);
-    }
-
-    template<typename... Args>
-    void LogWarning(std::string_view format, Args&&... args)
-    {
-        LogMessage("WARN", format, std::forward<Args>(args)...);
-    }
-
-    template<typename... Args>
-    void LogError(std::string_view format, Args&&... args)
-    {
-        LogMessage("ERROR", format, std::forward<Args>(args)...);
-    }
-
-    template<typename... Args>
-    void LogFatal(std::string_view format, Args&&... args)
-    {
-        LogMessage("FATAL", format, std::forward<Args>(args)...);
-    }
-
-    // Explicit template instantiations to prevent linker issues
-    template void LogInfo<>(std::string_view);
-    template void LogWarning<>(std::string_view);
-    template void LogError<>(std::string_view);
-    template void LogFatal<>(std::string_view);
 }

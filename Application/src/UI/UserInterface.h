@@ -38,7 +38,7 @@ public:
 						ColorEdit backgroundColor,
 						float* enableEnvironment,
 						bool* accumulateFrames);
-	bool RenderDebugSettings(int* enableDebugDraw, int* maxScatteringEvent, int* maxNullEvent);
+	bool RenderDebugSettings(int* enableDebugDraw, int* maxAbsorptionEvent, int* maxScatteringEvent, int* maxNullEvent);
 private:
 
 };

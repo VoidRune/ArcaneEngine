@@ -4,12 +4,19 @@
 
 TransferFunctionEditor::TransferFunctionEditor()
 {
+	//m_Points.push_back(Point(m_CurrentPointId++, 0.0, 0.0, { 1, 0, 0 }));
+	//m_Points.push_back(Point(m_CurrentPointId++, 0.01, 0.0, { 1, 0, 0 }));
+	//m_Points.push_back(Point(m_CurrentPointId++, 0.1, 1.0, { 1, 1, 0 }));
+	//m_Points.push_back(Point(m_CurrentPointId++, 0.4, 0.6, { 0, 1, 0 }));
+	//m_Points.push_back(Point(m_CurrentPointId++, 0.7, 0.2, { 1, 0, 0 }));
+	//m_Points.push_back(Point(0xFFFFFF, 1.0, 0.0, { 1, 0, 0 }));
+
 	m_Points.push_back(Point(m_CurrentPointId++, 0.0, 0.0, { 1, 0, 0 }));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.01, 0.0, { 1, 0, 0 }));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.1, 1.0, { 1, 1, 0 }));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.4, 0.6, { 0, 1, 0 }));
-	m_Points.push_back(Point(m_CurrentPointId++, 0.7, 0.2, { 1, 0, 0 }));
-	m_Points.push_back(Point(0xFFFFFF, 1.0, 0.0, { 1, 0, 0 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.2, 0.0, { 0.439, 0.859, 0.735 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.3, 1.0, { 1, 1, 1 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.5, 1.0, { 0.5, 0.96, 1 }));
+	m_Points.push_back(Point(m_CurrentPointId++, 0.7, 1.0, { 0, 0.9, 0.84 }));
+	m_Points.push_back(Point(0xFFFFFF, 1.0, 1.0, { 1, 0, 0 }));
 }
 
 TransferFunctionEditor::~TransferFunctionEditor()

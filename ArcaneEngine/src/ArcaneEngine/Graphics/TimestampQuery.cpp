@@ -34,12 +34,13 @@ namespace Arc
 		{
 			return;
 		}
-		std::vector<uint64_t> queriedTimestamps(m_TimestampCount * 2);
+		std::vector<uint64_t> queriedTimestamps(m_TimestampCount);
 		VkResult result = vkGetQueryPoolResults((VkDevice)m_LogicalDevice,
 			(VkQueryPool)m_QueryPool, 0,
 			m_TimestampCount, sizeof(uint64_t) * queriedTimestamps.size(),
-			queriedTimestamps.data(), sizeof(uint64_t) * 2,
-			VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+			queriedTimestamps.data(), sizeof(uint64_t),
+			VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+		// TODO remove VK_QUERY_RESULT_WAIT_BIT
 
 		if (result == VK_SUCCESS)
 		{
@@ -48,11 +49,28 @@ namespace Arc
 				const auto& name = pair.first;
 				const auto& timestamp = pair.second;
 
-				uint64_t start = queriedTimestamps[timestamp.startTimeIndex * 2];
-				uint64_t end = queriedTimestamps[timestamp.endTimeIndex * 2];
+				uint64_t start = queriedTimestamps[timestamp.startTimeIndex];
+				uint64_t end = queriedTimestamps[timestamp.endTimeIndex];
 
 				float timeMs = (end - start) * m_TimestampPeriod;
-				std::cout << "GPU Execution Time for " << name << ": " << timeMs << " ms\n";
+				//ARC_LOG("GPU Execution Time for {}: {}", name, timeMs);
+
+
+				auto it = m_AccumulatedTimestamps.find(name);
+				if (it != m_AccumulatedTimestamps.end())
+				{
+					m_AccumulatedTimestamps[name].count++;
+					m_AccumulatedTimestamps[name].timeSum += timeMs;
+				}
+				else
+				{
+					AccumulatedTime t;
+					t.count = 1;
+					t.timeSum = timeMs;
+					m_AccumulatedTimestamps[name] = t;
+				}
+				auto a = m_AccumulatedTimestamps[name];
+				ARC_LOG("Average GPU Execution Time for {}: {}", name, a.timeSum / (double)a.count);
 			}
 
 			m_TimestampCount = 0;
@@ -64,7 +82,7 @@ namespace Arc
 	{
 		if (m_Timestamps.empty())
 		{
-			vkCmdResetQueryPool((VkCommandBuffer)cmd->GetHandle(), (VkQueryPool)m_QueryPool, 0, m_TimestampCount);
+			vkCmdResetQueryPool((VkCommandBuffer)cmd->GetHandle(), (VkQueryPool)m_QueryPool, 0, m_MaxTimestamps);
 		}
 
 		return TimestampQuery::ScopedTimer(*this, cmd->GetHandle(), name);
@@ -73,7 +91,8 @@ namespace Arc
 	TimestampQuery::ScopedTimer::ScopedTimer(TimestampQuery& query, CommandBufferHandle cmd, const std::string& name)
 		: query(query), cmd(cmd), name(name)
 	{
-		if (query.m_Timestamps.contains(name) ||
+		isValid = true;
+		if (query.m_Timestamps.find(name) != query.m_Timestamps.end() ||
 			query.m_TimestampCount + 2 > query.m_MaxTimestamps)
 		{
 			isValid = false;
@@ -84,7 +103,6 @@ namespace Arc
 		query.m_Timestamps[name] = timestamp;
 		query.m_TimestampCount += 2;
 
-		vkCmdResetQueryPool((VkCommandBuffer)cmd, (VkQueryPool)query.m_QueryPool, timestamp.startTimeIndex, 2);
 		vkCmdWriteTimestamp((VkCommandBuffer)cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, (VkQueryPool)query.m_QueryPool, timestamp.startTimeIndex);
 	}
 
