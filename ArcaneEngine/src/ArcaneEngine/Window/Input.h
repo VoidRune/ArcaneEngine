@@ -19,7 +19,7 @@ namespace Arc
 		static void Init();
 		static void Update(int mouseX, int mouseY);
 
-		static void SetKey(KeyCode keyCode, char action);
+		static void SetKey(KeyCode keyCode, bool isDown);
 		static void SetScroll(float xscroll, float yscroll);
 
 		friend class Window;

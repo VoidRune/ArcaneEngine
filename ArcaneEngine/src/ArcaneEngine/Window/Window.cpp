@@ -1,31 +1,42 @@
+#include "ArcaneEngine/Core/Log.h"
 #include "Window.h"
 #include "Input.h"
 
 #define NOMINMAX
 #define NOGDI
 #include <GLFW/glfw3.h>
-
 #include <iostream>
 
 namespace Arc
 {
 	struct InputData
 	{
-		void (*SetKey)(KeyCode keyCode, char action);
+		void (*SetKey)(KeyCode keyCode, bool isDown);
 		void (*SetScroll)(float xscroll, float yscroll);
 	} inputFunctions;
 
 	Window::Window(const WindowDescription& desc)
 	{
-		glfwInit();
+		InitializeWindow(desc);
+		SetupCallbacks();
+	}
+
+	void Window::InitializeWindow(const WindowDescription& desc)
+	{
+		if (!glfwInit())
+		{
+			LogFatal("Failed to initialize GLFW!");
+		}
+
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
 		if (!desc.Titlebar)
 			glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
 		int width = desc.Width;
 		int height = desc.Height;
+		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
 		m_IsFullscreen = desc.Fullscreen;
 		m_WindowedPos[0] = static_cast<int>((mode->width - desc.Width) * 0.5);
@@ -39,36 +50,39 @@ namespace Arc
 			height = mode->height;
 		}
 		m_Window = glfwCreateWindow(width, height, desc.Title.c_str(), desc.Fullscreen ? monitor : nullptr, nullptr);
-				
+
 		Input::Init();
 
 		inputFunctions.SetKey = Input::SetKey;
 		inputFunctions.SetScroll = Input::SetScroll;
 
+	}
+
+	void Window::SetupCallbacks()
+	{
 		glfwSetWindowUserPointer((GLFWwindow*)m_Window, &inputFunctions);
 
-		glfwSetKeyCallback((GLFWwindow*)m_Window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
+		glfwSetKeyCallback((GLFWwindow*)m_Window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+			InputData& inputFunc = *(InputData*)glfwGetWindowUserPointer(window);
+
+			switch (action)
 			{
-				InputData& inputFunc = *(InputData*)glfwGetWindowUserPointer(window);
+			case GLFW_PRESS:
+			{
+				inputFunc.SetKey((KeyCode)key, 1);
+				break;
+			}
+			case GLFW_RELEASE:
+			{
+				inputFunc.SetKey((KeyCode)key, 0);
+				break;
+			}
+			case GLFW_REPEAT:
+			{
 
-				switch (action)
-				{
-				case GLFW_PRESS:
-				{
-					inputFunc.SetKey((KeyCode)key, 1);
-					break;
-				}
-				case GLFW_RELEASE:
-				{
-					inputFunc.SetKey((KeyCode)key, 0);
-					break;
-				}
-				case GLFW_REPEAT:
-				{
-
-					break;
-				}
-				}
+				break;
+			}
+			}
 			});
 
 		glfwSetMouseButtonCallback((GLFWwindow*)m_Window, [](GLFWwindow* window, int button, int action, int mods)

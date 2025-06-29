@@ -1,5 +1,4 @@
 #pragma once
-
 #include <string>
 #include <vector>
 
@@ -36,6 +35,9 @@ namespace Arc
 		std::vector<const char*> GetInstanceExtensions();
 
 	private:
+		void InitializeWindow(const WindowDescription& desc);
+		void SetupCallbacks();
+
 		void* m_Window;
 		bool m_IsFullscreen;
 

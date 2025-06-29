@@ -1,10 +1,12 @@
 #include "Input.h"
 #include <vector>
+#include <bitset>
 
 namespace Arc
 {
-	std::vector<char> s_PreviousInput;
-	std::vector<char> s_CurrentInput;
+	constexpr size_t MaxKeys = static_cast<size_t>(KeyCode::KeyCount);
+	static std::bitset<MaxKeys> s_PreviousInput;
+	static std::bitset<MaxKeys> s_CurrentInput;
 	float s_ScrollX;
 	float s_ScrollY;
 	int s_MouseX;
@@ -12,8 +14,6 @@ namespace Arc
 
 	void Input::Init()
 	{
-		s_PreviousInput.resize((size_t)KeyCode::KeyCount);
-		s_CurrentInput.resize((size_t)KeyCode::KeyCount);
 		s_ScrollX = 0;
 		s_ScrollY = 0;
 		s_MouseX = 0;
@@ -22,16 +22,16 @@ namespace Arc
 
 	void Input::Update(int mouseX, int mouseY)
 	{
-		memcpy(s_PreviousInput.data(), s_CurrentInput.data(), s_CurrentInput.size() * sizeof(char));
+		s_PreviousInput = s_CurrentInput;
 		s_ScrollX = 0;
 		s_ScrollY = 0;
 		s_MouseX = mouseX;
 		s_MouseY = mouseY;
 	}
 
-	void Input::SetKey(KeyCode keyCode, char action)
+	void Input::SetKey(KeyCode keyCode, bool isDown)
 	{
-		s_CurrentInput[(size_t)keyCode] = action;
+		s_CurrentInput[(size_t)keyCode] = isDown;
 	}
 
 	void Input::SetScroll(float xscroll, float yscroll)
