@@ -51,65 +51,43 @@ namespace Arc
 		}
 		m_Window = glfwCreateWindow(width, height, desc.Title.c_str(), desc.Fullscreen ? monitor : nullptr, nullptr);
 
-		Input::Init();
-
 		inputFunctions.SetKey = Input::SetKey;
 		inputFunctions.SetScroll = Input::SetScroll;
-
 	}
 
 	void Window::SetupCallbacks()
 	{
 		glfwSetWindowUserPointer((GLFWwindow*)m_Window, &inputFunctions);
 
-		glfwSetKeyCallback((GLFWwindow*)m_Window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+		glfwSetKeyCallback((GLFWwindow*)m_Window, [](GLFWwindow* window, int key, int scancode, int action, int mods) 
+		{
 			InputData& inputFunc = *(InputData*)glfwGetWindowUserPointer(window);
 
 			switch (action)
 			{
-			case GLFW_PRESS:
-			{
-				inputFunc.SetKey((KeyCode)key, 1);
-				break;
+			case GLFW_PRESS: inputFunc.SetKey((KeyCode)key, 1); break;
+			case GLFW_RELEASE: inputFunc.SetKey((KeyCode)key, 0); break;
+			case GLFW_REPEAT: break;
 			}
-			case GLFW_RELEASE:
-			{
-				inputFunc.SetKey((KeyCode)key, 0);
-				break;
-			}
-			case GLFW_REPEAT:
-			{
-
-				break;
-			}
-			}
-			});
+		});
 
 		glfwSetMouseButtonCallback((GLFWwindow*)m_Window, [](GLFWwindow* window, int button, int action, int mods)
-			{
-				InputData& inputFunc = *(InputData*)glfwGetWindowUserPointer(window);
+		{
+			InputData& inputFunc = *(InputData*)glfwGetWindowUserPointer(window);
 
-				switch (action)
-				{
-				case GLFW_PRESS:
-				{
-					inputFunc.SetKey((KeyCode)button, 1);
-					break;
-				}
-				case GLFW_RELEASE:
-				{
-					inputFunc.SetKey((KeyCode)button, 0);
-					break;
-				}
-				}
-			});
+			switch (action)
+			{
+			case GLFW_PRESS: inputFunc.SetKey((KeyCode)button, 1); break;
+			case GLFW_RELEASE: inputFunc.SetKey((KeyCode)button, 0); break;
+			}
+		});
 
 		glfwSetScrollCallback((GLFWwindow*)m_Window, [](GLFWwindow* window, double xOffset, double yOffset)
-			{
-				InputData& inputFunc = *(InputData*)glfwGetWindowUserPointer(window);
+		{
+			InputData& inputFunc = *(InputData*)glfwGetWindowUserPointer(window);
 
-				inputFunc.SetScroll((float)xOffset, (float)yOffset);
-			});
+			inputFunc.SetScroll((float)xOffset, (float)yOffset);
+		});
 	}
 
 	Window::~Window()

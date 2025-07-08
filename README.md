@@ -95,11 +95,12 @@ resourceCache->FreeResources();
 Note that Vulkan SDK is not included in this project and needs to be downloaded manually!
 
 ## Volume renderer
-The application implements a physically-based, unbiased volumetric path tracer using Monte Carlo methods for path sampling. To handle heterogeneous media, null-collision methods introduce a fictitious medium, effectively creating a locally homogeneous representation within the heterogeneous medium.
 
-Delta tracking is employed to sample the distance to the next interaction event, determining whether a particle is absorbed, scattered, or undergoes a null collision based on rejection sampling. For null-collision methods to perform efficiently, they require knowledge of the maximum density, known as the majorant.
+We implemented a physically-based, unbiased volumetric path tracer, using Monte Carlo methods for path sampling. Null-collision methods are used to handle heterogeneous media by introducing fictious medium to homogenise the volume.
 
-To address this, progressive null tracking is implemented, which dynamically stores bounding majorants that gradually converge to their true values over multiple frames. This approach allows for efficient skipping of large sections of the medium with lower density, improving computational performance without sacrificing accuracy.
+Delta tracking is used to sample the distance to the next interaction event where absorption, scattering or null-collision happens based on rejection sampling the real and fictious part of the medium. For null-collision methods to remain unbiased we need to know beforehand the maximum density, known as the majorant.
+
+When majorant is not known beforehand, like in dynamic scenes or when the volume is the result of a simulation, selecting the majorant can become tricky. We implement progressive null-tracking that stores the local majorants in a lower resolution grid, majorants are sampled during the simulation and converge in finite amount of samples. DDA algorithm is used  to traverse the grid of majorants effectively skipping large parts of the volume that contain high amount of fictous material.
 
 ![Absorption emission](/images/img1.png)
 ![Multiple scattering](/images/img2.png)

@@ -7,6 +7,7 @@
 #include "ArcaneEngine/Core/Timer.h"
 
 #include "VolumerRenderer/VolumeRenderer.h"
+#include "RadianceCascades/RadianceCascades.h"
 
 int main()
 {
@@ -23,7 +24,8 @@ int main()
 	auto device = std::make_unique<Arc::Device>(window->GetHandle(), window->GetInstanceExtensions(), inFlightFrameCount);
 	auto presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), presentMode);
 
-	auto volumeRenderer = std::make_unique<VolumeRenderer>(window.get(), device.get(), presentQueue.get());
+	auto renderer = std::make_unique<VolumeRenderer>(window.get(), device.get(), presentQueue.get());
+	//auto renderer = std::make_unique<RadianceCascades>(window.get(), device.get(), presentQueue.get());
 
 	Arc::Timer timer;
 	while (!window->IsClosed())
@@ -35,7 +37,7 @@ int main()
 		if (Arc::Input::IsKeyPressed(Arc::KeyCode::F1))
 			window->SetFullscreen(!window->IsFullscreen());
 		if (Arc::Input::IsKeyPressed(Arc::KeyCode::F2))
-			volumeRenderer->RecompileShaders();
+			renderer->RecompileShaders();
 
 		if (presentQueue->OutOfDate())
 		{
@@ -44,10 +46,10 @@ int main()
 			device->WaitIdle();
 			presentQueue.reset();
 			presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), presentMode);
-			volumeRenderer->SwapchainResized(presentQueue.get());
+			renderer->SwapchainResized(presentQueue.get());
 		}
 
-		volumeRenderer->RenderFrame(timer.elapsed_sec());
+		renderer->RenderFrame(timer.elapsed_sec());
 	}
 	device->WaitIdle();
 	device->GetResourceCache()->FreeResources();

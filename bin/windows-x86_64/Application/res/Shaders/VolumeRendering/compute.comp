@@ -1,0 +1,260 @@
+#version 450
+#include "common.glsl"
+#include "random.glsl"
+
+layout(set = 0, binding = 0) uniform GlobalFrameData{
+    mat4 projection;
+    mat4 view;
+    mat4 inverseProjection;
+    mat4 inverseView;
+    vec4 cameraPosition;
+    vec4 cameraDirection;
+    uint frameIndex;
+    int bounceLimit;
+    float extinction;
+    float anisotropy;
+    vec3 backgroundColor;
+    float environmentEnabled;
+    ivec4 debugDraw;
+} globalData;
+
+layout(set = 1, binding = 0, rgba32f) uniform image2D accumulationImageIn;
+layout(set = 1, binding = 1, rgba32f) uniform image2D accumulationImageOut;
+layout(set = 1, binding = 2, rgba8) uniform image2D outputImage;
+layout(set = 1, binding = 3) uniform sampler3D datasetImage;
+layout(set = 1, binding = 4) uniform sampler2D transferFunctionImage;
+layout(set = 1, binding = 5) uniform sampler3D extinctionGrid;
+layout(set = 1, binding = 6, r8) uniform image3D outputExtinctionGrid;
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+
+struct Photon {
+    vec3 position;
+    vec3 direction;
+    vec3 light;
+    vec3 contribution;
+    uint bounces;
+};
+
+
+float FetchAndUpdateExtinction(vec3 samplePoint, float gridSize) {
+    float currentExtinction = texture(extinctionGrid, samplePoint).r;
+    float localDensity = texture(transferFunctionImage, vec2(texture(datasetImage, samplePoint).r, 0.5)).a;
+    float updatedExtinction = max(currentExtinction, localDensity + 1e-4f);
+    
+    if (updatedExtinction > currentExtinction) {
+        ivec3 superVoxel = ivec3(samplePoint * gridSize);
+        imageStore(outputExtinctionGrid, superVoxel, vec4(updatedExtinction));
+    }
+    
+    return updatedExtinction;
+}
+
+bool SuperVoxelTraversal(inout Photon p, inout uint rng, inout float extinction)
+{
+    int gridSize = textureSize(extinctionGrid, 0).r;
+    vec3 rayGradient = abs(1 / (p.direction * gridSize));
+
+    vec3 cellIndexF = p.position * gridSize;
+    vec3 lengthStepped = (cellIndexF - ivec3(cellIndexF));
+ 
+    if(p.direction.x > 0) lengthStepped.x = 1.0f - lengthStepped.x;
+    if(p.direction.y > 0) lengthStepped.y = 1.0f - lengthStepped.y;
+    if(p.direction.z > 0) lengthStepped.z = 1.0f - lengthStepped.z;
+    lengthStepped *= rayGradient;
+
+    float freePath = -log(RandomValue(rng)) / globalData.extinction;
+    float umin = 0.0f;
+    float umax = 0.0f;
+
+    for(int limit = 0; limit < gridSize * 2; limit++)
+    {
+        umin = umax;
+        if (lengthStepped.x < lengthStepped.y && lengthStepped.x < lengthStepped.z) {
+            umax = lengthStepped.x; 
+            lengthStepped.x += rayGradient.x;
+        } else if (lengthStepped.y < lengthStepped.x && lengthStepped.y < lengthStepped.z) {
+            umax = lengthStepped.y; 
+            lengthStepped.y += rayGradient.y;
+        } else {
+            umax = lengthStepped.z; 
+            lengthStepped.z += rayGradient.z;  
+        }
+
+        vec3 midpoint = p.position + p.direction * (umin + umax) * 0.5;
+        if (any(greaterThan(midpoint, vec3(1))) || any(lessThan(midpoint, vec3(0)))) {
+            return false;
+        }
+
+        vec3 samplePoint = vec3(midpoint.x, 1.0 - midpoint.y, midpoint.z);
+        extinction = FetchAndUpdateExtinction(samplePoint, gridSize);
+
+        float d = umax - umin;
+        float opticalThickness = extinction * d;
+        
+        if (opticalThickness >= freePath)
+        {
+            float t = freePath / extinction;
+            p.position = p.position + p.direction * (umin + t);
+            return true;
+        }
+        freePath -= opticalThickness;
+    }
+    return false;
+}
+
+const vec3 sunDir = normalize(vec3(1));
+vec3 SampleEnvironment(vec3 dir)
+{
+    if (globalData.environmentEnabled == 1.0f)
+    {
+        const vec3 colGround = vec3(0.9f);
+        const vec3 colSkyHorizon = vec3(1.0f);
+        const vec3 colSkyZenith = vec3(0.08, 0.37, 0.73);
+
+        float sun = pow(max(0, dot(dir, sunDir)), 100) * 100;
+        float skyGradientT = pow(smoothstep(0, 0.4, dir.y), 0.45);
+        float groundToSkyT = smoothstep(-0.01, 0.0, dir.y);
+        vec3 skyGradient = mix(colSkyHorizon, colSkyZenith, skyGradientT);
+
+        return mix(colGround, skyGradient, groundToSkyT) + sun * float(groundToSkyT >= 1.0);
+    }
+    else
+    {
+        return globalData.backgroundColor;
+    }
+}
+
+void main() 
+{
+    ivec2 px = ivec2(gl_GlobalInvocationID.xy);
+	vec2 size = imageSize(outputImage);
+    uint rng = globalData.frameIndex;
+    rng = rng * (px.x + 73) * (px.y + 91);
+    // added tiny blur effect for anti-aliasing
+    float blurAmount = 0.5f;
+    vec2 blur = RandomCircle(rng) * blurAmount;
+    vec2 uv = (px + blur) / size;
+
+    vec3 rayOrigin = globalData.cameraPosition.xyz;
+    vec4 rayTarget = globalData.inverseProjection * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+    vec3 rayDirection = vec3(globalData.inverseView * vec4(normalize(rayTarget.xyz / rayTarget.w), 0.0));
+
+    float tmin;
+    float tmax;
+    bool intersect = RayBox(rayOrigin, rayDirection, vec3(0.0f), vec3(1.0f), tmin, tmax);
+    tmin = max(tmin, 0.0);
+    float maxDist = tmax - tmin;
+
+    vec4 outputColor = vec4(1);
+    vec3 pos = rayOrigin + rayDirection * tmin;
+    int absorptionEventCount = 0;
+    int scatteringEventCount = 0;
+    int nullEventCount = 0;
+
+    if(intersect)
+    {        
+        Photon photon;
+        photon.position = rayOrigin + rayDirection * tmin;
+        photon.direction = rayDirection;
+        photon.bounces = 0;
+        photon.light = vec3(0);
+        photon.contribution = vec3(1);
+
+        #define NULLTRACKING
+        for (int limit = 0; limit < 512; limit++)
+        {
+            float extinction = 0.0f;
+
+            #ifdef NULLTRACKING
+            if(!SuperVoxelTraversal(photon, rng, extinction))
+            {
+                vec3 emittedLight = SampleEnvironment(photon.direction);
+                photon.light += emittedLight * photon.contribution;
+                break;
+            }
+            #else
+            extinction = 1.0f;
+            float step = -log(RandomValue(rng)) / globalData.extinction;
+            photon.position += step * photon.direction;
+            if (any(greaterThan(photon.position, vec3(1))) || any(lessThan(photon.position, vec3(0)))) {
+                // out of bounds
+                vec3 envSample = globalData.backgroundColor.rgb;
+                vec3 radiance = photon.contribution * envSample.rgb;
+                photon.light += (radiance - photon.light);                
+                break;
+            }
+            #endif
+
+     
+            vec3 samplePoint = photon.position;
+            samplePoint.y = 1 - samplePoint.y;
+            float datasetIndex = texture(datasetImage, samplePoint).r;
+            vec4 transferFunction = texture(transferFunctionImage, vec2(datasetIndex, 0.5));
+
+            float absorption = (photon.bounces >= globalData.bounceLimit) ? 1.0f : 0.1f;
+            float scattering = 1.0f - absorption;
+
+            float real = min(extinction, transferFunction.a);
+            //float PNull = (extinction - real) / extinction;
+            float PAbsorption = (absorption * real) / extinction;
+            float PScattering = (scattering * real) / extinction;
+
+            float rand = RandomValue(rng);
+            if (rand < PAbsorption) {
+                // ABSORPTION
+                vec3 emittedLight = vec3(0);
+                photon.light += emittedLight * photon.contribution;
+                absorptionEventCount++;
+                break;
+            } else if (rand < PAbsorption + PScattering) {
+                // SCATTERING
+                if (false && globalData.environmentEnabled == 1.0f)
+                {
+                    // Importance sampling
+                    float g = 0.6;
+                    vec3 oldDir = photon.direction;
+                    float w = abs(globalData.anisotropy);
+                    if (RandomValue(rng) < w){
+                        photon.direction = sampleHenyeyGreenstein(rng, globalData.anisotropy, photon.direction);                    
+                    }else{
+                        photon.direction = sampleHenyeyGreenstein(rng, g, sunDir);          
+                    }
+                    float pdf = HenyeyGreensteinPDF(globalData.anisotropy, dot(photon.direction, oldDir));;
+                    float pdfIS = HenyeyGreensteinPDF(g, dot(photon.direction, sunDir));
+                    photon.contribution *= transferFunction.rgb * pdf / (w * pdf + (1 - w) * max(pdfIS, 1e-4));
+                    photon.contribution = min(photon.contribution, vec3(16));
+                }
+                else{
+                    photon.direction = sampleHenyeyGreenstein(rng, globalData.anisotropy, photon.direction);
+                    photon.contribution *= transferFunction.rgb;     
+                }
+                photon.bounces++;
+                scatteringEventCount++;
+            } else {
+                // NULL COLLISION
+                nullEventCount++;
+            }
+        }
+
+        outputColor.rgb = photon.light;
+        if (globalData.debugDraw.x == 1)
+        {
+            outputColor.rgb = vec3(scatteringEventCount / float(globalData.debugDraw.z), nullEventCount / float(globalData.debugDraw.w), absorptionEventCount / float(globalData.debugDraw.y)); 
+        }
+    }
+    else
+    {
+        outputColor.rgb = SampleEnvironment(rayDirection);
+    }
+
+    if(globalData.frameIndex > 1)
+        outputColor += imageLoad(accumulationImageIn, px);
+    imageStore(accumulationImageOut, px, outputColor);
+    //vec4 a = outputColor / globalData.frameIndex;
+    //vec4 mapped = vec4(1.0) - exp(-a * 3.0);
+    //mapped = pow(mapped, vec4(1.0 / 2.2));
+
+    imageStore(outputImage, px, outputColor / globalData.frameIndex);
+}

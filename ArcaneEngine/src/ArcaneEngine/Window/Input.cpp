@@ -7,18 +7,10 @@ namespace Arc
 	constexpr size_t MaxKeys = static_cast<size_t>(KeyCode::KeyCount);
 	static std::bitset<MaxKeys> s_PreviousInput;
 	static std::bitset<MaxKeys> s_CurrentInput;
-	float s_ScrollX;
-	float s_ScrollY;
-	int s_MouseX;
-	int s_MouseY;
-
-	void Input::Init()
-	{
-		s_ScrollX = 0;
-		s_ScrollY = 0;
-		s_MouseX = 0;
-		s_MouseY = 0;
-	}
+	float s_ScrollX = 0;
+	float s_ScrollY = 0;
+	int s_MouseX = 0;
+	int s_MouseY = 0;
 
 	void Input::Update(int mouseX, int mouseY)
 	{

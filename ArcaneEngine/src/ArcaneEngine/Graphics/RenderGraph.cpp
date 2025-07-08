@@ -27,17 +27,8 @@ namespace Arc
 	{
 		m_RenderPasses.clear();
 
-		{
-			m_RenderPasses = m_BuildRenderPasses;
-		}
-
-		{
-			m_PresentPass = m_BuildPresentPass;
-			if (m_PresentPass.ExecuteFunction == nullptr)
-			{
-				ARC_LOG_WARNING("RenderGraph - PresentPass was not set during graph setup!");
-			}
-		}
+		m_RenderPasses = m_BuildRenderPasses;
+		m_PresentPass = m_BuildPresentPass;
 
 		m_BuildRenderPasses.clear();
 		m_BuildPresentPass = {};
@@ -65,9 +56,11 @@ namespace Arc
 			}
 		}
 
-		cmd->TransitionImage(frameData.PresentImage, Arc::ImageLayout::Undefined, Arc::ImageLayout::TransferSrcOptimal);
+		ImageLayout presentImageLayout = ImageLayout::Undefined;
 		if (m_PresentPass.ExecuteFunction != nullptr) 
 		{
+			cmd->TransitionImage(frameData.PresentImage, ImageLayout::Undefined, ImageLayout::TransferSrcOptimal);
+			presentImageLayout = ImageLayout::TransferSrcOptimal;
 			cmd->BeginRendering({
 				Arc::ColorAttachment{
 				.ImageView = frameData.PresentImageView,
@@ -79,6 +72,6 @@ namespace Arc
 			m_PresentPass.ExecuteFunction(frameData.CommandBuffer, frameData.FrameIndex);
 			cmd->EndRendering();
 		}
-		cmd->TransitionImage(frameData.PresentImage, Arc::ImageLayout::TransferSrcOptimal, Arc::ImageLayout::PresentSrc);
+		cmd->TransitionImage(frameData.PresentImage, presentImageLayout, ImageLayout::PresentSrc);
 	}
 }

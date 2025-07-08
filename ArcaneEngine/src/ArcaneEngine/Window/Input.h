@@ -16,7 +16,6 @@ namespace Arc
 		static float GetMouseY();
 
 	private:
-		static void Init();
 		static void Update(int mouseX, int mouseY);
 
 		static void SetKey(KeyCode keyCode, bool isDown);

@@ -22,11 +22,11 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_FragShader = std::make_unique<Arc::Shader>();
 	m_VolumeShader = std::make_unique<Arc::Shader>();
 	Arc::ShaderDesc shaderDesc;
-	if (Arc::ShaderCompiler::Compile("res/Shaders/shader.vert", shaderDesc))
+	if (Arc::ShaderCompiler::Compile("res/Shaders/VolumeRendering/shader.vert", shaderDesc))
 		m_ResourceCache->CreateShader(m_VertShader.get(), shaderDesc);
-	if (Arc::ShaderCompiler::Compile("res/Shaders/shader.frag", shaderDesc))
+	if (Arc::ShaderCompiler::Compile("res/Shaders/VolumeRendering/shader.frag", shaderDesc))
 		m_ResourceCache->CreateShader(m_FragShader.get(), shaderDesc);
-	if (Arc::ShaderCompiler::Compile("res/Shaders/compute.comp", shaderDesc))
+	if (Arc::ShaderCompiler::Compile("res/Shaders/VolumeRendering/compute.comp", shaderDesc))
 		m_ResourceCache->CreateShader(m_VolumeShader.get(), shaderDesc);
 
 	m_LinearSampler = std::make_unique<Arc::Sampler>();
