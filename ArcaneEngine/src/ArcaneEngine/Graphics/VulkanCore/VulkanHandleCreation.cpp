@@ -54,9 +54,9 @@ namespace Arc
         createInfo.pApplicationInfo = &appInfo;
         createInfo.pNext = nullptr;
 
-
         uint32_t extensionCount = 0;
         std::vector<const char*> extensions;
+        extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
         for (const char* ext : info.instanceExtensions)
         {
             extensions.push_back(ext);
@@ -275,7 +275,7 @@ namespace Arc
         std::vector<const char*> deviceExtensions =
         {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
+            VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
         };
 
         VkDeviceCreateInfo createInfo{};

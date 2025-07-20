@@ -8,10 +8,6 @@
 
 namespace Arc
 {
-
-	//DescriptorWriteDesc& AddBufferWrite(uint32_t binding, VkBuffer buffer, uint32_t offset, uint32_t range, uint32_t arrayElement = 0);
-	//DescriptorWriteDesc& AddImageWrite(uint32_t binding, VkSampler sampler, VkImageView imageView, ImageLayout imageLayout, uint32_t arrayElement = 0);
-
 	struct BufferWrite
 	{
 		uint32_t Binding = 0;
@@ -57,5 +53,6 @@ namespace Arc
 		std::vector<ImageWrite> m_ImageWrites;
 
 		friend class Device;
+		friend class CommandBuffer;
 	};
 }

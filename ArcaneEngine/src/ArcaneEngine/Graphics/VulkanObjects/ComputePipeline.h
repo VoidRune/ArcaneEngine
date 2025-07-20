@@ -7,6 +7,7 @@ namespace Arc
 	struct ComputePipelineDesc
 	{
 		Shader* Shader = nullptr;
+		bool UsePushDescriptors = false;
 	};
 
 	class ComputePipeline

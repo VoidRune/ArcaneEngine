@@ -650,7 +650,7 @@ namespace Arc
         InstanceCreateInfo instanceCreateInfo = {
             .applicationName = "Application",
             .engineName = "Arcane Renderer",
-            .apiVersion = ApiVersion(1, 3),
+            .apiVersion = ApiVersion(1, 4),
             .instanceExtensions = instanceExtensions,
 #ifdef ARCANE_ENABLE_VALIDATION
             .enableValidationLayers = true

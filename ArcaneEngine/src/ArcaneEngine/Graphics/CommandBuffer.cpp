@@ -107,6 +107,58 @@ namespace Arc
 		vkCmdBindDescriptorSets((VkCommandBuffer)m_CommandBuffer, static_cast<VkPipelineBindPoint>(bindPoint), (VkPipelineLayout)layout, firstSet, (uint32_t)sets.size(), sets.data(), 0, nullptr);
 	}
 
+	void CommandBuffer::PushDescriptorSets(PipelineBindPoint bindPoint, PipelineLayoutHandle layout, uint32_t set, const PushDescriptorWrite& descriptorWrite)
+	{
+		std::vector<VkWriteDescriptorSet> writes;
+		writes.reserve(descriptorWrite.m_BufferWrites.size() + descriptorWrite.m_ImageWrites.size());
+
+		std::vector<VkDescriptorBufferInfo> bufferInfos;
+		bufferInfos.reserve(descriptorWrite.m_BufferWrites.size());
+
+		for (auto& bw : descriptorWrite.m_BufferWrites)
+		{
+			VkDescriptorBufferInfo bufferInfo = {};
+			bufferInfo.buffer = (VkBuffer)bw.Buffer;
+			bufferInfo.offset = 0;
+			bufferInfo.range = bw.Size;
+			bufferInfos.push_back(bufferInfo);
+
+			VkWriteDescriptorSet writeInfo = {};
+			writeInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writeInfo.dstSet = nullptr;
+			writeInfo.dstBinding = bw.Binding;
+			writeInfo.dstArrayElement = 0;
+			writeInfo.descriptorType = (VkDescriptorType)bw.Type;
+			writeInfo.descriptorCount = 1;
+			writeInfo.pBufferInfo = &bufferInfos[bufferInfos.size() - 1];
+			writes.push_back(writeInfo);
+		}
+
+		std::vector<VkDescriptorImageInfo> imageInfos;
+		imageInfos.reserve(descriptorWrite.m_ImageWrites.size());
+
+		for (auto& iw : descriptorWrite.m_ImageWrites)
+		{
+			VkDescriptorImageInfo imageInfo = {};
+			imageInfo.imageView = (VkImageView)iw.ImageView;
+			imageInfo.imageLayout = (VkImageLayout)iw.ImageLayout;
+			imageInfo.sampler = (VkSampler)iw.Sampler;
+			imageInfos.push_back(imageInfo);
+
+			VkWriteDescriptorSet writeInfo = {};
+			writeInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writeInfo.dstSet = nullptr;
+			writeInfo.dstBinding = iw.Binding;
+			writeInfo.dstArrayElement = 0;
+			writeInfo.descriptorType = (VkDescriptorType)iw.Type;
+			writeInfo.descriptorCount = 1;
+			writeInfo.pImageInfo = &imageInfos[imageInfos.size() - 1];
+			writes.push_back(writeInfo);
+		}
+
+		vkCmdPushDescriptorSet((VkCommandBuffer)m_CommandBuffer, static_cast<VkPipelineBindPoint>(bindPoint), (VkPipelineLayout)layout, set, (uint32_t)writes.size(), writes.data());
+	}
+
 	void CommandBuffer::BindPipeline(PipelineHandle pipeline)
 	{
 		vkCmdBindPipeline((VkCommandBuffer)m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)pipeline);

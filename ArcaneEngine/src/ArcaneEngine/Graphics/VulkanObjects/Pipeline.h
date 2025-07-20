@@ -16,6 +16,7 @@ namespace Arc
 		VertexAttributes VertexAttributes = {};
 		std::vector<Format> ColorAttachmentFormats = {};
 		Format DepthAttachmentFormat = Format::Undefined;
+		bool UsePushDescriptors = false;
 	};
 
 	class Pipeline

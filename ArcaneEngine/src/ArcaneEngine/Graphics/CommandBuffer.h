@@ -2,6 +2,8 @@
 #include "VulkanCore/VulkanHandles.h"
 #include "VulkanObjects/Attachments.h"
 #include "VulkanObjects/DescriptorSet.h"
+#include "VulkanObjects/DescriptorWrite.h"
+#include "VulkanObjects/PushDescriptorWrite.h"
 #include "Common.h"
 #include <vector>
 #include <optional>
@@ -27,6 +29,7 @@ namespace Arc
 		void EndRendering();
 
 		void BindDescriptorSets(PipelineBindPoint bindPoint, PipelineLayoutHandle layout, uint32_t firstSet, const std::vector<DescriptorSetHandle>& descriptorSets);
+		void PushDescriptorSets(PipelineBindPoint bindPoint, PipelineLayoutHandle layout, uint32_t set, const PushDescriptorWrite& descriptorWrite);
 
 		void BindPipeline(PipelineHandle pipeline);
 		void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);

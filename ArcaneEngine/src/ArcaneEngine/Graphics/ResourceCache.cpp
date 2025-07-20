@@ -35,6 +35,7 @@ namespace Arc
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1024},
             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024},
             {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1024},
+            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1024},
         };
 
         VkDescriptorPoolCreateInfo descriptorPoolInfo{};

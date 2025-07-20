@@ -130,8 +130,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_Camera->MovementSpeed = 0.5f;
 	globalFrameData.frameIndex = 1;
 
-	m_Camera->Position = glm::vec3(0.5, 1.5, 0.5f);
-	m_Camera->Pitch = -89.9f;
+	//m_Camera->Position = glm::vec3(0.5, 1.5, 0.5f);
+	//m_Camera->Pitch = -89.9f;
 
 	m_ImGuiTransferImage = m_ImGuiRenderer->CreateImageId(m_TransferFunctionImage->GetImageView(), m_LinearSampler->GetHandle());
 }
