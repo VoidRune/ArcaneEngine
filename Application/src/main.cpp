@@ -13,7 +13,7 @@ int main()
 {
 	Arc::WindowDescription windowDesc;
 	windowDesc.Title = "Arcane Vulkan renderer";
-	windowDesc.Width = 1280;
+	windowDesc.Width = 720;
 	windowDesc.Height = 720;
 	windowDesc.Fullscreen = false;
 	auto window = std::make_unique<Arc::Window>(windowDesc);
@@ -24,8 +24,8 @@ int main()
 	auto device = std::make_unique<Arc::Device>(window->GetHandle(), window->GetInstanceExtensions(), inFlightFrameCount);
 	auto presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), presentMode);
 
-	auto renderer = std::make_unique<VolumeRenderer>(window.get(), device.get(), presentQueue.get());
-	//auto renderer = std::make_unique<RadianceCascades>(window.get(), device.get(), presentQueue.get());
+	//auto renderer = std::make_unique<VolumeRenderer>(window.get(), device.get(), presentQueue.get());
+	auto renderer = std::make_unique<RadianceCascades>(window.get(), device.get(), presentQueue.get());
 
 	Arc::Timer timer;
 	while (!window->IsClosed())

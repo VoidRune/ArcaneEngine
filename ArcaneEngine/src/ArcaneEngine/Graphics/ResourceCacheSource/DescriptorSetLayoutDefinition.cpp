@@ -8,12 +8,12 @@ namespace Arc
 {
     VkDescriptorSetLayout GetDescriptorSetLayout(VkDevice device, std::unordered_map<uint64_t, DescriptorSetLayoutHandle>& map, const std::vector<VkDescriptorSetLayoutBinding>& bindings, uint32_t flags)
     {
-        uint64_t key = flags;
+        uint64_t key = std::hash<uint32_t>{}(flags);
         for (const auto& binding : bindings) {
-            key ^= static_cast<uint64_t>(binding.binding) << 32;
-            key ^= static_cast<uint64_t>(binding.descriptorType) << 24;
-            key ^= static_cast<uint64_t>(binding.descriptorCount) << 16;
-            key ^= static_cast<uint64_t>(binding.stageFlags) << 8;
+            key ^= std::hash<uint64_t>{}(binding.binding) + 0x9e3779b9 + (key << 6) + (key >> 2);
+            key ^= std::hash<uint64_t>{}(binding.descriptorType) + 0x9e3779b9 + (key << 6) + (key >> 2);
+            key ^= std::hash<uint64_t>{}(binding.descriptorCount) + 0x9e3779b9 + (key << 6) + (key >> 2);
+            key ^= std::hash<uint64_t>{}(binding.stageFlags) + 0x9e3779b9 + (key << 6) + (key >> 2);
         }
 
         if (map.contains(key))

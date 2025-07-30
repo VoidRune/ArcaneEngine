@@ -169,6 +169,11 @@ namespace Arc
 		vkCmdBindPipeline((VkCommandBuffer)m_CommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, (VkPipeline)pipeline);
 	}
 
+	void CommandBuffer::PushConstants(ShaderStage shaderStage, PipelineLayoutHandle layout, const void* data, uint32_t size)
+	{
+		vkCmdPushConstants((VkCommandBuffer)m_CommandBuffer, static_cast<VkPipelineLayout>(layout), static_cast<VkShaderStageFlags>(shaderStage), 0, size, data);
+	}
+
 	void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 	{
 		vkCmdDraw((VkCommandBuffer)m_CommandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);

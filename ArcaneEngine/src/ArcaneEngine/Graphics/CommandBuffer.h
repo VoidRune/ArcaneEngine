@@ -30,6 +30,7 @@ namespace Arc
 
 		void BindDescriptorSets(PipelineBindPoint bindPoint, PipelineLayoutHandle layout, uint32_t firstSet, const std::vector<DescriptorSetHandle>& descriptorSets);
 		void PushDescriptorSets(PipelineBindPoint bindPoint, PipelineLayoutHandle layout, uint32_t set, const PushDescriptorWrite& descriptorWrite);
+		void PushConstants(ShaderStage shaderStage, PipelineLayoutHandle layout, const void* data, uint32_t size);
 
 		void BindPipeline(PipelineHandle pipeline);
 		void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
