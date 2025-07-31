@@ -51,6 +51,7 @@ private:
 	std::unique_ptr<Arc::GpuImage> m_SeedImage;
 	std::unique_ptr<Arc::GpuImage> m_JFAImage;
 	std::unique_ptr<Arc::GpuImage> m_SDFImage;
+	std::unique_ptr<Arc::GpuImage> m_NearestColorImage;
 	std::vector<Arc::GpuImage> m_Cascades;
 
 	std::unique_ptr<Arc::Shader> m_JFAShader;

@@ -2,7 +2,8 @@
 
 layout(set = 0, binding = 0, rgba8) uniform image2D seedImage;
 layout(set = 0, binding = 1, rg16f) uniform image2D inputImage;
-layout(set = 0, binding = 2, rgba8) uniform image2D outputImage;
+layout(set = 0, binding = 2, r16f) uniform image2D outputImage;
+layout(set = 0, binding = 3, rgba8) uniform image2D nearestColorImage;
 
 layout( push_constant ) uniform constants
 {
@@ -78,7 +79,8 @@ void main()
     {
         vec2 px2 = imageLoad(inputImage, px).rg;
         vec3 color = imageLoad(seedImage, ivec2(px2)).rgb;
-        float dist = length(px - px2) / 720;
-        imageStore(outputImage, px, vec4(color, dist));
+        float dist = length(px - px2);
+        imageStore(outputImage, px, vec4(dist, 0, 0, 0));
+        imageStore(nearestColorImage, px, vec4(color, 1));
     }
 }

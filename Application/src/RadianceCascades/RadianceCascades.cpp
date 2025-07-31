@@ -93,17 +93,28 @@ void RadianceCascades::CreateImages()
 	m_SDFImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_SDFImage.get(), Arc::GpuImageDesc{
 		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
-		.Format = Arc::Format::R8G8B8A8_Unorm,
+		.Format = Arc::Format::R16_Sfloat,
 		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 		.AspectFlags = Arc::ImageAspect::Color,
 		});
 	m_Device->TransitionImageLayout(m_SDFImage.get(), Arc::ImageLayout::General);
 
+	m_NearestColorImage = std::make_unique<Arc::GpuImage>();
+	m_ResourceCache->CreateGpuImage(m_NearestColorImage.get(), Arc::GpuImageDesc{
+		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+		.Format = Arc::Format::R8G8B8A8_Unorm,
+		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
+		.AspectFlags = Arc::ImageAspect::Color,
+		});
+	m_Device->TransitionImageLayout(m_NearestColorImage.get(), Arc::ImageLayout::General);
+
+
+	glm::uvec2 cascadeExtent = { 1024, 1024 };
 	m_Cascades.resize(6);
 	for (auto& cascade : m_Cascades)
 	{
 		m_ResourceCache->CreateGpuImage(&cascade, Arc::GpuImageDesc{
-			.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+			.Extent = { cascadeExtent.x, cascadeExtent.y, 1},
 			.Format = Arc::Format::R8G8B8A8_Unorm,
 			.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 			.AspectFlags = Arc::ImageAspect::Color,
@@ -127,7 +138,7 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 	Arc::CommandBuffer* cmd = frameData.CommandBuffer;
 
 	jfaData.position = { Arc::Input::GetMouseX(), Arc::Input::GetMouseY() };
-	jfaData.radius = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? 20.0f : 0.0f;
+	jfaData.radius = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? 15.0f : 0.0f;
 	jfaData.clear = Arc::Input::IsKeyPressed(Arc::KeyCode::C) ? 1.0f : 0.0f;
 	jfaData.color = { HsvToRgb(elapsedTime * 0.1f, 1, 1), 1 };
 	m_RenderGraph->AddPass(Arc::RenderPass{
@@ -139,7 +150,8 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 				cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_JFAPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 					.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_SeedImage->GetImageView(), Arc::ImageLayout::General, nullptr))
 					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_JFAImage->GetImageView(), Arc::ImageLayout::General, nullptr))
-					.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_SDFImage->GetImageView(), Arc::ImageLayout::General, nullptr)));
+					.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_SDFImage->GetImageView(), Arc::ImageLayout::General, nullptr))
+					.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, nullptr)));
 				cmd->PushConstants(Arc::ShaderStage::Compute, m_JFAPipeline->GetLayout(), &jfaData, sizeof(jfaData));
 				cmd->Dispatch(std::ceil(m_SeedImage->GetExtent()[0] / 32.0f), std::ceil(m_SeedImage->GetExtent()[1] / 32.0f), 1);
 			}
@@ -153,10 +165,11 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 				float cascadeIndex = i;
 				cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_RadianceCascadesPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 					.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::CombinedImageSampler, m_SDFImage->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
-					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Cascades[i].GetImageView(), Arc::ImageLayout::General, nullptr))
-					.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::CombinedImageSampler, m_Cascades[std::min(i + 1, (int)m_Cascades.size() - 1)].GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle())));
+					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::CombinedImageSampler, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, m_NearestSampler->GetHandle()))
+					.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Cascades[i].GetImageView(), Arc::ImageLayout::General, nullptr))
+					.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::CombinedImageSampler, m_Cascades[std::min(i + 1, (int)m_Cascades.size() - 1)].GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle())));
 				cmd->PushConstants(Arc::ShaderStage::Compute, m_RadianceCascadesPipeline->GetLayout(), &cascadeData, sizeof(cascadeData));
-				cmd->Dispatch(std::ceil(m_SeedImage->GetExtent()[0] / 32.0f), std::ceil(m_SeedImage->GetExtent()[1] / 32.0f), 1);
+				cmd->Dispatch(m_Cascades[0].GetExtent()[0] / 32.0f, m_Cascades[0].GetExtent()[1] / 32.0f, 1);
 			}
 		}
 	});

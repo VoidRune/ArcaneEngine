@@ -1,8 +1,9 @@
 #version 450
 
 layout(set = 0, binding = 0) uniform sampler2D sdfImage;
-layout(set = 0, binding = 1, rgba8) uniform image2D currentCascade;
-layout(set = 0, binding = 2) uniform sampler2D upperCascade;
+layout(set = 0, binding = 1) uniform sampler2D nearestColor;
+layout(set = 0, binding = 2, rgba8) uniform image2D currentCascade;
+layout(set = 0, binding = 3) uniform sampler2D upperCascade;
 
 layout( push_constant ) uniform constants
 {
@@ -21,22 +22,22 @@ struct ProbeInfo
 	float theta;
 };
 
-vec4 raymarch(ProbeInfo probe, vec2 extent)
+vec4 raymarch(ProbeInfo probe, vec2 canvasSize)
 {
     vec2 rayDir = vec2(cos(probe.theta), -sin(probe.theta));
     vec2 rayOrigin = probe.position + rayDir * probe.offset;
 
     float totalDistance = 0.0;
-    for (int i = 0; i < 16 && totalDistance < probe.range; i++)
+    for (int i = 0; i < 64 && totalDistance < probe.range; i++)
     {
-        vec2 uv = (rayOrigin + rayDir * totalDistance) / extent;
+        vec2 uv = (rayOrigin + rayDir * totalDistance) / canvasSize;
         if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1)
             return vec4(0);
         vec2 dd = abs(rayDir);
-        vec4 nearest = texture(sdfImage, uv);
-        float dist = nearest.a * dot(dd, extent) / (dd.x + dd.y);
-        if (dist <= 0.05f)
-            return vec4(nearest.rgb, 1);
+        float dist = texture(sdfImage, uv).r;
+        //float dist = nearest.a * dot(dd, canvasSize) / (dd.x + dd.y);
+        if (dist <= 1.0f)
+            return vec4(texture(nearestColor, uv).rgb, 1);
 
         totalDistance += dist;
     }
@@ -45,43 +46,43 @@ vec4 raymarch(ProbeInfo probe, vec2 extent)
 
 vec4 merge(vec4 radiance, int rayIndex, vec2 uv)
 {
-	if (radiance.a >= 1 || pushConstants.cascadeIndex >= pushConstants.cascadeCount - 1)
+	if (radiance.a == 1 || pushConstants.cascadeIndex >= pushConstants.cascadeCount - 1)
 		return radiance;
 
 	float angularUpper = pow(2, pushConstants.cascadeIndex + 1);
 	float x = rayIndex % int(angularUpper);
 	float y = floor(rayIndex / angularUpper);
-	return radiance + texture(upperCascade, (uv + vec2(x, y)) / angularUpper);
+	vec2 interpolatedUv = (uv + vec2(x, y)) / angularUpper;
+	return radiance + texture(upperCascade, interpolatedUv);
 }
 
 void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
-	ivec2 extent = textureSize(sdfImage, 0);
-	if (px.x > extent.x || px.y > extent.y)
-		return;
+	ivec2 cascadeExtent = imageSize(currentCascade);
+	vec2 canvasSize = textureSize(sdfImage, 0);
 
-	int angular = int(pow(2, pushConstants.cascadeIndex));
-	ivec2 linearDist = extent / angular;
+	int angularSqrt = int(pow(2, pushConstants.cascadeIndex));
+	ivec2 linearDist = cascadeExtent / angularSqrt;
 	
 	ivec2 probeIndex = px % linearDist;
 	ivec2 groupIndex = px / linearDist;
 
-	int rayIndex = groupIndex.y * angular + groupIndex.x;
-	int angular2 = angular * angular;
+	int rayIndex = groupIndex.y * angularSqrt + groupIndex.x;
+	int angular = angularSqrt * angularSqrt;
 
 	ProbeInfo probe;
-	probe.position = (probeIndex + 0.5) * angular;
-	probe.offset = (pushConstants.cascadeInterval * (1 - angular2)) / (1 - 4);
-	probe.range = pushConstants.cascadeInterval * angular2;
+	probe.position = (probeIndex + 0.5) * angularSqrt * (canvasSize / vec2(cascadeExtent));
+	probe.offset = (pushConstants.cascadeInterval * (1 - angular)) / (1 - 4);
+	probe.range = pushConstants.cascadeInterval * angular;
 
 	int preavgIndex = rayIndex * 4;
     vec4 radiance = vec4(0);
 	for (int i = 0; i < 4; i++)
 	{
 		int index = preavgIndex + i;
-		probe.theta = float(index + 0.5) / float(angular2 * 4) * 6.28318530718;
-		radiance += merge(raymarch(probe, extent), index, probe.position / vec2(extent)) * 0.25;
+		probe.theta = float(index + 0.5) / float(angular * 4) * 6.28318530718;
+		radiance += merge(raymarch(probe, canvasSize), index, probe.position / canvasSize) * 0.25;
 	}
 	imageStore(currentCascade, px, radiance);
 }

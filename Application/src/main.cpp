@@ -13,7 +13,7 @@ int main()
 {
 	Arc::WindowDescription windowDesc;
 	windowDesc.Title = "Arcane Vulkan renderer";
-	windowDesc.Width = 720;
+	windowDesc.Width = 1280;
 	windowDesc.Height = 720;
 	windowDesc.Fullscreen = false;
 	auto window = std::make_unique<Arc::Window>(windowDesc);
