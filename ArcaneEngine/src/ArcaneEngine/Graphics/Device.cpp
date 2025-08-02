@@ -268,7 +268,7 @@ namespace Arc
                 0, nullptr,
                 0, nullptr,
                 1, &barrier);
-        });        
+        });
     }
 
     std::vector<uint8_t> Device::GetImageData(GpuImage* image)

@@ -84,7 +84,7 @@ namespace Arc
 			depthInfo.imageLayout = (VkImageLayout)da.ImageLayout;
 			depthInfo.loadOp = (VkAttachmentLoadOp)da.LoadOp;
 			depthInfo.storeOp = (VkAttachmentStoreOp)da.StoreOp;
-			depthInfo.clearValue.depthStencil = { da.ClearValue, 0 };
+			depthInfo.clearValue.depthStencil = { da.ClearValue, uint32_t(0)};
 			renderingInfo.pDepthAttachment = &depthInfo;
 		}
 

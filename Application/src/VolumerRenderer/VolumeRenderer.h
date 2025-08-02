@@ -11,7 +11,7 @@
 #include "Core/CameraFP.h"
 #include <glm/glm.hpp>
 
-class VolumeRenderer : RendererBase
+class VolumeRenderer : public RendererBase
 {
 public:
 	VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue);

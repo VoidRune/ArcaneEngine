@@ -25,19 +25,27 @@ void main()
     {
         float dist = length(pushConstants.position - vec2(px));
         vec4 pixel = vec4(0);
-        if (pushConstants.radius > 0 && dist < pushConstants.radius)
+        if (pushConstants.clear >= 1.0)
         {
-            pixel = pushConstants.color;
-            imageStore(seedImage, px, pixel);
+            imageStore(seedImage, px, vec4(0, 0, 0, 0));
+            imageStore(inputImage, px, vec4(0, 0, 0, 0));
         }
         else
         {
-            pixel = imageLoad(seedImage, px);
-        }
+            if (pushConstants.radius > 0 && dist < pushConstants.radius)
+            {
+                pixel = pushConstants.color;
+                imageStore(seedImage, px, pixel);
+            }
+            else
+            {
+                pixel = imageLoad(seedImage, px);
+            }
         
-        if (pixel.a > 0)
-        {
-    	    imageStore(inputImage, px, vec4(vec2(px), 0, 1));
+            if (pixel.a > 0)
+            {
+    	        imageStore(inputImage, px, vec4(vec2(px), 0, 1));
+            }
         }
     }
     else if (pushConstants.iteration == 1)

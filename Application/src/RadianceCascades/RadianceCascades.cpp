@@ -52,6 +52,7 @@ void RadianceCascades::CreatePipelines()
 	m_ResourceCache->CreatePipeline(m_CompositePipeline.get(), Arc::PipelineDesc{
 		.ShaderStages = { m_CompositeVertShader.get(), m_CompositeFragShader.get() },
 		.Topology = Arc::PrimitiveTopology::TriangleFan,
+		.ColorAttachmentFormats = { m_PresentQueue->GetSurfaceFormat() },
 		.UsePushDescriptors = true
 		});
 }
@@ -141,6 +142,10 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 	jfaData.radius = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? 15.0f : 0.0f;
 	jfaData.clear = Arc::Input::IsKeyPressed(Arc::KeyCode::C) ? 1.0f : 0.0f;
 	jfaData.color = { HsvToRgb(elapsedTime * 0.1f, 1, 1), 1 };
+	if (Arc::Input::IsKeyDown(Arc::KeyCode::A))
+	{
+		jfaData.color = { 0, 0, 0, 1 };
+	}
 	m_RenderGraph->AddPass(Arc::RenderPass{
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
 			cmd->BindComputePipeline(m_JFAPipeline->GetHandle());
@@ -189,6 +194,7 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 	m_RenderGraph->BuildGraph();
 	m_RenderGraph->Execute(frameData, m_PresentQueue->GetExtent());
 	m_PresentQueue->EndFrame();
+	m_Device->WaitIdle();
 	//m_Device->GetTimestampQuery()->QueryResults();
 }
 
@@ -213,7 +219,7 @@ glm::vec3 RadianceCascades::HsvToRgb(float h, float s, float v)
 
 void RadianceCascades::SwapchainResized(void* presentQueue)
 {
-
+	m_PresentQueue = static_cast<Arc::PresentQueue*>(presentQueue);
 }
 
 void RadianceCascades::RecompileShaders()

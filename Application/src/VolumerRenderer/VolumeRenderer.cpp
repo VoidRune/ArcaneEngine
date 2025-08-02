@@ -115,7 +115,8 @@ VolumeRenderer::VolumeRenderer(Arc::Window* window, Arc::Device* device, Arc::Pr
 	m_PresentPipeline = std::make_unique<Arc::Pipeline>();
 	m_ResourceCache->CreatePipeline(m_PresentPipeline.get(), Arc::PipelineDesc{
 		.ShaderStages = { m_VertShader.get(), m_FragShader.get() },
-		.Topology = Arc::PrimitiveTopology::TriangleFan
+		.Topology = Arc::PrimitiveTopology::TriangleFan,
+		.ColorAttachmentFormats = { m_PresentQueue->GetSurfaceFormat() },
 	});
 
 	m_PresentDescriptor = std::make_unique<Arc::DescriptorSet>();

@@ -7,7 +7,7 @@
 #include "ArcaneEngine/Graphics/RenderGraph.h"
 #include <glm/glm.hpp>
 
-class RadianceCascades : RendererBase
+class RadianceCascades : public RendererBase
 {
 public:
 	RadianceCascades(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue);

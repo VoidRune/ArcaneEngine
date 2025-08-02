@@ -57,26 +57,12 @@ namespace Arc
         inputAssemblyInfo.topology = static_cast<VkPrimitiveTopology>(desc.Topology);
         inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
 
-        VkExtent2D extent = { 0, 0 };
-
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(extent.width);
-        viewport.height = static_cast<float>(extent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-
-        VkRect2D scissor{};
-        scissor.offset = { 0, 0 };
-        scissor.extent = extent;
-
         VkPipelineViewportStateCreateInfo viewportInfo = {};
         viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         viewportInfo.viewportCount = 1;
-        viewportInfo.pViewports = &viewport;
+        viewportInfo.pViewports = nullptr;
         viewportInfo.scissorCount = 1;
-        viewportInfo.pScissors = &scissor;
+        viewportInfo.pScissors = nullptr;
 
         VkPipelineRasterizationStateCreateInfo rasterizationInfo = {};
         rasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
