@@ -4,7 +4,7 @@
 #include "ArcaneEngine/Core/Timer.h"
 #include "ArcaneEngine/Core/Log.h"
 #include "stb/stb_image_write.h"
-#include <regex>
+#include "stb/stb_image.h"
 
 RadianceCascades::RadianceCascades(Arc::Window* window, Arc::Device* device, Arc::PresentQueue* presentQueue)
 {
@@ -72,19 +72,24 @@ void RadianceCascades::CreateImages()
 		.AddressMode = Arc::SamplerAddressMode::Repeat
 		});
 
+	uint32_t w = m_PresentQueue->GetExtent()[0];
+	uint32_t h = m_PresentQueue->GetExtent()[1];
 
 	m_SeedImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_SeedImage.get(), Arc::GpuImageDesc{
-		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+		.Extent = { w, h, 1},
 		.Format = Arc::Format::R8G8B8A8_Unorm,
-		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
+		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::TransferDst | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 		.AspectFlags = Arc::ImageAspect::Color,
 		});
-	m_Device->TransitionImageLayout(m_SeedImage.get(), Arc::ImageLayout::General);
+	int x, y, c;
+	uint8_t* data = stbi_load("res/RadianceCascadesCanvas/img2.png", &x, &y, &c, 4);
+	m_Device->SetImageData(m_SeedImage.get(), data, x * y * c * sizeof(uint8_t), Arc::ImageLayout::General);
+	stbi_image_free(data);
 
 	m_JFAImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_JFAImage.get(), Arc::GpuImageDesc{
-		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+		.Extent = { w, h, 1},
 		.Format = Arc::Format::R16G16_Sfloat,
 		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 		.AspectFlags = Arc::ImageAspect::Color,
@@ -93,7 +98,7 @@ void RadianceCascades::CreateImages()
 
 	m_SDFImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_SDFImage.get(), Arc::GpuImageDesc{
-		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+		.Extent = { w, h, 1},
 		.Format = Arc::Format::R16_Sfloat,
 		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 		.AspectFlags = Arc::ImageAspect::Color,
@@ -102,7 +107,7 @@ void RadianceCascades::CreateImages()
 
 	m_NearestColorImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_NearestColorImage.get(), Arc::GpuImageDesc{
-		.Extent = { m_PresentQueue->GetExtent()[0], m_PresentQueue->GetExtent()[1], 1},
+		.Extent = { w, h, 1},
 		.Format = Arc::Format::R8G8B8A8_Unorm,
 		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 		.AspectFlags = Arc::ImageAspect::Color,
@@ -110,8 +115,12 @@ void RadianceCascades::CreateImages()
 	m_Device->TransitionImageLayout(m_NearestColorImage.get(), Arc::ImageLayout::General);
 
 
-	glm::uvec2 cascadeExtent = { 1024, 1024 };
-	m_Cascades.resize(6);
+	// Gets size that is equal or less that (w, h) and is divisible by 2^(cascadeCount - 1)
+	// 2^(cascadeCount - 1) is how many probe groups are one one side of the cascade
+	uint32_t cascadeCount = 6;
+	uint32_t div = 1 << (cascadeCount - 1);
+	glm::uvec2 cascadeExtent = { w - (w % div), h - (h % div)};
+	m_Cascades.resize(cascadeCount);
 	for (auto& cascade : m_Cascades)
 	{
 		m_ResourceCache->CreateGpuImage(&cascade, Arc::GpuImageDesc{
@@ -142,10 +151,20 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 	jfaData.radius = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? 15.0f : 0.0f;
 	jfaData.clear = Arc::Input::IsKeyPressed(Arc::KeyCode::C) ? 1.0f : 0.0f;
 	jfaData.color = { HsvToRgb(elapsedTime * 0.1f, 1, 1), 1 };
-	if (Arc::Input::IsKeyDown(Arc::KeyCode::A))
-	{
+	if (Arc::Input::IsKeyDown(Arc::KeyCode::MouseRight))
+		jfaData.color = { 1, 1, 1, 1 };
+	else if (Arc::Input::IsKeyDown(Arc::KeyCode::A))
 		jfaData.color = { 0, 0, 0, 1 };
+
+	if (Arc::Input::IsKeyPressed(Arc::KeyCode::G))
+	{
+		std::vector<uint8_t> imageData = m_Device->GetImageData(&m_Cascades[0]);
+		std::string path = "img.png";
+		stbi_write_png(path.c_str(), m_Cascades[0].GetExtent()[0], m_Cascades[0].GetExtent()[1], 4, imageData.data(), m_Cascades[0].GetExtent()[0] * 4);
+		ARC_LOG("Screenshot saved to disk");
 	}
+
+
 	m_RenderGraph->AddPass(Arc::RenderPass{
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
 			cmd->BindComputePipeline(m_JFAPipeline->GetHandle());
@@ -170,7 +189,7 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 				float cascadeIndex = i;
 				cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_RadianceCascadesPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 					.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::CombinedImageSampler, m_SDFImage->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
-					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::CombinedImageSampler, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, m_NearestSampler->GetHandle()))
+					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::CombinedImageSampler, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
 					.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Cascades[i].GetImageView(), Arc::ImageLayout::General, nullptr))
 					.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::CombinedImageSampler, m_Cascades[std::min(i + 1, (int)m_Cascades.size() - 1)].GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle())));
 				cmd->PushConstants(Arc::ShaderStage::Compute, m_RadianceCascadesPipeline->GetLayout(), &cascadeData, sizeof(cascadeData));

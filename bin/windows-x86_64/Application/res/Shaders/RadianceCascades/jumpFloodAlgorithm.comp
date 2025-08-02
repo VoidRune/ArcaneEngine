@@ -42,7 +42,7 @@ void main()
                 pixel = imageLoad(seedImage, px);
             }
         
-            if (pixel.a > 0)
+            if (pixel.a == 1.0)
             {
     	        imageStore(inputImage, px, vec4(vec2(px), 0, 1));
             }
@@ -87,7 +87,7 @@ void main()
     {
         vec2 px2 = imageLoad(inputImage, px).rg;
         vec3 color = imageLoad(seedImage, ivec2(px2)).rgb;
-        float dist = length(px - px2);
+        float dist = length(vec2(px) - px2);
         imageStore(outputImage, px, vec4(dist, 0, 0, 0));
         imageStore(nearestColorImage, px, vec4(color, 1));
     }

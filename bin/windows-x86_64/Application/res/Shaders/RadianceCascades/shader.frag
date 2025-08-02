@@ -11,6 +11,6 @@ void main()
 	vec2 uv = (pos + 1.0f) * 0.5f;
 	vec4 color = texture(image, uv);
 	vec4 radiance = texture(radiancaCascade0, uv);
-	vec4 finalColor = radiance * (1 - color.a) + color;
+	vec4 finalColor = radiance * (1 - color.a) + color * color.a;
 	outColor = vec4(finalColor.rgb, 1.0);
 }
