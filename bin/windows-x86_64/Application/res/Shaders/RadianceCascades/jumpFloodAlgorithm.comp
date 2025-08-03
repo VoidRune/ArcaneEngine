@@ -1,8 +1,8 @@
 #version 450
 
 layout(set = 0, binding = 0, rgba8) uniform image2D seedImage;
-layout(set = 0, binding = 1, rg16f) uniform image2D inputImage;
-layout(set = 0, binding = 2, r16f) uniform image2D outputImage;
+layout(set = 0, binding = 1, rg16f) uniform image2D jfaInputImage;
+layout(set = 0, binding = 2, r16f) uniform image2D sdfImage;
 layout(set = 0, binding = 3, rgba8) uniform image2D nearestColorImage;
 
 layout( push_constant ) uniform constants
@@ -19,19 +19,19 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
-    vec2 resolution = vec2(imageSize(seedImage));
+    ivec2 resolution = imageSize(seedImage);
 
     if (pushConstants.iteration == 0)
     {
         float dist = length(pushConstants.position - vec2(px));
-        vec4 pixel = vec4(0);
         if (pushConstants.clear >= 1.0)
         {
             imageStore(seedImage, px, vec4(0, 0, 0, 0));
-            imageStore(inputImage, px, vec4(0, 0, 0, 0));
+            imageStore(jfaInputImage, px, vec4(0, 0, 0, 0));
         }
         else
         {
+            vec4 pixel = vec4(0);
             if (pushConstants.radius > 0 && dist < pushConstants.radius)
             {
                 pixel = pushConstants.color;
@@ -44,17 +44,33 @@ void main()
         
             if (pixel.a == 1.0)
             {
-    	        imageStore(inputImage, px, vec4(vec2(px), 0, 1));
+    	        imageStore(jfaInputImage, px, vec4(vec2(px), 0, 1));
             }
+            //else
+            //{
+            //    imageStore(jfaInputImage, px, vec4(-1, -1, 0, 0));
+            //}
         }
     }
-    else if (pushConstants.iteration == 1)
+    else if (pushConstants.iteration == -1)
     {
-        vec2 currentSeed = imageLoad(inputImage, px).rg;
+        vec2 px2 = imageLoad(jfaInputImage, px).rg;
+        vec3 color = imageLoad(seedImage, ivec2(px2)).rgb;
+        float dist = length(vec2(px) - px2);
+        imageStore(sdfImage, px, vec4(dist, 0, 0, 0));
+        imageStore(nearestColorImage, px, vec4(color, 1));
+    }
+    else 
+    {
+        int startJump = max(resolution.x, resolution.y);
+        int jump = max(1, startJump >> int(pushConstants.iteration));
+        jump = 1;
+        //int jump = 1 << int(pushConstants.iteration - 1);
+        //jump = min(jump, startJump);
+
+        vec2 currentSeed = imageLoad(jfaInputImage, px).rg;
         float minDistance = 1e20;
         vec2 bestSeed = currentSeed;
-
-        int jump = int(pushConstants.iteration);
 
         for (int dy = -1; dy <= 1; ++dy)
         {
@@ -65,12 +81,12 @@ void main()
                 ivec2 offset = ivec2(dx, dy) * jump;
                 ivec2 neighbor = px + offset;
 
-                if (neighbor.x < 0 || neighbor.y < 0 || neighbor.x >= int(resolution.x) || neighbor.y >= int(resolution.y))
+                if (neighbor.x < 0 || neighbor.y < 0 || neighbor.x >= resolution.x || neighbor.y >= resolution.y)
                     continue;
 
-                vec2 neighborSeed = imageLoad(inputImage, neighbor).rg;
+                vec2 neighborSeed = imageLoad(jfaInputImage, neighbor).rg;
 
-                if (neighborSeed.x < 0.0 || neighborSeed.y < 0.0) continue;  // Not a valid seed
+                if (neighborSeed.x < 0 || neighborSeed.y < 0) continue;  // Not a valid seed
 
                 float dist = length(vec2(px) - neighborSeed);
                 if (dist < minDistance)
@@ -81,14 +97,6 @@ void main()
             }
         }
 
-        imageStore(inputImage, px, vec4(bestSeed, 0.0, 0.0));
-    }
-    else 
-    {
-        vec2 px2 = imageLoad(inputImage, px).rg;
-        vec3 color = imageLoad(seedImage, ivec2(px2)).rgb;
-        float dist = length(vec2(px) - px2);
-        imageStore(outputImage, px, vec4(dist, 0, 0, 0));
-        imageStore(nearestColorImage, px, vec4(color, 1));
+        imageStore(jfaInputImage, px, vec4(bestSeed, 0.0, 0.0));
     }
 }

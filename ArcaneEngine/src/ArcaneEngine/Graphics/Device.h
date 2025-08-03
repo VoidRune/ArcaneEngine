@@ -22,6 +22,7 @@ namespace Arc
 		void UpdateDescriptorSet(DescriptorSet* descriptor, const DescriptorWrite& write);
 		void UpdateDescriptorSet(DescriptorSetArray* descriptorArray, const DescriptorWrite& write);
 		void TransitionImageLayout(GpuImage* image, ImageLayout newLayout);
+		void ClearColorImage(GpuImage* image, float clearColor[4], ImageLayout layout);
 		void SetImageData(GpuImage* image, const void* data, uint32_t size, ImageLayout newLayout);
 		std::vector<uint8_t> GetImageData(GpuImage* image);
 

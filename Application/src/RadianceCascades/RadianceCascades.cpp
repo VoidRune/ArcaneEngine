@@ -83,9 +83,20 @@ void RadianceCascades::CreateImages()
 		.AspectFlags = Arc::ImageAspect::Color,
 		});
 	int x, y, c;
-	uint8_t* data = stbi_load("res/RadianceCascadesCanvas/img2.png", &x, &y, &c, 4);
-	m_Device->SetImageData(m_SeedImage.get(), data, x * y * c * sizeof(uint8_t), Arc::ImageLayout::General);
-	stbi_image_free(data);
+	const char* file = "res/RadianceCascadesCanvas/img2.png";
+	stbi_info(file, &x, &y, &c);
+	if (x == w && y == h)
+	{
+		uint8_t* data = stbi_load(file, &x, &y, &c, 4);
+		m_Device->SetImageData(m_SeedImage.get(), data, x * y * c * sizeof(uint8_t), Arc::ImageLayout::General);
+		stbi_image_free(data);
+	}
+	else
+	{
+		m_Device->TransitionImageLayout(m_SeedImage.get(), Arc::ImageLayout::General);
+		float clearColor[4] = {0, 0, 0, 0};
+		m_Device->ClearColorImage(m_SeedImage.get(), clearColor, Arc::ImageLayout::General);
+	}
 
 	m_JFAImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_JFAImage.get(), Arc::GpuImageDesc{
@@ -168,9 +179,11 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 	m_RenderGraph->AddPass(Arc::RenderPass{
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
 			cmd->BindComputePipeline(m_JFAPipeline->GetHandle());
+
 			for (int i = 0; i < 3; i++)
 			{
-				jfaData.iteration = i;
+				jfaData.iteration = (i == 2) ? -1 : i;
+
 				cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_JFAPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 					.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_SeedImage->GetImageView(), Arc::ImageLayout::General, nullptr))
 					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_JFAImage->GetImageView(), Arc::ImageLayout::General, nullptr))

@@ -59,9 +59,11 @@ void main()
 	ivec2 cascadeExtent = imageSize(currentCascade);
 	vec2 canvasSize = textureSize(sdfImage, 0);
 
+	// angular resolution is number of rays per probe
 	int angularSqrt = 1 << int(pushConstants.cascadeIndex);
-	ivec2 linearDist = cascadeExtent / angularSqrt;
-	
+	// distance between probes
+	ivec2 linearDist = cascadeExtent / angularSqrt;	
+	// arange probes into groups of ray directions for hardware interpolation when merging
 	ivec2 probeIndex = px % linearDist;
 	ivec2 groupIndex = px / linearDist;
 
@@ -77,6 +79,7 @@ void main()
 	float invAngular = 1.0 / float(angular * 4);
 	int preavgIndex = rayIndex * 4;
 	vec2 uvClamp = 2.0 * angularSqrt / canvasSize;
+	// uv of the probe inside the group and clamped to prevent light leak from adjacent groups
 	vec2 radianceGroupUv = clamp(probe.position / canvasSize, uvClamp, vec2(1) - uvClamp);
 
     vec4 radiance = vec4(0);
@@ -84,7 +87,6 @@ void main()
 	{
 		int index = preavgIndex + i;
 		probe.theta = float(index + 0.5) * invAngular * TAU;
-
 		radiance += merge(raymarch(probe, canvasSize), index, radianceGroupUv) * 0.25;
 	}
 	imageStore(currentCascade, px, radiance);
