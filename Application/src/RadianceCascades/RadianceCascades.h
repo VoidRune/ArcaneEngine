@@ -21,6 +21,7 @@ public:
 private:
 
 	void CreatePipelines();
+	void CreateSamplers();
 	void CreateImages();
 	glm::vec3 HsvToRgb(float h, float s, float v);
 

@@ -15,6 +15,7 @@ RadianceCascades::RadianceCascades(Arc::Window* window, Arc::Device* device, Arc
 	m_RenderGraph = m_Device->GetRenderGraph();
 
 	CreatePipelines();
+	CreateSamplers();
 	CreateImages();
 }
 
@@ -57,7 +58,7 @@ void RadianceCascades::CreatePipelines()
 		});
 }
 
-void RadianceCascades::CreateImages()
+void RadianceCascades::CreateSamplers()
 {
 	m_NearestSampler = std::make_unique<Arc::Sampler>();
 	m_ResourceCache->CreateSampler(m_NearestSampler.get(), Arc::SamplerDesc{
@@ -71,9 +72,16 @@ void RadianceCascades::CreateImages()
 		.MagFilter = Arc::Filter::Linear,
 		.AddressMode = Arc::SamplerAddressMode::Repeat
 		});
+}
 
+void RadianceCascades::CreateImages()
+{
 	uint32_t w = m_PresentQueue->GetExtent()[0];
 	uint32_t h = m_PresentQueue->GetExtent()[1];
+
+	m_Device->WaitIdle();
+	if (m_SeedImage.get())
+		m_ResourceCache->ReleaseResource(m_SeedImage.get());
 
 	m_SeedImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_SeedImage.get(), Arc::GpuImageDesc{
@@ -98,6 +106,9 @@ void RadianceCascades::CreateImages()
 		m_Device->ClearColorImage(m_SeedImage.get(), clearColor, Arc::ImageLayout::General);
 	}
 
+	if (m_JFAImage.get())
+		m_ResourceCache->ReleaseResource(m_JFAImage.get());
+
 	m_JFAImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_JFAImage.get(), Arc::GpuImageDesc{
 		.Extent = { w, h, 1},
@@ -106,6 +117,9 @@ void RadianceCascades::CreateImages()
 		.AspectFlags = Arc::ImageAspect::Color,
 		});
 	m_Device->TransitionImageLayout(m_JFAImage.get(), Arc::ImageLayout::General);
+
+	if (m_SDFImage.get())
+		m_ResourceCache->ReleaseResource(m_SDFImage.get());
 
 	m_SDFImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_SDFImage.get(), Arc::GpuImageDesc{
@@ -116,6 +130,9 @@ void RadianceCascades::CreateImages()
 		});
 	m_Device->TransitionImageLayout(m_SDFImage.get(), Arc::ImageLayout::General);
 
+	if (m_NearestColorImage.get())
+		m_ResourceCache->ReleaseResource(m_NearestColorImage.get());
+
 	m_NearestColorImage = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_NearestColorImage.get(), Arc::GpuImageDesc{
 		.Extent = { w, h, 1},
@@ -125,6 +142,11 @@ void RadianceCascades::CreateImages()
 		});
 	m_Device->TransitionImageLayout(m_NearestColorImage.get(), Arc::ImageLayout::General);
 
+	for (auto& cascade : m_Cascades)
+	{
+		if (&cascade)
+			m_ResourceCache->ReleaseResource(&cascade);
+	}
 
 	// Gets size that is equal or less that (w, h) and is divisible by 2^(cascadeCount - 1)
 	// 2^(cascadeCount - 1) is how many probe groups are one one side of the cascade
@@ -252,6 +274,7 @@ glm::vec3 RadianceCascades::HsvToRgb(float h, float s, float v)
 void RadianceCascades::SwapchainResized(void* presentQueue)
 {
 	m_PresentQueue = static_cast<Arc::PresentQueue*>(presentQueue);
+	CreateImages();
 }
 
 void RadianceCascades::RecompileShaders()
