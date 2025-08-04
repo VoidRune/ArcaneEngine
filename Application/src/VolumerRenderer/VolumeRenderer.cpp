@@ -302,7 +302,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 			} });
 
 			{
-				auto gpuTimer = m_Device->GetTimestampQuery()->AddScopedTimer("Compute", cmd);
+				//auto gpuTimer = m_Device->GetTimestampQuery()->AddScopedTimer("Compute", cmd);
 				cmd->BindDescriptorSets(Arc::PipelineBindPoint::Compute, m_VolumePipeline->GetLayout(), 0, { m_GlobalDataDescSet->GetHandle(frameIndex), m_IsEvenFrame ? m_VolumeImageDescriptor1->GetHandle() : m_VolumeImageDescriptor2->GetHandle() });
 				cmd->BindComputePipeline(m_VolumePipeline->GetHandle());
 				cmd->Dispatch(std::ceil(m_ImGuiCanvasSize.x / 32.0f), std::ceil(m_ImGuiCanvasSize.y / 32.0f), 1);
@@ -335,7 +335,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 	m_RenderGraph->BuildGraph();
 	m_RenderGraph->Execute(frameData, m_PresentQueue->GetExtent());
 	m_PresentQueue->EndFrame();
-	m_Device->GetTimestampQuery()->QueryResults();
+	//m_Device->GetTimestampQuery()->QueryResults();
 }
 
 bool VolumeRenderer::LoadDataset(std::string fileName)

@@ -130,6 +130,9 @@ void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
 	vec2 size = imageSize(outputImage);
+    if (px.x >= size.x || px.y >= size.y)
+        return;
+
     uint rng = globalData.frameIndex;
     rng = rng * (px.x + 73) * (px.y + 91);
     // added tiny blur effect for anti-aliasing
@@ -210,7 +213,7 @@ void main()
                 break;
             } else if (rand < PAbsorption + PScattering) {
                 // SCATTERING
-                if (false && globalData.environmentEnabled == 1.0f)
+                if (true && globalData.environmentEnabled == 1.0f)
                 {
                     // Importance sampling
                     float g = 0.6;
