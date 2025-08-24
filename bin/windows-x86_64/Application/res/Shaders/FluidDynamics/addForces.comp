@@ -1,0 +1,26 @@
+#version 450
+
+layout(set = 0, binding = 0, rg16f) uniform image2D velocity;
+layout(set = 0, binding = 1, rgba8) uniform image2D dye;
+
+layout( push_constant ) uniform constants
+{
+	vec2 sourcePos;
+	vec2 sourceVelocity;
+	float sourceRadius;
+	float deltaTime;
+} pushConstants;
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+void main()
+{
+    ivec2 px = ivec2(gl_GlobalInvocationID.xy);
+	float dist = length(pushConstants.sourcePos - vec2(px));
+	if (dist < pushConstants.sourceRadius &&
+		pushConstants.sourceVelocity != vec2(0))
+	{
+		imageStore(velocity, px, vec4(pushConstants.sourceVelocity, 0, 0));	
+		imageStore(dye, px, vec4(1, 1, 1, 0));	
+	}
+}

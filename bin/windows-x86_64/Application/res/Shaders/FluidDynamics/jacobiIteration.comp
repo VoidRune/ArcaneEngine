@@ -1,0 +1,19 @@
+#version 450
+
+layout(set = 0, binding = 0, rg8) uniform image2D divergencePressure;
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+void main()
+{	
+	ivec2 px = ivec2(gl_GlobalInvocationID.xy);
+	float dl = imageLoad(divergencePressure, px - ivec2(1, 0)).y;
+	float dr = imageLoad(divergencePressure, px + ivec2(1, 0)).y;
+	float db = imageLoad(divergencePressure, px - ivec2(0, 1)).y;
+	float dt = imageLoad(divergencePressure, px + ivec2(0, 1)).y;
+
+	float divergence = imageLoad(divergencePressure, px).x;
+	float pressure = (dl + dr + db + dt - divergence) * 0.25;
+
+	imageStore(divergencePressure, px, vec4(divergence, pressure, 0, 0));
+}

@@ -8,6 +8,7 @@
 
 #include "VolumerRenderer/VolumeRenderer.h"
 #include "RadianceCascades/RadianceCascades.h"
+#include "FluidDynamics/FluidDynamics.h"
 
 int currentRendererId = -1;
 void GetRenderer(int rendererId, std::unique_ptr<RendererBase>& renderer, 
@@ -30,6 +31,12 @@ void GetRenderer(int rendererId, std::unique_ptr<RendererBase>& renderer,
 			renderer.reset();
 			renderer = std::make_unique<RadianceCascades>(window, device, presentQueue);
 			break;
+		case 3:
+			device->WaitIdle();
+			device->GetResourceCache()->FreeResources();
+			renderer.reset();
+			renderer = std::make_unique<FluidDynamics>(window, device, presentQueue);
+			break;
 	}
 	currentRendererId = rendererId;
 }
@@ -50,7 +57,7 @@ int main()
 	auto presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), presentMode);
 
 	std::unique_ptr<RendererBase> renderer;
-	GetRenderer(2, renderer, window.get(), device.get(), presentQueue.get());
+	GetRenderer(3, renderer, window.get(), device.get(), presentQueue.get());
 	
 	Arc::Timer timer;
 	while (!window->IsClosed())
@@ -59,6 +66,7 @@ int main()
 
 		if (Arc::Input::IsKeyPressed(Arc::KeyCode::Key1)) GetRenderer(1, renderer, window.get(), device.get(), presentQueue.get());
 		else if (Arc::Input::IsKeyPressed(Arc::KeyCode::Key2)) GetRenderer(2, renderer, window.get(), device.get(), presentQueue.get());
+		else if (Arc::Input::IsKeyPressed(Arc::KeyCode::Key3)) GetRenderer(3, renderer, window.get(), device.get(), presentQueue.get());
 
 		if (Arc::Input::IsKeyPressed(Arc::KeyCode::Escape))
 			window->SetClosed(true);

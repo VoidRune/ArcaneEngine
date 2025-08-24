@@ -1,0 +1,30 @@
+#version 450
+
+layout(set = 0, binding = 0, rg16f) uniform image2D image;
+
+layout( push_constant ) uniform constants
+{
+	vec2 sourcePos;
+	vec2 sourceVelocity;
+	float sourceRadius;
+	float deltaTime;
+} pushConstants;
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+void main()
+{
+    ivec2 px = ivec2(gl_GlobalInvocationID.xy);
+	float k = 1.0;
+	vec4 dc = imageLoad(image, px);
+	vec4 dl = imageLoad(image, px - ivec2(1, 0));
+	vec4 dr = imageLoad(image, px + ivec2(1, 0));
+	vec4 db = imageLoad(image, px - ivec2(0, 1));
+	vec4 dt = imageLoad(image, px + ivec2(0, 1));
+
+	vec4 dn = (dc + k * (dl + dr + db + dt) / 4) / (1 + k);
+	//float alpha = 0.3;
+	//float beta = 0.3;
+	//vec4 dn = (dl + dr + db + dt + alpha * dc) * beta;
+	imageStore(image, px, dn);	
+}

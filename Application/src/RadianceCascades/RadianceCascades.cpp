@@ -1,7 +1,6 @@
 #include "RadianceCascades.h"
 #include "ArcaneEngine/Window/Input.h"
 #include "ArcaneEngine/Graphics/ShaderCompiler.h"
-#include "ArcaneEngine/Core/Timer.h"
 #include "ArcaneEngine/Core/Log.h"
 #include "stb/stb_image_write.h"
 #include "stb/stb_image.h"
