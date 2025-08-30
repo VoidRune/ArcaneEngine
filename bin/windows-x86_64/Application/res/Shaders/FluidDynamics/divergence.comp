@@ -1,17 +1,25 @@
 #version 450
 
 layout(set = 0, binding = 0, rg16f) uniform image2D velocity;
-layout(set = 0, binding = 1, rg8) uniform image2D divergence;
+layout(set = 0, binding = 1, rg16f) uniform image2D divergence;
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 void main()
 {	
 	ivec2 px = ivec2(gl_GlobalInvocationID.xy);
-	vec2 dl = imageLoad(velocity, px - ivec2(1, 0)).xy;
-	vec2 dr = imageLoad(velocity, px + ivec2(1, 0)).xy;
-	vec2 db = imageLoad(velocity, px - ivec2(0, 1)).xy;
-	vec2 dt = imageLoad(velocity, px + ivec2(0, 1)).xy;
-	float div = (dr.x - dl.x + dt.y - db.y);
+	ivec2 size = imageSize(velocity);
+
+	ivec2 l = ivec2(max(px.x-1,0), px.y);
+    ivec2 r = ivec2(min(px.x+1,size.x-1), px.y);
+    ivec2 b = ivec2(px.x, max(px.y-1,0));
+    ivec2 t = ivec2(px.x, min(px.y+1,size.y-1));
+
+	vec2 vl = imageLoad(velocity, l).xy;
+	vec2 vr = imageLoad(velocity, r).xy;
+	vec2 vb = imageLoad(velocity, b).xy;
+	vec2 vt = imageLoad(velocity, t).xy;
+
+	float div = (vr.x - vl.x + vt.y - vb.y) * 0.5;
 	imageStore(divergence, px, vec4(div, 0, 0, 0));
 }

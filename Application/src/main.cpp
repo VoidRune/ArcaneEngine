@@ -9,6 +9,7 @@
 #include "VolumerRenderer/VolumeRenderer.h"
 #include "RadianceCascades/RadianceCascades.h"
 #include "FluidDynamics/FluidDynamics.h"
+#include "PathTracer/PathTracer.h"
 
 int currentRendererId = -1;
 void GetRenderer(int rendererId, std::unique_ptr<RendererBase>& renderer, 
@@ -36,6 +37,12 @@ void GetRenderer(int rendererId, std::unique_ptr<RendererBase>& renderer,
 			device->GetResourceCache()->FreeResources();
 			renderer.reset();
 			renderer = std::make_unique<FluidDynamics>(window, device, presentQueue);
+			break;
+		case 4:
+			device->WaitIdle();
+			device->GetResourceCache()->FreeResources();
+			renderer.reset();
+			renderer = std::make_unique<PathTracer>(window, device, presentQueue);
 			break;
 	}
 	currentRendererId = rendererId;
@@ -67,6 +74,7 @@ int main()
 		if (Arc::Input::IsKeyPressed(Arc::KeyCode::Key1)) GetRenderer(1, renderer, window.get(), device.get(), presentQueue.get());
 		else if (Arc::Input::IsKeyPressed(Arc::KeyCode::Key2)) GetRenderer(2, renderer, window.get(), device.get(), presentQueue.get());
 		else if (Arc::Input::IsKeyPressed(Arc::KeyCode::Key3)) GetRenderer(3, renderer, window.get(), device.get(), presentQueue.get());
+		else if (Arc::Input::IsKeyPressed(Arc::KeyCode::Key4)) GetRenderer(4, renderer, window.get(), device.get(), presentQueue.get());
 
 		if (Arc::Input::IsKeyPressed(Arc::KeyCode::Escape))
 			window->SetClosed(true);

@@ -5,6 +5,7 @@ layout(set = 0, binding = 1, rgba8) uniform image2D dye;
 
 layout( push_constant ) uniform constants
 {
+	vec4 sourceColor;
 	vec2 sourcePos;
 	vec2 sourceVelocity;
 	float sourceRadius;
@@ -21,6 +22,6 @@ void main()
 		pushConstants.sourceVelocity != vec2(0))
 	{
 		imageStore(velocity, px, vec4(pushConstants.sourceVelocity, 0, 0));	
-		imageStore(dye, px, vec4(1, 1, 1, 0));	
+		imageStore(dye, px, pushConstants.sourceColor);	
 	}
 }

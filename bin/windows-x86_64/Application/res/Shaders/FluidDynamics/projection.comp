@@ -1,10 +1,11 @@
 #version 450
 
 layout(set = 0, binding = 0, rg16f) uniform image2D velocity;
-layout(set = 0, binding = 1, rg8) uniform image2D divergencePressure;
+layout(set = 0, binding = 1, rg16f) uniform image2D divergencePressure;
 
 layout( push_constant ) uniform constants
 {
+	vec4 sourceColor;
 	vec2 sourcePos;
 	vec2 sourceVelocity;
 	float sourceRadius;
@@ -16,12 +17,19 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
-	float pl = imageLoad(divergencePressure, px - ivec2(1, 0)).y;
-	float pr = imageLoad(divergencePressure, px + ivec2(1, 0)).y;
-	float pb = imageLoad(divergencePressure, px - ivec2(0, 1)).y;
-	float pt = imageLoad(divergencePressure, px + ivec2(0, 1)).y;
+	ivec2 size = imageSize(velocity);
+
+	ivec2 l = ivec2(max(px.x-1,0), px.y);
+    ivec2 r = ivec2(min(px.x+1,size.x-1), px.y);
+    ivec2 b = ivec2(px.x, max(px.y-1,0));
+    ivec2 t = ivec2(px.x, min(px.y+1,size.y-1));
+
+	float pl = imageLoad(divergencePressure, l).y;
+	float pr = imageLoad(divergencePressure, r).y;
+	float pb = imageLoad(divergencePressure, b).y;
+	float pt = imageLoad(divergencePressure, t).y;
 
 	vec2 vel = imageLoad(velocity, px).xy;
-	vec2 grad = vec2(pr - pl, pt - pb);
+	vec2 grad = vec2(pr - pl, pt - pb) * 0.5;
 	imageStore(velocity, px, vec4(vel - grad, 0, 0));
 }

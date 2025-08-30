@@ -7,6 +7,7 @@ layout(set = 0, binding = 3) uniform sampler2D dyeSampler;
 
 layout( push_constant ) uniform constants
 {
+	vec4 sourceColor;
 	vec2 sourcePos;
 	vec2 sourceVelocity;
 	float sourceRadius;

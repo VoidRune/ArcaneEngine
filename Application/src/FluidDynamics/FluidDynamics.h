@@ -23,6 +23,7 @@ private:
 	void CreatePipelines();
 	void CreateSamplers();
 	void CreateImages();
+	glm::vec3 HsvToRgb(float h, float s, float v);
 
 	Arc::Window* m_Window;
 	Arc::Device* m_Device;
@@ -32,6 +33,7 @@ private:
 
 	struct FluidData
 	{
+		glm::vec4 SourceColor;
 		glm::vec2 SourcePos;
 		glm::vec2 SourceVelocity;
 		float SourceRadius;

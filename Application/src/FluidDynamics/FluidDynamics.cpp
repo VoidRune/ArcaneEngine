@@ -130,7 +130,7 @@ void FluidDynamics::CreateImages()
 	m_DivergencePressure = std::make_unique<Arc::GpuImage>();
 	m_ResourceCache->CreateGpuImage(m_DivergencePressure.get(), Arc::GpuImageDesc{
 		.Extent = { w, h, 1 },
-		.Format = Arc::Format::R8G8_Unorm,
+		.Format = Arc::Format::R16G16_Sfloat,
 		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::TransferDst | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 		.AspectFlags = Arc::ImageAspect::Color,
 		});
@@ -169,10 +169,12 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 	auto delta = currentMousePos - m_LastMousePos;
 	m_LastMousePos = currentMousePos;
 
+	fluidData.SourceColor = glm::vec4(HsvToRgb(elapsedTime * 0.1f, 1, 1), 1);
 	fluidData.SourcePos = currentMousePos;
 	fluidData.SourceVelocity = delta;
-	fluidData.SourceRadius = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? 100.0f : 0.0f;
+	fluidData.SourceRadius = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? 25.0f : 0.0f;
 	fluidData.DeltaTime = dt * 100;
+
 
 	m_RenderGraph->AddPass(Arc::RenderPass{
 	.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
@@ -193,9 +195,13 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 
 		cmd->BindComputePipeline(m_DiffusionPipeline->GetHandle());
 		cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_DiffusionPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
-			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Velocity->GetImageView(), Arc::ImageLayout::General, nullptr)));
-		cmd->Dispatch(std::ceil(m_Velocity->GetExtent()[0] / 32.0f), std::ceil(m_Velocity->GetExtent()[1] / 32.0f), 1);
-		
+			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Velocity->GetImageView(), Arc::ImageLayout::General, nullptr))
+			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Dye->GetImageView(), Arc::ImageLayout::General, nullptr)));
+		for (size_t i = 0; i < 100; i++)
+		{
+			cmd->Dispatch(std::ceil(m_Velocity->GetExtent()[0] / 32.0f), std::ceil(m_Velocity->GetExtent()[1] / 32.0f), 1);
+		}
+
 		cmd->BindComputePipeline(m_DivergencePipeline->GetHandle());
 		cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_DivergencePipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Velocity->GetImageView(), Arc::ImageLayout::General, nullptr))
@@ -205,7 +211,7 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 		cmd->BindComputePipeline(m_JacobiIterationPipeline->GetHandle());
 		cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_JacobiIterationPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_DivergencePressure->GetImageView(), Arc::ImageLayout::General, nullptr)));
-		for (size_t i = 0; i < 40; i++)
+		for (size_t i = 0; i < 250; i++)
 		{
 			cmd->Dispatch(std::ceil(m_DivergencePressure->GetExtent()[0] / 32.0f), std::ceil(m_DivergencePressure->GetExtent()[1] / 32.0f), 1);
 		}
@@ -233,6 +239,24 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 	m_Device->WaitIdle();
 }
 
+glm::vec3 FluidDynamics::HsvToRgb(float h, float s, float v)
+{
+	h = std::fmod(h, 1.0f);
+	float c = v * s;
+	float x = c * (1 - std::fabs(fmod(h * 6.0f, 2.0f) - 1));
+	float m = v - c;
+
+	glm::vec3 rgb;
+
+	if (h < 1.0f / 6.0f)       rgb = glm::vec3(c, x, 0);
+	else if (h < 2.0f / 6.0f)  rgb = glm::vec3(x, c, 0);
+	else if (h < 3.0f / 6.0f)  rgb = glm::vec3(0, c, x);
+	else if (h < 4.0f / 6.0f)  rgb = glm::vec3(0, x, c);
+	else if (h < 5.0f / 6.0f)  rgb = glm::vec3(x, 0, c);
+	else                      rgb = glm::vec3(c, 0, x);
+
+	return rgb + glm::vec3(m);
+}
 
 void FluidDynamics::SwapchainResized(void* presentQueue)
 {
