@@ -1,7 +1,9 @@
 #version 450
 
-layout(set = 0, binding = 0, rg16f) uniform image2D velocity;
-layout(set = 0, binding = 1, rgba8) uniform image2D dye;
+layout(set = 0, binding = 0, rg16f) uniform image2D inputVelocity;
+layout(set = 0, binding = 1, rgba16) uniform image2D inputDye;
+layout(set = 0, binding = 2, rg16f) uniform image2D outputVelocity;
+layout(set = 0, binding = 3, rgba16) uniform image2D outputDye;
 
 layout( push_constant ) uniform constants
 {
@@ -17,7 +19,7 @@ layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
-	ivec2 size = imageSize(velocity);
+	ivec2 size = imageSize(inputVelocity);
 
 	float viscosity = 0.1f;
 	float k = viscosity * pushConstants.deltaTime;
@@ -27,19 +29,19 @@ void main()
     ivec2 b = ivec2(px.x, max(px.y-1,0));
     ivec2 t = ivec2(px.x, min(px.y+1,size.y-1));
 
-	//vec2 vc = imageLoad(velocity, px).xy;
-	//vec2 vl = imageLoad(velocity, l).xy;
-	//vec2 vr = imageLoad(velocity, r).xy;
-	//vec2 vb = imageLoad(velocity, b).xy;
-	//vec2 vt = imageLoad(velocity, t).xy;
+	//vec2 vc = imageLoad(inputVelocity, px).xy;
+	//vec2 vl = imageLoad(inputVelocity, l).xy;
+	//vec2 vr = imageLoad(inputVelocity, r).xy;
+	//vec2 vb = imageLoad(inputVelocity, b).xy;
+	//vec2 vt = imageLoad(inputVelocity, t).xy;
 	//vec2 vn = (vc + k * (vl + vr + vb + vt) / 4) / (1 + k);
-	//imageStore(velocity, px, vec4(vn, 0, 0));	
+	//imageStore(outputVelocity, px, vec4(vn, 0, 0));	
 
-	vec4 dc = imageLoad(dye, px);
-	vec4 dl = imageLoad(dye, l);
-	vec4 dr = imageLoad(dye, r);
-	vec4 db = imageLoad(dye, b);
-	vec4 dt = imageLoad(dye, t);
+	vec4 dc = imageLoad(inputDye, px);
+	vec4 dl = imageLoad(inputDye, l);
+	vec4 dr = imageLoad(inputDye, r);
+	vec4 db = imageLoad(inputDye, b);
+	vec4 dt = imageLoad(inputDye, t);
 	vec4 dn = (dc + k * (dl + dr + db + dt) / 4) / (1 + k);
-	imageStore(dye, px, dn);	
+	imageStore(outputDye, px, dn);	
 }

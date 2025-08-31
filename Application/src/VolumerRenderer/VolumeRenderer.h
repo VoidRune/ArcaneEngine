@@ -7,7 +7,7 @@
 #include "ArcaneEngine/Graphics/RenderGraph.h"
 #include "ArcaneEngine/Graphics/ImGui/ImGuiRenderer.h"
 #include "TransferFunctionEditor.h"
-#include "UI/UserInterface.h"
+#include "UserInterface.h"
 #include "Core/CameraFP.h"
 #include <glm/glm.hpp>
 

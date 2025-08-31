@@ -23,7 +23,6 @@ private:
 	void CreatePipelines();
 	void CreateSamplers();
 	void CreateImages();
-	glm::vec3 HsvToRgb(float h, float s, float v);
 
 	Arc::Window* m_Window;
 	Arc::Device* m_Device;
@@ -43,9 +42,16 @@ private:
 
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
-	std::unique_ptr<Arc::GpuImage> m_Velocity;
-	std::unique_ptr<Arc::GpuImage> m_DivergencePressure;
-	std::unique_ptr<Arc::GpuImage> m_Dye;
+
+	float m_Resolution = 1.0f;
+	glm::ivec2 m_CanvasSize;
+	glm::ivec2 m_ThreadDispatchSize;
+	std::unique_ptr<Arc::GpuImage> m_Velocity1;
+	std::unique_ptr<Arc::GpuImage> m_DivergencePressure1;
+	std::unique_ptr<Arc::GpuImage> m_Dye1;
+	std::unique_ptr<Arc::GpuImage> m_Velocity2;
+	std::unique_ptr<Arc::GpuImage> m_DivergencePressure2;
+	std::unique_ptr<Arc::GpuImage> m_Dye2;
 
 	std::unique_ptr<Arc::Shader> m_AddForcesShader;
 	std::unique_ptr<Arc::ComputePipeline> m_AddForcesPipeline;

@@ -23,7 +23,6 @@ private:
 	void CreatePipelines();
 	void CreateSamplers();
 	void CreateImages();
-	glm::vec3 HsvToRgb(float h, float s, float v);
 
 	Arc::Window* m_Window;
 	Arc::Device* m_Device;

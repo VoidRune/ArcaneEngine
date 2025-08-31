@@ -100,7 +100,7 @@ We implemented a physically-based, unbiased volumetric path tracer, using Monte 
 
 Delta tracking is used to sample the distance to the next interaction event where absorption, scattering or null-collision happens based on rejection sampling the real and fictious part of the medium. For null-collision methods to remain unbiased we need to know beforehand the maximum density, known as the majorant.
 
-When majorant is not known beforehand, like in dynamic scenes or when the volume is the result of a simulation, selecting the majorant can become tricky. We implement progressive null-tracking that stores the local majorants in a lower resolution grid, majorants are sampled during the simulation and converge in finite amount of samples. DDA algorithm is used  to traverse the grid of majorants effectively skipping large parts of the volume that contain high amount of fictous material.
+When majorant is not known beforehand, like in dynamic scenes or when the volume is the result of a simulation, selecting the majorant can become tricky. We implement progressive null-tracking that stores the local majorants in a lower resolution grid, majorants are sampled during the simulation and converge in finite amount of samples. DDA algorithm is used  to traverse the grid of majorants effectively skipping large parts of the volume that contain high amount of fictious material.
 
 ![Absorption emission](/images/VolumeRenderingImg1.png)
 ![Multiple scattering](/images/VolumeRenderingImg2.png)
@@ -112,12 +112,21 @@ A 2D implementation of Radiance Cascades based on [this paper](https://github.co
 
 Radiance Cascades is an elegant way of simulating global illumination that produces a noiseless image and does not rely on stochastic sampling like path tracing. It is based on the penumbra hypothesis that essentially tells us, that the penumbra (semi dark part of the shadow) requires higher linear resolution closer to the light source and higher angular resolution further away from it. This means that we need more probes that sample close to the light source and less probes that sample farther away from the source and cast more rays.
 
-These probes are structured in multiple cascades with higher linear resolution at lower casced and higher angular resolutions at higher cascades. Probes store sampled radiance of 4 rays as an optimization and are placed in such a way that hardware interpolation can be used to bilinearly interpolate 4 adjacent probes direction. When cascades are built, we then merge them down into the lowest cascade and use the accumulated radiance to render the scene.
+These probes are structured in multiple cascades with higher linear resolution at lower cascade and higher angular resolutions at higher cascades. Probes store sampled radiance of 4 rays as an optimization and are placed in such a way that hardware interpolation can be used to bilinearly interpolate 4 adjacent probes direction. When cascades are built, we then merge them down into the lowest cascade and use the accumulated radiance to render the scene.
 
-As stated before, this algorithm is noiseless and has constant cost, meaning it is independant of scene complexity, but can nevertheless be quite high.
+As stated before, this algorithm is noiseless and has constant cost, meaning it is independent of scene complexity, but can nevertheless be quite high.
 
-![A buch of spheres](/images/RadianceCascadesImg1.png)
+![A bunch of spheres](/images/RadianceCascadesImg1.png)
 ![Some rectangles](/images/RadianceCascadesImg2.png)
+
+## Fluid dynamics
+
+Navier-Stokes equation solver for incompressible fluids based on [GPU gems article](https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-38-fast-fluid-dynamics-simulation-gpu).
+
+We numerically solve the Navier-Stokes equation by a series of steps: first is adding forces and dye to the simulation, then advecting the dye and velocity by the velocity field, next diffusion and lastly clearing the divergence of the fluid. Making the fluid divergence free adds the swirls that make the fluid look realistic.
+
+![Fluid](/images/Fluid1.png)
+![More fluid](/images/Fluid2.png)
 
 ## Dependencies
 * [Vulkan SDK](https://vulkan.lunarg.com)
