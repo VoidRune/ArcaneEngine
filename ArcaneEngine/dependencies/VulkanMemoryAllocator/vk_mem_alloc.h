@@ -10487,7 +10487,7 @@ void VmaDeviceMemoryBlock::Destroy(VmaAllocator allocator)
     // Hitting it means you have some memory leak - unreleased VmaAllocation objects.
     VMA_ASSERT_LEAK(m_pMetadata->IsEmpty() && "Some allocations were not freed before destruction of this memory block!");
 
-    VMA_ASSERT_LEAK(m_hMemory != VK_NULL_HANDLE);
+        VMA_ASSERT_LEAK(m_hMemory != VK_NULL_HANDLE);
     allocator->FreeVulkanMemory(m_MemoryTypeIndex, m_pMetadata->GetSize(), m_hMemory);
     m_hMemory = VK_NULL_HANDLE;
 

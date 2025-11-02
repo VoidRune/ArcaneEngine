@@ -7,6 +7,8 @@
 #include "VulkanObjects/DescriptorSet.h"
 #include "VulkanObjects/Pipeline.h"
 #include "VulkanObjects/ComputePipeline.h"
+#include "VulkanObjects/AccelerationStructure.h"
+#include "VulkanObjects/RayTracingPipeline.h"
 #include <unordered_map>
 
 namespace Arc
@@ -32,6 +34,8 @@ namespace Arc
 		void AllocateDescriptorSetArray(DescriptorSetArray* descriptorArray, const DescriptorSetDesc& desc);
 		void CreatePipeline(Pipeline* pipeline, const PipelineDesc& desc);
 		void CreateComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& desc);
+		void CreateAccelerationStructure(AccelerationStructure* accelerationStructure, const AccelerationStructureDesc& desc);
+		void CreateRayTracingPipeline(RayTracingPipeline* pipeline, const RayTracingPipelineDesc& desc);
 
 		void ReleaseResource(GpuBuffer* gpuBuffer);
 		void ReleaseResource(GpuBufferArray* gpuBufferArray);
@@ -40,12 +44,18 @@ namespace Arc
 		void ReleaseResource(Shader* shader);
 		void ReleaseResource(Pipeline* pipeline);
 		void ReleaseResource(ComputePipeline* computePipeline);
+		void ReleaseResource(AccelerationStructure* accelerationStructure);
+		void ReleaseResource(RayTracingPipeline* raytracingPipeline);
 
 		void FreeResources();
 		void PrintHeapBudgets();
 
 	private:
+		Device* m_Device;
 		DeviceHandle m_LogicalDevice;
+		PhysicalDeviceHandle m_PhysicalDevice;
+		QueueHandle m_GraphicsQueue;
+		CommandPoolHandle m_CommandPool;
 		AllocatorHandle m_Allocator;
 		DescriptorPoolHandle m_DescriptorPool;
 		uint32_t m_FramesInFlight;
@@ -58,7 +68,9 @@ namespace Arc
 			Sampler,
 			Shader,
 			Pipeline,
-			ComputePipeline
+			ComputePipeline,
+			AccelerationStructure,
+			RayTracingPipeline
 		};
 
 		std::unordered_map<uint64_t, DescriptorSetLayoutHandle> m_DescriptorSetLayouts;

@@ -25,6 +25,13 @@ namespace Arc
 		SamplerHandle Sampler = nullptr;
 	};
 
+	struct PushAccelerationStructureWrite
+	{
+		uint32_t Binding = 0;
+		DescriptorType Type = {};
+		AccelerationStructureHandle AccelerationStructure = {};
+	};
+
 	class PushDescriptorWrite
 	{
 	public:
@@ -38,10 +45,16 @@ namespace Arc
 			m_ImageWrites.push_back(write);
 			return *this;
 		}
+		PushDescriptorWrite& AddWrite(const PushAccelerationStructureWrite& write)
+		{
+			m_AccelerationStructureWrites.push_back(write);
+			return *this;
+		}
 
 	private:
 		std::vector<PushBufferWrite> m_BufferWrites;
 		std::vector<PushImageWrite> m_ImageWrites;
+		std::vector<PushAccelerationStructureWrite> m_AccelerationStructureWrites;
 
 		friend class Device;
 		friend class CommandBuffer;

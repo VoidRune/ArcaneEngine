@@ -16,6 +16,9 @@ namespace Arc
 	class Shader
 	{
 	public:
+		ShaderModuleHandle GetHandle() { return m_Module; }
+		std::string GetEntryPoint() { return m_EntryPoint; }
+		ShaderStage GetShaderStage() { return m_ShaderStage; }
 
 	private:
 		ShaderModuleHandle m_Module;

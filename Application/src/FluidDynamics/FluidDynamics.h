@@ -43,7 +43,7 @@ private:
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
 
-	float m_Resolution = 1.0f;
+	float m_Resolution = 0.5f;
 	glm::ivec2 m_CanvasSize;
 	glm::ivec2 m_ThreadDispatchSize;
 	std::unique_ptr<Arc::GpuImage> m_Velocity1;

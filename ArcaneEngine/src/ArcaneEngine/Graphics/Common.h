@@ -21,6 +21,9 @@ namespace Arc
         IndexBuffer = 0x00000040,
         VertexBuffer = 0x00000080,
         IndirectBuffer = 0x00000100,
+        ShaderDeviceAddress = 0x00020000,
+        AccelerationStructureBuildInputReadOnly = 0x00080000,
+        AccelerationStructureStorage = 0x00100000,
     };
     inline BufferUsage operator|(BufferUsage a, BufferUsage b)
     {
@@ -180,6 +183,10 @@ namespace Arc
         Vertex = 0x00000001,
         Fragment = 0x00000010,
         Compute = 0x00000020,
+        RayGen = 0x00000100,
+        RayAnyHit = 0x00000200,
+        RayClosestHit = 0x00000400,
+        RayMiss = 0x00000800,
     };
     inline ShaderStage operator|(ShaderStage a, ShaderStage b)
     {
@@ -242,6 +249,7 @@ namespace Arc
     {
         Graphics = 0,
         Compute = 1,
+        RayTracing = 1000165000,
     };
 
     enum class AttachmentLoadOp

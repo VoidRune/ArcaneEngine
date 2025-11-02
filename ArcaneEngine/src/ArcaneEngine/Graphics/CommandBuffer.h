@@ -4,6 +4,7 @@
 #include "VulkanObjects/DescriptorSet.h"
 #include "VulkanObjects/DescriptorWrite.h"
 #include "VulkanObjects/PushDescriptorWrite.h"
+#include "VulkanObjects/RayTracingPipeline.h"
 #include "Common.h"
 #include <vector>
 #include <optional>
@@ -37,6 +38,8 @@ namespace Arc
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t vertexOffset, uint32_t firstInstance);
 		void BindComputePipeline(PipelineHandle pipeline);
 		void Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
+		void BindRayTracingPipeline(PipelineHandle pipeline);
+		void TraceRays(RayTracingPipeline* pipeline, uint32_t width, uint32_t height, uint32_t depth);
 
 		void TransitionImage(ImageHandle image, ImageLayout currentLayout, ImageLayout newLayout);
 		void ClearColorImage(ImageHandle image, const float clearColor[4], ImageLayout layout);

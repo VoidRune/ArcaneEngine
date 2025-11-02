@@ -5,6 +5,8 @@
 
 namespace Arc
 {
+	extern PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
+
 	CommandBuffer::CommandBuffer(DeviceHandle logicalDevice, CommandPoolHandle commandPool)
 	{
 		CommandBufferCreateInfo commandBufferCreateInfo = {
@@ -156,6 +158,29 @@ namespace Arc
 			writes.push_back(writeInfo);
 		}
 
+		std::vector<VkWriteDescriptorSetAccelerationStructureKHR> accelerationInfos;
+		accelerationInfos.reserve(descriptorWrite.m_AccelerationStructureWrites.size());
+
+		for (auto& sw : descriptorWrite.m_AccelerationStructureWrites)
+		{
+			VkAccelerationStructureKHR structure = (VkAccelerationStructureKHR)sw.AccelerationStructure;
+			VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo{};
+			descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+			descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
+			descriptorAccelerationStructureInfo.pAccelerationStructures = &structure;
+			accelerationInfos.push_back(descriptorAccelerationStructureInfo);
+
+			VkWriteDescriptorSet writeInfo = {};
+			writeInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writeInfo.pNext = &accelerationInfos[accelerationInfos.size() - 1];
+			writeInfo.dstSet = nullptr;
+			writeInfo.dstBinding = sw.Binding;
+			writeInfo.dstArrayElement = 0;
+			writeInfo.descriptorType = (VkDescriptorType)sw.Type;
+			writeInfo.descriptorCount = 1;
+			writes.push_back(writeInfo);
+		}
+
 		vkCmdPushDescriptorSet((VkCommandBuffer)m_CommandBuffer, static_cast<VkPipelineBindPoint>(bindPoint), (VkPipelineLayout)layout, set, (uint32_t)writes.size(), writes.data());
 	}
 
@@ -167,6 +192,11 @@ namespace Arc
 	void CommandBuffer::BindComputePipeline(PipelineHandle pipeline)
 	{
 		vkCmdBindPipeline((VkCommandBuffer)m_CommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, (VkPipeline)pipeline);
+	}
+
+	void CommandBuffer::BindRayTracingPipeline(PipelineHandle pipeline)
+	{
+		vkCmdBindPipeline((VkCommandBuffer)m_CommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, (VkPipeline)pipeline);
 	}
 
 	void CommandBuffer::PushConstants(ShaderStage shaderStage, PipelineLayoutHandle layout, const void* data, uint32_t size)
@@ -187,6 +217,33 @@ namespace Arc
 	void CommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
 	{
 		vkCmdDispatch((VkCommandBuffer)m_CommandBuffer, groupCountX, groupCountY, groupCountZ);
+	}
+
+	void CommandBuffer::TraceRays(RayTracingPipeline* pipeline, uint32_t width, uint32_t height, uint32_t depth)
+	{
+		VkStridedDeviceAddressRegionKHR rayGenSBT{};
+		rayGenSBT.deviceAddress = pipeline->GetRayGenShaderBindingTable().DeviceAddress;
+		rayGenSBT.stride = pipeline->GetRayGenShaderBindingTable().Stride;
+		rayGenSBT.size = pipeline->GetRayGenShaderBindingTable().Size;
+
+		VkStridedDeviceAddressRegionKHR rayMissSBT{};
+		rayMissSBT.deviceAddress = pipeline->GetRayMissShaderBindingTable().DeviceAddress;
+		rayMissSBT.stride = pipeline->GetRayMissShaderBindingTable().Stride;
+		rayMissSBT.size = pipeline->GetRayMissShaderBindingTable().Size;
+
+		VkStridedDeviceAddressRegionKHR rayClosestHitSBT{};
+		rayClosestHitSBT.deviceAddress = pipeline->GetRayClosestHitShaderBindingTable().DeviceAddress;
+		rayClosestHitSBT.stride = pipeline->GetRayClosestHitShaderBindingTable().Stride;
+		rayClosestHitSBT.size = pipeline->GetRayClosestHitShaderBindingTable().Size;
+
+		VkStridedDeviceAddressRegionKHR rayCallableSBT{};
+
+		vkCmdTraceRaysKHR((VkCommandBuffer)m_CommandBuffer,
+			&rayGenSBT,
+			&rayMissSBT,
+			&rayClosestHitSBT,
+			&rayCallableSBT,
+			width, height, depth);
 	}
 
 	void CommandBuffer::TransitionImage(ImageHandle image, ImageLayout currentLayout, ImageLayout newLayout)

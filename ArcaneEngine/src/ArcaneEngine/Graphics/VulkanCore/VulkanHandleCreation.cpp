@@ -235,6 +235,18 @@ namespace Arc
         return queueIndices;
     }
 
+    PFN_vkCreateRayTracingPipelinesKHR          vkCreateRayTracingPipelinesKHR = nullptr;
+    PFN_vkGetRayTracingShaderGroupHandlesKHR    vkGetRayTracingShaderGroupHandlesKHR = nullptr;
+    PFN_vkCmdTraceRaysKHR                       vkCmdTraceRaysKHR = nullptr;
+    PFN_vkCreateAccelerationStructureKHR        vkCreateAccelerationStructureKHR = nullptr;
+    PFN_vkDestroyAccelerationStructureKHR       vkDestroyAccelerationStructureKHR = nullptr;
+    PFN_vkCmdBuildAccelerationStructuresKHR     vkCmdBuildAccelerationStructuresKHR = nullptr;
+    PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;
+    PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR = nullptr;
+
+#define VK_LOAD_DEVICE_FUNC(name) \
+    name = reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))
+
     DeviceHandle CreateLogicalDeviceHandle(DeviceCreateInfo& info)
     {
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -267,9 +279,21 @@ namespace Arc
         features_1_3.dynamicRendering = VK_TRUE;
         features_1_3.synchronization2 = VK_TRUE;
 
+        VkPhysicalDeviceAccelerationStructureFeaturesKHR accelStructFeatures{};
+        accelStructFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+        accelStructFeatures.pNext = &features_1_3;
+        accelStructFeatures.accelerationStructure = VK_TRUE;
+
+        VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracingFeatures{};
+        rayTracingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+        rayTracingFeatures.pNext = &accelStructFeatures;
+        rayTracingFeatures.rayTracingPipeline = VK_TRUE;
+        rayTracingFeatures.rayTraversalPrimitiveCulling = VK_TRUE;
+
+
         VkPhysicalDeviceFeatures2 features2 = {};
         features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-        features2.pNext = &features_1_3;
+        features2.pNext = &rayTracingFeatures;
         features2.features = {};
 
         std::vector<const char*> deviceExtensions =
@@ -278,7 +302,8 @@ namespace Arc
             VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
             VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME
+            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME
         };
 
         VkDeviceCreateInfo createInfo{};
@@ -291,6 +316,16 @@ namespace Arc
 
         VkDevice device;
         VK_CHECK(vkCreateDevice((VkPhysicalDevice)info.physicalDevice, &createInfo, nullptr, &device));
+
+        VK_LOAD_DEVICE_FUNC(vkCreateRayTracingPipelinesKHR);
+        VK_LOAD_DEVICE_FUNC(vkGetRayTracingShaderGroupHandlesKHR);
+        VK_LOAD_DEVICE_FUNC(vkCmdTraceRaysKHR);
+        VK_LOAD_DEVICE_FUNC(vkCreateAccelerationStructureKHR);
+        VK_LOAD_DEVICE_FUNC(vkDestroyAccelerationStructureKHR);
+        VK_LOAD_DEVICE_FUNC(vkCmdBuildAccelerationStructuresKHR);
+        VK_LOAD_DEVICE_FUNC(vkGetAccelerationStructureBuildSizesKHR);
+        VK_LOAD_DEVICE_FUNC(vkGetAccelerationStructureDeviceAddressKHR);
+
         return device;
     }
 

@@ -64,7 +64,7 @@ int main()
 	auto presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), presentMode);
 
 	std::unique_ptr<RendererBase> renderer;
-	GetRenderer(3, renderer, window.get(), device.get(), presentQueue.get());
+	GetRenderer(4, renderer, window.get(), device.get(), presentQueue.get());
 	
 	Arc::Timer timer;
 	while (!window->IsClosed())

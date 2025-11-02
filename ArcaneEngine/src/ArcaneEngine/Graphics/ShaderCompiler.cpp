@@ -79,6 +79,9 @@ namespace Arc::ShaderCompiler
 		if (extension == ".vert") shaderStage = ShaderStage::Vertex;
 		else if (extension == ".frag") shaderStage = ShaderStage::Fragment;
 		else if (extension == ".comp") shaderStage = ShaderStage::Compute;
+		else if (extension == ".rgen") shaderStage = ShaderStage::RayGen;
+		else if (extension == ".rmiss") shaderStage = ShaderStage::RayMiss;
+		else if (extension == ".rchit") shaderStage = ShaderStage::RayClosestHit;
 		else
 		{
 			ARC_LOG_ERROR(std::string("Failed to descipher shader stage from file: ") + filePath.c_str());
@@ -93,7 +96,7 @@ namespace Arc::ShaderCompiler
 		shaderc::CompileOptions options;
 		options.SetIncluder(std::make_unique<ShaderIncluder>());
 
-		options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
+		options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_4);
 		const bool optimize = true;
 		if (optimize)
 			options.SetOptimizationLevel(shaderc_optimization_level_performance);
@@ -105,6 +108,9 @@ namespace Arc::ShaderCompiler
 		case Arc::ShaderStage::Vertex: shaderStageShaderc = shaderc_glsl_vertex_shader; break;
 		case Arc::ShaderStage::Fragment: shaderStageShaderc = shaderc_glsl_fragment_shader; break;
 		case Arc::ShaderStage::Compute: shaderStageShaderc = shaderc_glsl_compute_shader; break;
+		case Arc::ShaderStage::RayGen: shaderStageShaderc = shaderc_glsl_raygen_shader; break;
+		case Arc::ShaderStage::RayMiss: shaderStageShaderc = shaderc_glsl_miss_shader; break;
+		case Arc::ShaderStage::RayClosestHit: shaderStageShaderc = shaderc_glsl_closesthit_shader; break;
 		default:
 		{
 			ARC_LOG_ERROR(std::string("Unknown shader stage: ") + debugName);

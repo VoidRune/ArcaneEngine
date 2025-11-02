@@ -14,12 +14,15 @@ namespace Arc
         {
             ARC_LOG_FATAL("Failed to create ResourceCache object: Device pointer is not valid!");
         }
-
+        m_Device = device;
         m_LogicalDevice = device->GetLogicalDevice();
+        m_PhysicalDevice = device->GetPhysicalDevice();
         m_FramesInFlight = device->GetFramesInFlightCount();
+        m_GraphicsQueue = device->GetGraphicsQueue();
+        m_CommandPool = device->GetCommanPool();
 
         VmaAllocatorCreateInfo allocatorInfo = {};
-        allocatorInfo.physicalDevice = (VkPhysicalDevice)device->GetPhysicalDevice();
+        allocatorInfo.physicalDevice = (VkPhysicalDevice)m_PhysicalDevice;
         allocatorInfo.device = (VkDevice)m_LogicalDevice;
         allocatorInfo.instance = (VkInstance)device->GetInstance();
         allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
@@ -95,50 +98,47 @@ namespace Arc
             {
             case ResourceType::GpuBuffer:
             {
-                auto gpuBuffer = (GpuBuffer*)resource;
-                vmaDestroyBuffer((VmaAllocator)m_Allocator, (VkBuffer)gpuBuffer->m_Buffer, (VmaAllocation)gpuBuffer->m_Allocation);
+                ReleaseResource((GpuBuffer*)resource);
             }
             break;
             case ResourceType::GpuBufferArray:
             {
-                auto gpuBufferArray = (GpuBufferArray*)resource;
-                for (int i = 0; i < gpuBufferArray->m_Buffers.size(); i++)
-                {
-                    vmaDestroyBuffer((VmaAllocator)m_Allocator, (VkBuffer)gpuBufferArray->m_Buffers[i], (VmaAllocation)gpuBufferArray->m_Allocations[i]);
-                }
+                ReleaseResource((GpuBufferArray*)resource);
             }
             break;
             case ResourceType::GpuImage:
             {
-                auto gpuImage = (GpuImage*)resource;
-                vmaDestroyImage((VmaAllocator)m_Allocator, (VkImage)gpuImage->m_Image, (VmaAllocation)gpuImage->m_Allocation);
-                vkDestroyImageView((VkDevice)m_LogicalDevice, (VkImageView)gpuImage->m_ImageView, nullptr);
+                ReleaseResource((GpuImage*)resource);
             }
             break;
             case ResourceType::Sampler:
             {
-                auto sampler = (Sampler*)resource;
-                vkDestroySampler((VkDevice)m_LogicalDevice, (VkSampler)sampler->m_Sampler, nullptr);
+                ReleaseResource((Sampler*)resource);
             }
             break;
             case ResourceType::Shader:
             {
-                auto shader = (Shader*)resource;
-                vkDestroyShaderModule((VkDevice)m_LogicalDevice, (VkShaderModule)shader->m_Module, nullptr);
+                ReleaseResource((Shader*)resource);
             }
             break;
             case ResourceType::Pipeline:
             {
-                auto pipeline = (Pipeline*)resource;
-                vkDestroyPipelineLayout((VkDevice)m_LogicalDevice, (VkPipelineLayout)pipeline->m_PipelineLayout, nullptr);
-                vkDestroyPipeline((VkDevice)m_LogicalDevice, (VkPipeline)pipeline->m_Pipeline, nullptr);
+                ReleaseResource((Pipeline*)resource);
             }
             break;
             case ResourceType::ComputePipeline:
             {
-                auto computePipeline = (ComputePipeline*)resource;
-                vkDestroyPipelineLayout((VkDevice)m_LogicalDevice, (VkPipelineLayout)computePipeline->m_PipelineLayout, nullptr);
-                vkDestroyPipeline((VkDevice)m_LogicalDevice, (VkPipeline)computePipeline->m_Pipeline, nullptr);
+                ReleaseResource((ComputePipeline*)resource);
+            }
+            break;
+            case ResourceType::AccelerationStructure:
+            {
+                ReleaseResource((AccelerationStructure*)resource);
+            }
+            break;
+            case ResourceType::RayTracingPipeline:
+            {
+                ReleaseResource((RayTracingPipeline*)resource);
             }
             break;
             }
