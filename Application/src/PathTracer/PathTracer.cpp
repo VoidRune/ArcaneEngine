@@ -76,7 +76,7 @@ bool PathTracer::LoadObjModel(std::string filePath, std::vector<Vertex>& outVert
 					vertex.normal = {
 						attrib.normals[3 * idx.normal_index + 0],
 						attrib.normals[3 * idx.normal_index + 1],
-						attrib.normals[3 * idx.normal_index + 2]
+						attrib.normals[3 * idx.normal_index + 2]				
 					};
 				}
 				else {
@@ -125,12 +125,12 @@ void PathTracer::CreateAccelerationStructure()
 
 	m_ResourceCache->CreateGpuBuffer(m_VertexBuffer.get(), Arc::GpuBufferDesc{
 		.Size = (uint32_t)(vertices.size() * sizeof(Vertex)),
-		.UsageFlags = Arc::BufferUsage::ShaderDeviceAddress | Arc::BufferUsage::AccelerationStructureBuildInputReadOnly,
+		.UsageFlags = Arc::BufferUsage::StorageBuffer | Arc::BufferUsage::ShaderDeviceAddress | Arc::BufferUsage::AccelerationStructureBuildInputReadOnly,
 		.MemoryProperty = Arc::MemoryProperty::HostVisible,
 	});
 	m_ResourceCache->CreateGpuBuffer(m_IndexBuffer.get(), Arc::GpuBufferDesc{
 		.Size = (uint32_t)(indices.size() * sizeof(uint32_t)),
-		.UsageFlags = Arc::BufferUsage::ShaderDeviceAddress | Arc::BufferUsage::AccelerationStructureBuildInputReadOnly,
+		.UsageFlags = Arc::BufferUsage::StorageBuffer | Arc::BufferUsage::ShaderDeviceAddress | Arc::BufferUsage::AccelerationStructureBuildInputReadOnly,
 		.MemoryProperty = Arc::MemoryProperty::HostVisible,
 	});
 
@@ -211,19 +211,38 @@ void PathTracer::CreateImages()
 
 	m_Device->WaitIdle();
 
-	if (m_Image.get())
-		m_ResourceCache->ReleaseResource(m_Image.get());
+	if (m_OutputImage.get())
+		m_ResourceCache->ReleaseResource(m_OutputImage.get());
 
-	m_Image = std::make_unique<Arc::GpuImage>();
+	m_OutputImage = std::make_unique<Arc::GpuImage>();
 	auto imageDesc = Arc::GpuImageDesc{
 		.Extent = { w, h, 1 },
 		.Format = Arc::Format::R8G8B8A8_Unorm,
-		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::TransferDst | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
+		.UsageFlags = Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 		.AspectFlags = Arc::ImageAspect::Color,
 	};
-	m_ResourceCache->CreateGpuImage(m_Image.get(), imageDesc);
-	m_Device->TransitionImageLayout(m_Image.get(), Arc::ImageLayout::General);
+	m_ResourceCache->CreateGpuImage(m_OutputImage.get(), imageDesc);
+	//m_Device->TransitionImageLayout(m_OutputImage.get(), Arc::ImageLayout::General);
 
+	if (m_AccumulationImage1.get())
+		m_ResourceCache->ReleaseResource(m_AccumulationImage1.get());
+	if (m_AccumulationImage2.get())
+		m_ResourceCache->ReleaseResource(m_AccumulationImage2.get());
+	m_AccumulationImage1 = std::make_unique<Arc::GpuImage>();
+	m_AccumulationImage2 = std::make_unique<Arc::GpuImage>();
+	{
+		Arc::GpuImageDesc desc = Arc::GpuImageDesc{
+		.Extent = { w, h, 1},
+		.Format = Arc::Format::R32G32B32A32_Sfloat,
+		.UsageFlags = Arc::ImageUsage::Storage,
+		.AspectFlags = Arc::ImageAspect::Color,
+		.MipLevels = 1,
+		};
+		m_ResourceCache->CreateGpuImage(m_AccumulationImage1.get(), desc);
+		m_ResourceCache->CreateGpuImage(m_AccumulationImage2.get(), desc);
+		m_Device->TransitionImageLayout(m_AccumulationImage1.get(), Arc::ImageLayout::General);
+		m_Device->TransitionImageLayout(m_AccumulationImage2.get(), Arc::ImageLayout::General);
+	}
 	m_Device->WaitIdle();
 
 	m_Camera->AspectRatio = w / (float)h;
@@ -239,16 +258,24 @@ void PathTracer::RenderFrame(float elapsedTime)
 	static float lastTime = 0.0f;
 	float dt = elapsedTime - lastTime;
 	lastTime = elapsedTime;
+	m_IsEvenFrame = !m_IsEvenFrame;
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	std::this_thread::sleep_for(std::chrono::milliseconds(16));
 
 	Arc::FrameData frameData = m_PresentQueue->BeginFrame();
 	Arc::CommandBuffer* cmd = frameData.CommandBuffer;
 
 	m_Camera->Update(dt);
 
-	globalFrameData.inverseView = m_Camera->InverseView;
-	globalFrameData.inverseProjection = m_Camera->InverseProjection;
+	globalFrameData.InverseView = m_Camera->InverseView;
+	globalFrameData.InverseProjection = m_Camera->InverseProjection;
+	globalFrameData.FrameIndex++;
+
+	if (m_Camera->HasMoved)
+	{
+		globalFrameData.FrameIndex = 1;
+	}
+
 	{
 		void* data = m_ResourceCache->MapMemory(m_GlobalDataBuffer.get(), frameData.FrameIndex);
 		memcpy(data, &globalFrameData, sizeof(GlobalFrameData));
@@ -257,12 +284,30 @@ void PathTracer::RenderFrame(float elapsedTime)
 
 	m_RenderGraph->AddPass(Arc::RenderPass{
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
+			cmd->MemoryBarrier({
+			Arc::CommandBuffer::ImageBarrier{
+				.Handle = m_OutputImage->GetHandle(),
+				.OldLayout = Arc::ImageLayout::Undefined,
+				.NewLayout = Arc::ImageLayout::General,
+			} });
+
 			cmd->PushDescriptorSets(Arc::PipelineBindPoint::RayTracing, m_RayTracingPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 				.AddWrite(Arc::PushAccelerationStructureWrite(0, Arc::DescriptorType::AccelerationStructure, m_AccelerationStructure->GetTopLevelHandle()))
-				.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Image->GetImageView(), Arc::ImageLayout::General, nullptr))
-				.AddWrite(Arc::PushBufferWrite(2, Arc::DescriptorType::UniformBuffer, m_GlobalDataBuffer->GetHandle(frameIndex), m_GlobalDataBuffer->GetSize())));
+				.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_IsEvenFrame ? m_AccumulationImage1->GetImageView() : m_AccumulationImage2->GetImageView(), Arc::ImageLayout::General, nullptr))
+				.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_IsEvenFrame ? m_AccumulationImage2->GetImageView() : m_AccumulationImage1->GetImageView(), Arc::ImageLayout::General, nullptr))
+				.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_OutputImage->GetImageView(), Arc::ImageLayout::General, nullptr))
+				.AddWrite(Arc::PushBufferWrite(4, Arc::DescriptorType::UniformBuffer, m_GlobalDataBuffer->GetHandle(frameIndex), m_GlobalDataBuffer->GetSize()))
+				.AddWrite(Arc::PushBufferWrite(5, Arc::DescriptorType::StorageBuffer, m_VertexBuffer->GetHandle(), m_VertexBuffer->GetSize()))
+				.AddWrite(Arc::PushBufferWrite(6, Arc::DescriptorType::StorageBuffer, m_IndexBuffer->GetHandle(), m_IndexBuffer->GetSize())));
 			cmd->BindRayTracingPipeline(m_RayTracingPipeline->GetHandle());
-			cmd->TraceRays(m_RayTracingPipeline.get(), m_Image->GetExtent()[0], m_Image->GetExtent()[1], 1);
+			cmd->TraceRays(m_RayTracingPipeline.get(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 1);
+		
+			cmd->MemoryBarrier({
+			Arc::CommandBuffer::ImageBarrier{
+				.Handle = m_OutputImage->GetHandle(),
+				.OldLayout = Arc::ImageLayout::General,
+				.NewLayout = Arc::ImageLayout::ShaderReadOnlyOptimal
+			} });
 		}
 	});
 
@@ -272,7 +317,7 @@ void PathTracer::RenderFrame(float elapsedTime)
 		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
 			cmd->BindPipeline(m_CompositePipeline->GetHandle());
 			cmd->PushDescriptorSets(Arc::PipelineBindPoint::Graphics, m_CompositePipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
-				.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::CombinedImageSampler, m_Image->GetImageView(), Arc::ImageLayout::General, m_NearestSampler->GetHandle())));
+				.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::CombinedImageSampler, m_OutputImage->GetImageView(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_NearestSampler->GetHandle())));
 			cmd->Draw(6, 1, 0, 0);
 		}
 	});

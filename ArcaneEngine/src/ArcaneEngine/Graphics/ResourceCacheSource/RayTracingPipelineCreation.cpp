@@ -34,22 +34,51 @@ namespace Arc
         accelerationStructureLayoutBinding.descriptorCount = 1;
         accelerationStructureLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 
+        VkDescriptorSetLayoutBinding accumulation1LayoutBinding{};
+        accumulation1LayoutBinding.binding = 1;
+        accumulation1LayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        accumulation1LayoutBinding.descriptorCount = 1;
+        accumulation1LayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+        VkDescriptorSetLayoutBinding accumulation2LayoutBinding{};
+        accumulation2LayoutBinding.binding = 2;
+        accumulation2LayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        accumulation2LayoutBinding.descriptorCount = 1;
+        accumulation2LayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
         VkDescriptorSetLayoutBinding resultImageLayoutBinding{};
-        resultImageLayoutBinding.binding = 1;
+        resultImageLayoutBinding.binding = 3;
         resultImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         resultImageLayoutBinding.descriptorCount = 1;
         resultImageLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 
         VkDescriptorSetLayoutBinding uniformBufferBinding{};
-        uniformBufferBinding.binding = 2;
+        uniformBufferBinding.binding = 4;
         uniformBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         uniformBufferBinding.descriptorCount = 1;
         uniformBufferBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 
+        VkDescriptorSetLayoutBinding vertexBufferBinding{};
+        vertexBufferBinding.binding = 5;
+        vertexBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        vertexBufferBinding.descriptorCount = 1;
+        vertexBufferBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+        VkDescriptorSetLayoutBinding indexBufferBinding{};
+        indexBufferBinding.binding = 6;
+        indexBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        indexBufferBinding.descriptorCount = 1;
+        indexBufferBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+
         std::vector<VkDescriptorSetLayoutBinding> bindings({
             accelerationStructureLayoutBinding,
+            accumulation1LayoutBinding,
+            accumulation2LayoutBinding,
             resultImageLayoutBinding,
-            uniformBufferBinding
+            uniformBufferBinding,
+            vertexBufferBinding,
+            indexBufferBinding
             });
 
         VkDescriptorSetLayoutCreateInfo descriptorSetlayoutCI{};
