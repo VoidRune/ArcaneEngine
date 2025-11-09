@@ -131,9 +131,14 @@ namespace Arc
                 ReleaseResource((ComputePipeline*)resource);
             }
             break;
-            case ResourceType::AccelerationStructure:
+            case ResourceType::BottomLevelAS:
             {
-                ReleaseResource((AccelerationStructure*)resource);
+                ReleaseResource((BottomLevelAS*)resource);
+            }
+            break;
+            case ResourceType::TopLevelAS:
+            {
+                ReleaseResource((TopLevelAS*)resource);
             }
             break;
             case ResourceType::RayTracingPipeline:

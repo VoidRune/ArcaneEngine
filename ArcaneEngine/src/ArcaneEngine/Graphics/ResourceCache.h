@@ -7,7 +7,8 @@
 #include "VulkanObjects/DescriptorSet.h"
 #include "VulkanObjects/Pipeline.h"
 #include "VulkanObjects/ComputePipeline.h"
-#include "VulkanObjects/AccelerationStructure.h"
+#include "VulkanObjects/BottomLevelAS.h"
+#include "VulkanObjects/TopLevelAS.h"
 #include "VulkanObjects/RayTracingPipeline.h"
 #include <unordered_map>
 
@@ -34,7 +35,8 @@ namespace Arc
 		void AllocateDescriptorSetArray(DescriptorSetArray* descriptorArray, const DescriptorSetDesc& desc);
 		void CreatePipeline(Pipeline* pipeline, const PipelineDesc& desc);
 		void CreateComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& desc);
-		void CreateAccelerationStructure(AccelerationStructure* accelerationStructure, const AccelerationStructureDesc& desc);
+		void CreateBottomLevelAS(BottomLevelAS* accelerationStructure, const BottomLevelASDesc& desc);
+		void CreateTopLevelAS(TopLevelAS* accelerationStructure, const TopLevelASDesc& desc);
 		void CreateRayTracingPipeline(RayTracingPipeline* pipeline, const RayTracingPipelineDesc& desc);
 
 		void ReleaseResource(GpuBuffer* gpuBuffer);
@@ -44,7 +46,8 @@ namespace Arc
 		void ReleaseResource(Shader* shader);
 		void ReleaseResource(Pipeline* pipeline);
 		void ReleaseResource(ComputePipeline* computePipeline);
-		void ReleaseResource(AccelerationStructure* accelerationStructure);
+		void ReleaseResource(BottomLevelAS* bottomLevelAS);
+		void ReleaseResource(TopLevelAS* topLevelAS);
 		void ReleaseResource(RayTracingPipeline* raytracingPipeline);
 
 		void FreeResources();
@@ -69,7 +72,8 @@ namespace Arc
 			Shader,
 			Pipeline,
 			ComputePipeline,
-			AccelerationStructure,
+			BottomLevelAS,
+			TopLevelAS,
 			RayTracingPipeline
 		};
 

@@ -46,6 +46,13 @@ private:
 	};
 	bool LoadObjModel(std::string filePath, std::vector<Vertex>& outVertices, std::vector<uint32_t>& outIndices);
 
+	struct Model
+	{
+		Arc::GpuBuffer VertexBuffer;
+		Arc::GpuBuffer IndexBuffer;
+		Arc::BottomLevelAS BottomLevelAS;
+	};
+	void LoadModel(std::string filepath, Model* model);
 
 	Arc::Window* m_Window;
 	Arc::Device* m_Device;
@@ -64,17 +71,17 @@ private:
 	std::unique_ptr<CameraFP> m_Camera;
 	bool m_IsEvenFrame = false;
 
-	std::unique_ptr<Arc::GpuBuffer> m_VertexBuffer;
-	std::unique_ptr<Arc::GpuBuffer> m_IndexBuffer;
-
 	std::unique_ptr<Arc::Shader> m_RayGenShader;
 	std::unique_ptr<Arc::Shader> m_RayMissShader;
 	std::unique_ptr<Arc::Shader> m_RayClosestHitShader;
 	std::unique_ptr<Arc::RayTracingPipeline> m_RayTracingPipeline;
-	std::unique_ptr<Arc::AccelerationStructure> m_AccelerationStructure;
 	std::unique_ptr<Arc::GpuImage> m_AccumulationImage1;
 	std::unique_ptr<Arc::GpuImage> m_AccumulationImage2;
 	std::unique_ptr<Arc::GpuImage> m_OutputImage;
+
+	std::unique_ptr<Model> m_Sponza;
+	std::unique_ptr<Model> m_Dragon;
+	std::unique_ptr<Arc::TopLevelAS> m_Scene;
 
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;

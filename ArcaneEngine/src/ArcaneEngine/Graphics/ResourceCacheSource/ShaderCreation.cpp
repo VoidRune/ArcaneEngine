@@ -184,6 +184,24 @@ namespace Arc
             shader->m_LayoutBindings.push_back(layoutBinding);
         }
 
+        for (const auto& resource : resources.acceleration_structures)
+        {
+            const auto& bufferType = compiler.get_type(resource.base_type_id);
+            uint32_t set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+            uint32_t binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
+            const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
+            uint32_t count = 1;
+            if (type.array.size() > 0)
+                count = type.array[0];
+
+            Shader::DescriptorLayoutBinding layoutBinding;
+            layoutBinding.setIndex = set;
+            layoutBinding.binding = binding;
+            layoutBinding.descriptorCount = count;
+            layoutBinding.descriptorType = DescriptorType::AccelerationStructure;
+            shader->m_LayoutBindings.push_back(layoutBinding);
+        }
+
         m_Resources[shader] = ResourceType::Shader;
 	}
 

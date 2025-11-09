@@ -37,11 +37,13 @@ void main()
     vec3 n2 = vertices[i2].normal;
 
     vec3 bary = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
-    vec3 pos = p0 * bary.x + p1 * bary.y + p2 * bary.z;
-    vec3 normal = normalize(n0 * bary.x + n1 * bary.y + n2 * bary.z);
+    vec3 localPosition = p0 * bary.x + p1 * bary.y + p2 * bary.z;
+    vec3 position = gl_ObjectToWorldEXT * vec4(localPosition, 1.0);
 
-    payload.color = vec3(0.2, 0.8, 0.2);
-    payload.origin = pos;
-    payload.normal = normal;
+    vec3 localNormal = normalize(n0 * bary.x + n1 * bary.y + n2 * bary.z);
+
+    payload.color = vec3(1);
+    payload.origin = position;
+    payload.normal = localNormal;
     payload.hitInfo = 1;
 }

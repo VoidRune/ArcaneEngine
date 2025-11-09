@@ -10,11 +10,6 @@ namespace Arc
 
 	void ResourceCache::CreateComputePipeline(ComputePipeline* pipeline, const ComputePipelineDesc& desc)
 	{
-        VkPushConstantRange pushConstantRange = {};
-        pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        pushConstantRange.offset = 0;
-        pushConstantRange.size = desc.Shader->m_PushConstantSize;
-
         std::map<uint32_t, std::map<uint32_t, VkDescriptorSetLayoutBinding>> bindings;
         for (auto& b : desc.Shader->m_LayoutBindings)
         {
@@ -44,6 +39,10 @@ namespace Arc
             layouts.push_back(GetDescriptorSetLayout((VkDevice)m_LogicalDevice, m_DescriptorSetLayouts, layoutBindings, flags));
         }
 
+        VkPushConstantRange pushConstantRange = {};
+        pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        pushConstantRange.offset = 0;
+        pushConstantRange.size = desc.Shader->m_PushConstantSize;
 
         VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

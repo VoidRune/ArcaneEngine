@@ -17,6 +17,11 @@ namespace Arc
 		m_CommandBuffer = CreateCommandBufferHandle(commandBufferCreateInfo);
 	}
 
+	CommandBuffer::CommandBuffer(CommandBufferHandle commandBuffer)
+	{
+		m_CommandBuffer = commandBuffer;
+	}
+
 	CommandBuffer::~CommandBuffer()
 	{
 		

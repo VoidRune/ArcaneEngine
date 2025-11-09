@@ -109,49 +109,71 @@ bool PathTracer::LoadObjModel(std::string filePath, std::vector<Vertex>& outVert
 	return true;
 }
 
-void PathTracer::CreateAccelerationStructure()
+void PathTracer::LoadModel(std::string filepath, Model* model)
 {
-
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
 
-	if (!LoadObjModel("res/3DModels/dragon.obj", vertices, indices)) {
-		ARC_LOG_ERROR("Failed to load OBJ!");
+	if (!LoadObjModel(filepath.c_str(), vertices, indices)) {
+		ARC_LOG_ERROR("Failed to load OBJ! {}", filepath.c_str());
 		return;
 	}
 
-	m_VertexBuffer = std::make_unique<Arc::GpuBuffer>();
-	m_IndexBuffer = std::make_unique<Arc::GpuBuffer>();
-
-	m_ResourceCache->CreateGpuBuffer(m_VertexBuffer.get(), Arc::GpuBufferDesc{
+	m_ResourceCache->CreateGpuBuffer(&model->VertexBuffer, Arc::GpuBufferDesc{
 		.Size = (uint32_t)(vertices.size() * sizeof(Vertex)),
 		.UsageFlags = Arc::BufferUsage::StorageBuffer | Arc::BufferUsage::ShaderDeviceAddress | Arc::BufferUsage::AccelerationStructureBuildInputReadOnly,
 		.MemoryProperty = Arc::MemoryProperty::HostVisible,
-	});
-	m_ResourceCache->CreateGpuBuffer(m_IndexBuffer.get(), Arc::GpuBufferDesc{
+		});
+	m_ResourceCache->CreateGpuBuffer(&model->IndexBuffer, Arc::GpuBufferDesc{
 		.Size = (uint32_t)(indices.size() * sizeof(uint32_t)),
 		.UsageFlags = Arc::BufferUsage::StorageBuffer | Arc::BufferUsage::ShaderDeviceAddress | Arc::BufferUsage::AccelerationStructureBuildInputReadOnly,
 		.MemoryProperty = Arc::MemoryProperty::HostVisible,
-	});
+		});
 
-	void* data = m_ResourceCache->MapMemory(m_VertexBuffer.get());
+	void* data = m_ResourceCache->MapMemory(&model->VertexBuffer);
 	memcpy(data, vertices.data(), vertices.size() * sizeof(Vertex));
-	m_ResourceCache->UnmapMemory(m_VertexBuffer.get());
+	m_ResourceCache->UnmapMemory(&model->VertexBuffer);
 
-	data = m_ResourceCache->MapMemory(m_IndexBuffer.get());
+	data = m_ResourceCache->MapMemory(&model->IndexBuffer);
 	memcpy(data, indices.data(), indices.size() * sizeof(uint32_t));
-	m_ResourceCache->UnmapMemory(m_IndexBuffer.get());
+	m_ResourceCache->UnmapMemory(&model->IndexBuffer);
 
-	m_AccelerationStructure = std::make_unique<Arc::AccelerationStructure>();
-	m_ResourceCache->CreateAccelerationStructure(m_AccelerationStructure.get(), Arc::AccelerationStructureDesc{
-		.BLAccelerationStructure = Arc::BLAccelerationStructure{
-			.VertexBuffer = m_VertexBuffer->GetHandle(),
-			.IndexBuffer = m_IndexBuffer->GetHandle(),
-			.VertexStride = sizeof(Vertex),
-			.NumOfTriangles = (uint32_t)indices.size() / 3,
-			.Format = Arc::Format::R32G32B32_Sfloat
-		}
+	m_ResourceCache->CreateBottomLevelAS(&model->BottomLevelAS, Arc::BottomLevelASDesc{
+		.VertexBuffer = model->VertexBuffer.GetHandle(),
+		.IndexBuffer = model->IndexBuffer.GetHandle(),
+		.VertexStride = sizeof(Vertex),
+		.NumTriangles = (uint32_t)indices.size() / 3,
+		.VertexFormat = Arc::Format::R32G32B32_Sfloat
+		});
+}
+
+void PathTracer::CreateAccelerationStructure()
+{
+	m_Sponza = std::make_unique<Model>();
+	LoadModel("res/3DModels/sponza.obj", m_Sponza.get());
+	//m_Dragon = std::make_unique<Model>();
+	//LoadModel("res/3DModels/dragon.obj", m_Dragon.get());
+
+	m_Scene = std::make_unique<Arc::TopLevelAS>();
+	m_ResourceCache->CreateTopLevelAS(m_Scene.get(), Arc::TopLevelASDesc{});
+
+	m_Scene->AddInstance(Arc::TopLevelASInstance{
+		.BottomLevelASHandle = m_Sponza->BottomLevelAS.GetHandle(),
+		.TransformMatrix = {
+			0.001, 0.0, 0.0, 1.0,
+			0.0, 0.001, 0.0, -0.04,
+			0.0, 0.0, 0.001, -0.05
+		} 
 	});
+	//m_Scene->AddInstance(Arc::TopLevelASInstance{
+	//	.BottomLevelASHandle = m_Dragon->BottomLevelAS.GetHandle(),
+	//	.TransformMatrix = {
+	//		1.0, 0.0, 0.0, 0.0,
+	//		0.0, 1.0, 0.0, 0.0,
+	//		0.0, 0.0, 1.0, 0.0
+	//	}
+	//});
+	m_Scene->Build();
 }
 
 void PathTracer::CreatePipelines()
@@ -176,7 +198,8 @@ void PathTracer::CreatePipelines()
 
 	m_RayTracingPipeline = std::make_unique<Arc::RayTracingPipeline>();
 	m_ResourceCache->CreateRayTracingPipeline(m_RayTracingPipeline.get(), Arc::RayTracingPipelineDesc{
-		.ShaderStages = { m_RayGenShader.get(), m_RayMissShader.get(), m_RayClosestHitShader.get()}
+		.ShaderStages = { m_RayGenShader.get(), m_RayMissShader.get(), m_RayClosestHitShader.get()},
+		.UsePushDescriptors = true
 	});
 
 	m_CompositePipeline = std::make_unique<Arc::Pipeline>();;
@@ -222,7 +245,6 @@ void PathTracer::CreateImages()
 		.AspectFlags = Arc::ImageAspect::Color,
 	};
 	m_ResourceCache->CreateGpuImage(m_OutputImage.get(), imageDesc);
-	//m_Device->TransitionImageLayout(m_OutputImage.get(), Arc::ImageLayout::General);
 
 	if (m_AccumulationImage1.get())
 		m_ResourceCache->ReleaseResource(m_AccumulationImage1.get());
@@ -234,14 +256,20 @@ void PathTracer::CreateImages()
 		Arc::GpuImageDesc desc = Arc::GpuImageDesc{
 		.Extent = { w, h, 1},
 		.Format = Arc::Format::R32G32B32A32_Sfloat,
-		.UsageFlags = Arc::ImageUsage::Storage,
+		.UsageFlags = Arc::ImageUsage::TransferDst | Arc::ImageUsage::Storage,
 		.AspectFlags = Arc::ImageAspect::Color,
 		.MipLevels = 1,
 		};
 		m_ResourceCache->CreateGpuImage(m_AccumulationImage1.get(), desc);
 		m_ResourceCache->CreateGpuImage(m_AccumulationImage2.get(), desc);
-		m_Device->TransitionImageLayout(m_AccumulationImage1.get(), Arc::ImageLayout::General);
-		m_Device->TransitionImageLayout(m_AccumulationImage2.get(), Arc::ImageLayout::General);
+		const float clearColor[4] = {0.0, 0.0, 0.0, 0.0};
+		m_Device->ImmediateSubmit([&](Arc::CommandBufferHandle cmdHandle) {
+			Arc::CommandBuffer cmd(cmdHandle);
+			cmd.TransitionImage(m_AccumulationImage1->GetHandle(), Arc::ImageLayout::Undefined, Arc::ImageLayout::General);
+			cmd.TransitionImage(m_AccumulationImage2->GetHandle(), Arc::ImageLayout::Undefined, Arc::ImageLayout::General);
+			cmd.ClearColorImage(m_AccumulationImage1->GetHandle(), clearColor, Arc::ImageLayout::General);
+			cmd.ClearColorImage(m_AccumulationImage2->GetHandle(), clearColor, Arc::ImageLayout::General);
+		});
 	}
 	m_Device->WaitIdle();
 
@@ -292,13 +320,13 @@ void PathTracer::RenderFrame(float elapsedTime)
 			} });
 
 			cmd->PushDescriptorSets(Arc::PipelineBindPoint::RayTracing, m_RayTracingPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
-				.AddWrite(Arc::PushAccelerationStructureWrite(0, Arc::DescriptorType::AccelerationStructure, m_AccelerationStructure->GetTopLevelHandle()))
+				.AddWrite(Arc::PushAccelerationStructureWrite(0, Arc::DescriptorType::AccelerationStructure, m_Scene->GetHandle()))
 				.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_IsEvenFrame ? m_AccumulationImage1->GetImageView() : m_AccumulationImage2->GetImageView(), Arc::ImageLayout::General, nullptr))
 				.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_IsEvenFrame ? m_AccumulationImage2->GetImageView() : m_AccumulationImage1->GetImageView(), Arc::ImageLayout::General, nullptr))
 				.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_OutputImage->GetImageView(), Arc::ImageLayout::General, nullptr))
 				.AddWrite(Arc::PushBufferWrite(4, Arc::DescriptorType::UniformBuffer, m_GlobalDataBuffer->GetHandle(frameIndex), m_GlobalDataBuffer->GetSize()))
-				.AddWrite(Arc::PushBufferWrite(5, Arc::DescriptorType::StorageBuffer, m_VertexBuffer->GetHandle(), m_VertexBuffer->GetSize()))
-				.AddWrite(Arc::PushBufferWrite(6, Arc::DescriptorType::StorageBuffer, m_IndexBuffer->GetHandle(), m_IndexBuffer->GetSize())));
+				.AddWrite(Arc::PushBufferWrite(5, Arc::DescriptorType::StorageBuffer, m_Sponza->VertexBuffer.GetHandle(), m_Sponza->VertexBuffer.GetSize()))
+				.AddWrite(Arc::PushBufferWrite(6, Arc::DescriptorType::StorageBuffer, m_Sponza->IndexBuffer.GetHandle(), m_Sponza->IndexBuffer.GetSize())));
 			cmd->BindRayTracingPipeline(m_RayTracingPipeline->GetHandle());
 			cmd->TraceRays(m_RayTracingPipeline.get(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 1);
 		
@@ -331,6 +359,7 @@ void PathTracer::RenderFrame(float elapsedTime)
 void PathTracer::SwapchainResized(void* presentQueue)
 {
 	m_PresentQueue = static_cast<Arc::PresentQueue*>(presentQueue);
+	globalFrameData.FrameIndex = 0;
 	CreateImages();
 }
 

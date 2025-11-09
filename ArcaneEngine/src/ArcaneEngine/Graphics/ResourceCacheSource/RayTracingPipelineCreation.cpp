@@ -25,76 +25,70 @@ namespace Arc
 
     extern PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
     extern PFN_vkGetRayTracingShaderGroupHandlesKHR  vkGetRayTracingShaderGroupHandlesKHR;
+    extern VkDescriptorSetLayout GetDescriptorSetLayout(VkDevice device, std::unordered_map<uint64_t, DescriptorSetLayoutHandle>& map, const std::vector<VkDescriptorSetLayoutBinding>& bindings, uint32_t flags);
 
     void ResourceCache::CreateRayTracingPipeline(RayTracingPipeline* pipeline, const RayTracingPipelineDesc& desc)
     {
-        VkDescriptorSetLayoutBinding accelerationStructureLayoutBinding{};
-        accelerationStructureLayoutBinding.binding = 0;
-        accelerationStructureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-        accelerationStructureLayoutBinding.descriptorCount = 1;
-        accelerationStructureLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        std::map<uint32_t, std::map<uint32_t, VkDescriptorSetLayoutBinding>> bindings;
+        for (const auto& shader : desc.ShaderStages)
+        {
+            for (auto& b : shader->m_LayoutBindings)
+            {
+                auto& set = bindings[b.setIndex];
+                if (!set.contains(b.binding))
+                {
+                    VkDescriptorSetLayoutBinding binding = {};
+                    binding.binding = b.binding;
+                    binding.descriptorType = (VkDescriptorType)b.descriptorType;
+                    binding.descriptorCount = b.descriptorCount;
+                    binding.stageFlags = (VkShaderStageFlags)shader->m_ShaderStage;
+                    set[b.binding] = binding;
+                }
+                else
+                {
+                    set[b.binding].stageFlags |= (VkShaderStageFlagBits)shader->m_ShaderStage;
+                }
+            }
+        }
 
-        VkDescriptorSetLayoutBinding accumulation1LayoutBinding{};
-        accumulation1LayoutBinding.binding = 1;
-        accumulation1LayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        accumulation1LayoutBinding.descriptorCount = 1;
-        accumulation1LayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        std::vector<VkDescriptorSetLayout> layouts;
+        for (auto& set : bindings)
+        {
+            uint32_t flags = desc.UsePushDescriptors ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT : 0;
+            std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+            for (auto& binding : set.second)
+            {
+                layoutBindings.push_back(binding.second);
+                //if (binding.second.descriptorCount >= MAX_BINDLESS_DESCRIPTOR_COUNT)
+                //    flags |= (uint32_t)DescriptorFlags::Bindless;
+            }
+            layouts.push_back(GetDescriptorSetLayout((VkDevice)m_LogicalDevice, m_DescriptorSetLayouts, layoutBindings, flags));
+        }
 
-        VkDescriptorSetLayoutBinding accumulation2LayoutBinding{};
-        accumulation2LayoutBinding.binding = 2;
-        accumulation2LayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        accumulation2LayoutBinding.descriptorCount = 1;
-        accumulation2LayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        uint32_t pushConstantSize = 0;
+        for (const auto& shader : desc.ShaderStages)
+        {
+            if (shader->m_PushConstantSize > pushConstantSize)
+                pushConstantSize = shader->m_PushConstantSize;
+        }
 
-        VkDescriptorSetLayoutBinding resultImageLayoutBinding{};
-        resultImageLayoutBinding.binding = 3;
-        resultImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        resultImageLayoutBinding.descriptorCount = 1;
-        resultImageLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        VkPushConstantRange pushConstantRange{};
+        pushConstantRange.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR;
+        pushConstantRange.offset = 0;
+        pushConstantRange.size = pushConstantSize;
 
-        VkDescriptorSetLayoutBinding uniformBufferBinding{};
-        uniformBufferBinding.binding = 4;
-        uniformBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uniformBufferBinding.descriptorCount = 1;
-        uniformBufferBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layouts.size());
+        pipelineLayoutInfo.pSetLayouts = layouts.data();
+        if (pushConstantSize > 0)
+        {
+            pipelineLayoutInfo.pushConstantRangeCount = 1;
+            pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        }
 
-        VkDescriptorSetLayoutBinding vertexBufferBinding{};
-        vertexBufferBinding.binding = 5;
-        vertexBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        vertexBufferBinding.descriptorCount = 1;
-        vertexBufferBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-
-        VkDescriptorSetLayoutBinding indexBufferBinding{};
-        indexBufferBinding.binding = 6;
-        indexBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        indexBufferBinding.descriptorCount = 1;
-        indexBufferBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-
-
-        std::vector<VkDescriptorSetLayoutBinding> bindings({
-            accelerationStructureLayoutBinding,
-            accumulation1LayoutBinding,
-            accumulation2LayoutBinding,
-            resultImageLayoutBinding,
-            uniformBufferBinding,
-            vertexBufferBinding,
-            indexBufferBinding
-            });
-
-        VkDescriptorSetLayoutCreateInfo descriptorSetlayoutCI{};
-        descriptorSetlayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        descriptorSetlayoutCI.bindingCount = static_cast<uint32_t>(bindings.size());
-        descriptorSetlayoutCI.pBindings = bindings.data();
-        descriptorSetlayoutCI.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT;
-        VkDescriptorSetLayout descriptorSetLayout;
-        VK_CHECK(vkCreateDescriptorSetLayout((VkDevice)m_LogicalDevice, &descriptorSetlayoutCI, nullptr, &descriptorSetLayout));
-
-        VkPipelineLayoutCreateInfo pipelineLayoutCI{};
-        pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutCI.setLayoutCount = 1;
-        pipelineLayoutCI.pSetLayouts = &descriptorSetLayout;
         VkPipelineLayout pipelineLayout;
-        VK_CHECK(vkCreatePipelineLayout((VkDevice)m_LogicalDevice, &pipelineLayoutCI, nullptr, &pipelineLayout));
+        VK_CHECK(vkCreatePipelineLayout((VkDevice)m_LogicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout));
 
         std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
         std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups;

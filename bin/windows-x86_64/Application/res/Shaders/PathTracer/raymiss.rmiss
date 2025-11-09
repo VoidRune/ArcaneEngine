@@ -23,7 +23,8 @@ vec3 SampleEnvironment(vec3 dir)
 void main()
 {
     vec3 dir = normalize(gl_WorldRayDirectionEXT);
-    payload.color = SampleEnvironment(dir);
+    //payload.color = SampleEnvironment(dir);
+    payload.color = vec3(4);
     payload.origin = vec3(0);
     payload.normal = vec3(0);
     payload.hitInfo = 0;

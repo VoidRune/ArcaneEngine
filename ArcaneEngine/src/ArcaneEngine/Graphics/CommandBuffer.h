@@ -15,6 +15,7 @@ namespace Arc
 	{
 	public:
 		CommandBuffer(DeviceHandle logicalDevice, CommandPoolHandle commandPool);
+		CommandBuffer(CommandBufferHandle commandBuffer);
 		~CommandBuffer();
 
 		void Begin();
