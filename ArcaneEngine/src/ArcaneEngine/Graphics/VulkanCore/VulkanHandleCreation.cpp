@@ -272,6 +272,10 @@ namespace Arc
         features_1_2.bufferDeviceAddress = VK_TRUE;
         features_1_2.descriptorIndexing = VK_TRUE;
         features_1_2.hostQueryReset = VK_TRUE;
+        features_1_2.scalarBlockLayout = VK_TRUE;
+        features_1_2.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
+        features_1_2.descriptorBindingPartiallyBound = VK_TRUE;
+        features_1_2.runtimeDescriptorArray = VK_TRUE;
 
         VkPhysicalDeviceVulkan13Features features_1_3 = {};
         features_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
@@ -289,7 +293,6 @@ namespace Arc
         rayTracingFeatures.pNext = &accelStructFeatures;
         rayTracingFeatures.rayTracingPipeline = VK_TRUE;
         rayTracingFeatures.rayTraversalPrimitiveCulling = VK_TRUE;
-
 
         VkPhysicalDeviceFeatures2 features2 = {};
         features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;

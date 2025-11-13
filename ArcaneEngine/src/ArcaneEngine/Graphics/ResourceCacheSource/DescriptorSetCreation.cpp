@@ -15,7 +15,7 @@ namespace Arc
         {
             VkDescriptorSetLayoutBinding binding = {};
             binding.binding = i;
-            binding.descriptorCount = 1;
+            binding.descriptorCount = desc.Bindings[i].Flags == DescriptorFlag::Bindless ? 1024 : 1;
             binding.descriptorType = (VkDescriptorType)desc.Bindings[i].Type;
             binding.stageFlags = (VkShaderStageFlags)desc.Bindings[i].ShaderStage;
             binding.pImmutableSamplers = nullptr;

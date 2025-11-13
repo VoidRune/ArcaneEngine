@@ -30,7 +30,6 @@ PathTracer::PathTracer(Arc::Window* window, Arc::Device* device, Arc::PresentQue
 		.UsageFlags = Arc::BufferUsage::UniformBuffer,
 		.MemoryProperty = Arc::MemoryProperty::HostVisible,
 		});
-
 }
 
 bool PathTracer::LoadObjModel(std::string filePath, std::vector<Vertex>& outVertices, std::vector<uint32_t>& outIndices)
@@ -151,29 +150,46 @@ void PathTracer::CreateAccelerationStructure()
 {
 	m_Sponza = std::make_unique<Model>();
 	LoadModel("res/3DModels/sponza.obj", m_Sponza.get());
-	//m_Dragon = std::make_unique<Model>();
-	//LoadModel("res/3DModels/dragon.obj", m_Dragon.get());
+	m_Dragon = std::make_unique<Model>();
+	LoadModel("res/3DModels/dragon.obj", m_Dragon.get());
 
 	m_Scene = std::make_unique<Arc::TopLevelAS>();
 	m_ResourceCache->CreateTopLevelAS(m_Scene.get(), Arc::TopLevelASDesc{});
 
 	m_Scene->AddInstance(Arc::TopLevelASInstance{
 		.BottomLevelASHandle = m_Sponza->BottomLevelAS.GetHandle(),
+		.InstanceCustomIndex = 0,
 		.TransformMatrix = {
 			0.001, 0.0, 0.0, 1.0,
 			0.0, 0.001, 0.0, -0.04,
 			0.0, 0.0, 0.001, -0.05
 		} 
 	});
-	//m_Scene->AddInstance(Arc::TopLevelASInstance{
-	//	.BottomLevelASHandle = m_Dragon->BottomLevelAS.GetHandle(),
-	//	.TransformMatrix = {
-	//		1.0, 0.0, 0.0, 0.0,
-	//		0.0, 1.0, 0.0, 0.0,
-	//		0.0, 0.0, 1.0, 0.0
-	//	}
-	//});
+	m_Scene->AddInstance(Arc::TopLevelASInstance{
+		.BottomLevelASHandle = m_Dragon->BottomLevelAS.GetHandle(),
+		.InstanceCustomIndex = 1,
+		.TransformMatrix = {
+			0.4, 0.0, 0.0, 0.5,
+			0.0, 0.4, 0.0, 0.1,
+			0.0, 0.0, 0.4, -0.1
+		}
+	});
 	m_Scene->Build();
+
+	m_SceneDescriptorSet = std::make_unique<Arc::DescriptorSet>();
+	m_ResourceCache->AllocateDescriptorSet(m_SceneDescriptorSet.get(), Arc::DescriptorSetDesc{
+		.Bindings = {
+			{ Arc::DescriptorType::StorageBuffer, Arc::ShaderStage::RayClosestHit, Arc::DescriptorFlag::Bindless },
+			{ Arc::DescriptorType::StorageBuffer, Arc::ShaderStage::RayClosestHit, Arc::DescriptorFlag::Bindless }
+		}
+	});
+	m_Device->UpdateDescriptorSet(m_SceneDescriptorSet.get(), Arc::DescriptorWrite()
+		.AddWrite(Arc::BufferWrite(0, 0, &m_Sponza->VertexBuffer))
+		.AddWrite(Arc::BufferWrite(1, 0, &m_Sponza->IndexBuffer))
+		.AddWrite(Arc::BufferWrite(0, 1, &m_Dragon->VertexBuffer))
+		.AddWrite(Arc::BufferWrite(1, 1, &m_Dragon->IndexBuffer))
+	);
+
 }
 
 void PathTracer::CreatePipelines()
@@ -319,14 +335,13 @@ void PathTracer::RenderFrame(float elapsedTime)
 				.NewLayout = Arc::ImageLayout::General,
 			} });
 
-			cmd->PushDescriptorSets(Arc::PipelineBindPoint::RayTracing, m_RayTracingPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
+			cmd->BindDescriptorSets(Arc::PipelineBindPoint::RayTracing, m_RayTracingPipeline->GetLayout(), 0, { m_SceneDescriptorSet->GetHandle() });
+			cmd->PushDescriptorSets(Arc::PipelineBindPoint::RayTracing, m_RayTracingPipeline->GetLayout(), 1, Arc::PushDescriptorWrite()
 				.AddWrite(Arc::PushAccelerationStructureWrite(0, Arc::DescriptorType::AccelerationStructure, m_Scene->GetHandle()))
 				.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_IsEvenFrame ? m_AccumulationImage1->GetImageView() : m_AccumulationImage2->GetImageView(), Arc::ImageLayout::General, nullptr))
 				.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_IsEvenFrame ? m_AccumulationImage2->GetImageView() : m_AccumulationImage1->GetImageView(), Arc::ImageLayout::General, nullptr))
 				.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_OutputImage->GetImageView(), Arc::ImageLayout::General, nullptr))
-				.AddWrite(Arc::PushBufferWrite(4, Arc::DescriptorType::UniformBuffer, m_GlobalDataBuffer->GetHandle(frameIndex), m_GlobalDataBuffer->GetSize()))
-				.AddWrite(Arc::PushBufferWrite(5, Arc::DescriptorType::StorageBuffer, m_Sponza->VertexBuffer.GetHandle(), m_Sponza->VertexBuffer.GetSize()))
-				.AddWrite(Arc::PushBufferWrite(6, Arc::DescriptorType::StorageBuffer, m_Sponza->IndexBuffer.GetHandle(), m_Sponza->IndexBuffer.GetSize())));
+				.AddWrite(Arc::PushBufferWrite(4, Arc::DescriptorType::UniformBuffer, m_GlobalDataBuffer->GetHandle(frameIndex), m_GlobalDataBuffer->GetSize())));
 			cmd->BindRayTracingPipeline(m_RayTracingPipeline->GetHandle());
 			cmd->TraceRays(m_RayTracingPipeline.get(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 1);
 		

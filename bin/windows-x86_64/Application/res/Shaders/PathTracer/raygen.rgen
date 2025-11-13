@@ -1,13 +1,13 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
 #extension GL_EXT_shader_image_load_formatted : enable
-#include "raycommon.glsl"
+#include "common.glsl"
 
-layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-layout(binding = 1, set = 0, rgba32f) uniform image2D accumulationImageIn;
-layout(binding = 2, set = 0, rgba32f) uniform image2D accumulationImageOut;
-layout(binding = 3, set = 0, rgba8) uniform image2D outputImage;
-layout(binding = 4, set = 0) uniform GlobalData 
+layout(set = 1, binding = 0) uniform accelerationStructureEXT topLevelAS;
+layout(set = 1, binding = 1, rgba32f) uniform image2D accumulationImageIn;
+layout(set = 1, binding = 2, rgba32f) uniform image2D accumulationImageOut;
+layout(set = 1, binding = 3, rgba8) uniform image2D outputImage;
+layout(set = 1, binding = 4) uniform GlobalData 
 {
 	mat4 viewInverse;
 	mat4 projInverse;
@@ -47,7 +47,7 @@ void main()
 
 	vec3 radiance = vec3(0);
 	int raysPerDispatch = 4;
-	int bounceLimit = 8;
+	int bounceLimit = 16;
 	for (int j = 0; j < raysPerDispatch; j++)
 	{
 		Photon photon;
@@ -64,10 +64,23 @@ void main()
 				radiance += emittedLight * photon.light;
 				break;
 			}
-			photon.pos = payload.origin;
+
+			//float mu = 0.2;
+			//float freePath = -log(RandomValue(rng)) / mu;
+			//if (freePath < payload.hitDistance)
+			//{
+			//	photon.pos = photon.pos + normalize(photon.dir) * freePath;
+			//	//photon.dir = sampleHenyeyGreenstein(rng, 0.4, photon.dir);
+			//	photon.dir = RandomSphere(rng);
+			//	//photon.light *= vec3(0.95, 0.8, 0.8);
+			//}
+			//else
+			{
+				photon.pos = payload.origin;
+				photon.dir = payload.normal + RandomSphere(rng);
+				photon.light *= payload.color;
+			}
 			//photon.dir = reflect(photon.dir, payload.normal);
-			photon.dir = payload.normal + RandomSphere(rng);
-			photon.light *= payload.color;
 		}
 	}
 	radiance /= raysPerDispatch;

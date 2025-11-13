@@ -210,6 +210,12 @@ namespace Arc
         AccelerationStructure = 1000150000,
     };
 
+    enum class DescriptorFlag
+    {
+        None = 0,
+        Bindless = 1,
+    };
+
     enum class PrimitiveTopology
     {
         PointList = 0,

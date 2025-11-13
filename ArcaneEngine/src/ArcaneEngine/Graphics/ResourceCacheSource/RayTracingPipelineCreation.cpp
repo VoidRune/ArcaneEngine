@@ -54,7 +54,7 @@ namespace Arc
         std::vector<VkDescriptorSetLayout> layouts;
         for (auto& set : bindings)
         {
-            uint32_t flags = desc.UsePushDescriptors ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT : 0;
+            uint32_t flags = set.second.size() > 2 && desc.UsePushDescriptors ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT : 0;
             std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
             for (auto& binding : set.second)
             {

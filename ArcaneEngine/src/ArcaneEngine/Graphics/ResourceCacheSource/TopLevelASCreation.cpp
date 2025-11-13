@@ -37,7 +37,7 @@ namespace Arc
 
             VkAccelerationStructureInstanceKHR instance{};
             instance.transform = transformMatrix;
-            instance.instanceCustomIndex = 0;
+            instance.instanceCustomIndex = m_Instances[i].InstanceCustomIndex;
             instance.mask = 0xFF;
             instance.instanceShaderBindingTableRecordOffset = 0;
             instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;

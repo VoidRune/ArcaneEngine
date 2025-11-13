@@ -69,7 +69,8 @@ namespace Arc
             shader->m_PushConstantSize = size;
         }
 
-        
+        const uint32_t bindlessCount = 1024;
+
         shader->m_StageOutputs = 0;
         for (const auto& output : resources.stage_outputs)
             shader->m_StageOutputs++;
@@ -82,7 +83,7 @@ namespace Arc
             const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
             uint32_t count = 1;
             if (type.array.size() > 0)
-                count = type.array[0];
+                count = type.array[0] == 0 ? bindlessCount : type.array[0];
 
             Shader::DescriptorLayoutBinding layoutBinding;
             layoutBinding.setIndex = set;
@@ -101,7 +102,7 @@ namespace Arc
             const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
             uint32_t count = 1;
             if (type.array.size() > 0)
-                count = type.array[0];
+                count = type.array[0] == 0 ? bindlessCount : type.array[0];
 
             Shader::DescriptorLayoutBinding layoutBinding;
             layoutBinding.setIndex = set;
@@ -120,7 +121,7 @@ namespace Arc
             const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
             uint32_t count = 1;
             if (type.array.size() > 0)
-                count = type.array[0];
+                count = type.array[0] == 0 ? bindlessCount : type.array[0];
 
             Shader::DescriptorLayoutBinding layoutBinding;
             layoutBinding.setIndex = set;
@@ -138,7 +139,7 @@ namespace Arc
             const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
             uint32_t count = 1;
             if (type.array.size() > 0)
-                count = type.array[0];
+                count = type.array[0] == 0 ? bindlessCount : type.array[0];
 
             Shader::DescriptorLayoutBinding layoutBinding;
             layoutBinding.setIndex = set;
@@ -156,7 +157,7 @@ namespace Arc
             const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
             uint32_t count = 1;
             if (type.array.size() > 0)
-                count = type.array[0];
+                count = type.array[0] == 0 ? bindlessCount : type.array[0];
 
             Shader::DescriptorLayoutBinding layoutBinding;
             layoutBinding.setIndex = set;
@@ -174,7 +175,7 @@ namespace Arc
             const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
             uint32_t count = 1;
             if (type.array.size() > 0)
-                count = type.array[0];
+                count = type.array[0] == 0 ? bindlessCount : type.array[0];
 
             Shader::DescriptorLayoutBinding layoutBinding;
             layoutBinding.setIndex = set;
@@ -192,7 +193,7 @@ namespace Arc
             const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
             uint32_t count = 1;
             if (type.array.size() > 0)
-                count = type.array[0];
+                count = type.array[0] == 0 ? bindlessCount : type.array[0];
 
             Shader::DescriptorLayoutBinding layoutBinding;
             layoutBinding.setIndex = set;

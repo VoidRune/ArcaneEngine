@@ -1,6 +1,6 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
-#include "raycommon.glsl"
+#include "common.glsl"
 
 layout(location = 0) rayPayloadInEXT RayPayload payload;
 
@@ -24,8 +24,9 @@ void main()
 {
     vec3 dir = normalize(gl_WorldRayDirectionEXT);
     //payload.color = SampleEnvironment(dir);
-    payload.color = vec3(4);
+    payload.color = vec3(1);
     payload.origin = vec3(0);
     payload.normal = vec3(0);
+    payload.hitDistance = 0;
     payload.hitInfo = 0;
 }

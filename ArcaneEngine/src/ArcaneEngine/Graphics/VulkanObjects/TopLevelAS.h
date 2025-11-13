@@ -9,6 +9,7 @@ namespace Arc
 	struct TopLevelASInstance
 	{
 		BottomLevelASHandle BottomLevelASHandle{};
+		uint32_t InstanceCustomIndex{};
 		float TransformMatrix[3][4];
 	};
 

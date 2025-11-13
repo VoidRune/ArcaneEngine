@@ -9,6 +9,7 @@ namespace Arc
 	{
 		DescriptorType Type;
 		ShaderStage ShaderStage;
+		DescriptorFlag Flags;
 	};
 
 	struct DescriptorSetDesc

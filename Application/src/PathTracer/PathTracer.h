@@ -67,6 +67,7 @@ private:
 		uint32_t FrameIndex;
 	} globalFrameData;
 
+	std::unique_ptr<Arc::DescriptorSet> m_SceneDescriptorSet;
 	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;
 	std::unique_ptr<CameraFP> m_Camera;
 	bool m_IsEvenFrame = false;

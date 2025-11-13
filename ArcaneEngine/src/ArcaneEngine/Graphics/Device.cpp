@@ -110,7 +110,7 @@ namespace Arc
             writeInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             writeInfo.dstSet = (VkDescriptorSet)descriptor->GetHandle();
             writeInfo.dstBinding = bw.Binding;
-            writeInfo.dstArrayElement = 0;
+            writeInfo.dstArrayElement = bw.ArrayElement;
             writeInfo.descriptorType = (VkDescriptorType)descriptor->GetBindingType(bw.Binding);
             writeInfo.descriptorCount = 1;
             writeInfo.pBufferInfo = &bufferInfos[bufferInfos.size() - 1];
