@@ -223,11 +223,12 @@ void PathTracer::CreateAccelerationStructure()
 		AddInstance(meshInfos, m_Plane.get(), T * R * S, m);
 	}
 	{ // DRAGON
-		mat4 T = translate(mat4(1.0f), vec3(0.0f, 0.23f, 0.0f));
+		mat4 T = translate(mat4(1.0f), vec3(0.0f, 0.26f, 0.0f));
 		mat4 R = rotate(mat4(1.0f), radians(70.0f), vec3(0, 1, 0));
 		mat4 S = scale(mat4(1.0f), vec3(0.9f));
 		m.Color = vec4(0.95);
 		m.Emission = vec4(0);
+		m.Smoothness = vec4(1);
 		AddInstance(meshInfos, m_Dragon.get(), T * R * S, m);
 	}
 	m_Scene->Build();

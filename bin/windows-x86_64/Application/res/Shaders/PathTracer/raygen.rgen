@@ -78,7 +78,7 @@ void main()
 				break;
 			}
 
-			//float mu = 2.0;
+			//float mu = 1.0;
 			//float freePath = -log(RandomValue(rng)) / mu;
 			//if (freePath < payload.hitDistance)
 			//{
@@ -93,14 +93,44 @@ void main()
 				vec3 diffuseDir = normalize(payload.normal + RandomSphere(rng));
 				vec3 specularDir = reflect(photon.dir, payload.normal);
 				float isSpecularBounce = float(payload.glossy >= RandomValue(rng));
-				//if (payload.didHit == 2)
-				//{
-				//	float ior = 2.4;
-				//	bool isFrontface = dot(photon.dir, -payload.normal) >= 0;
-				//	photon.dir = refract(photon.dir, isFrontface ? payload.normal : -payload.normal, ior);
-				//}
+				if (payload.smoothness == 1)
+				{
+					bool isFrontface = dot(photon.dir, payload.normal) < 0;
+					//float iorA = isFrontface ? 1.0 : 1.55;
+					//float iorB = isFrontface ? 1.55 : 1.0;
+					float ior = 1.5;
+					vec3 normal = isFrontface ? payload.normal : -payload.normal;
+					float refractRatio = isFrontface ? 1 / ior : ior;
+					float cosIn = -dot(photon.dir, normal);
+					float sinT2 = refractRatio * refractRatio * (1.0 - cosIn * cosIn);
 
-				photon.dir = mix(diffuseDir, specularDir, payload.smoothness * isSpecularBounce);
+					if (sinT2 >= 1.0)
+					{
+						photon.dir = reflect(photon.dir, normal);
+					}
+					else
+					{
+						//float cosRefract = sqrt(1 - sinT2);
+						//float sqrtRayPerp = (iorA * cosIn - iorB * cosRefract) / (iorA * cosIn + iorB * cosRefract);
+						//float sqrtRayParallel = (iorB * cosIn - iorA * cosRefract) / (iorB * cosIn + iorA * cosRefract);
+						//float fresnel = (sqrtRayPerp * sqrtRayPerp + sqrtRayParallel * sqrtRayParallel) * 0.5;
+
+						float r0 = (1.0 - refractRatio) / (1.0 + refractRatio);
+						r0 *= r0;
+						float fresnel = r0 + (1.0 - r0) * pow(1.0 - cosIn, 5.0);
+
+						if (RandomValue(rng) < fresnel)
+							photon.dir = reflect(photon.dir, normal);
+						else
+							photon.dir = refract(photon.dir, normal, refractRatio);
+					}
+					//photon.dir = refract(photon.dir, isFrontface ? payload.normal : -payload.normal, isFrontface ? ior : 1 / ior);
+				}
+				else
+				{
+					photon.dir = mix(diffuseDir, specularDir, payload.smoothness * isSpecularBounce);
+				}
+
 				photon.light *= mix(payload.color, vec3(1), isSpecularBounce);
 				radiance += payload.emission * photon.light;
 			}
