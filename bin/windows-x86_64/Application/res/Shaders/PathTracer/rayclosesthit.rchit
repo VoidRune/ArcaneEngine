@@ -56,7 +56,8 @@ void main()
     vec3 localPosition = p0 * bary.x + p1 * bary.y + p2 * bary.z;
     vec3 localNormal = n0 * bary.x + n1 * bary.y + n2 * bary.z;
     vec3 position = gl_ObjectToWorldEXT * vec4(localPosition, 1.0);
-    vec3 normal = normalize(mat3(gl_WorldToObjectEXT) * localNormal);
+    //vec3 normal = normalize(mat3(gl_WorldToObjectEXT) * localNormal);
+    vec3 normal = normalize(transpose(mat3(gl_WorldToObjectEXT)) * localNormal);
 
     payload.color = mi.color.rgb;
     payload.origin = position;

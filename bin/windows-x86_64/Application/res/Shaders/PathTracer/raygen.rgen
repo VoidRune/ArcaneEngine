@@ -96,9 +96,9 @@ void main()
 				if (payload.smoothness == 1)
 				{
 					bool isFrontface = dot(photon.dir, payload.normal) < 0;
-					//float iorA = isFrontface ? 1.0 : 1.55;
-					//float iorB = isFrontface ? 1.55 : 1.0;
 					float ior = 1.5;
+					//float iorA = isFrontface ? 1.0 : ior;
+					//float iorB = isFrontface ? ior : 1.0;
 					vec3 normal = isFrontface ? payload.normal : -payload.normal;
 					float refractRatio = isFrontface ? 1 / ior : ior;
 					float cosIn = -dot(photon.dir, normal);
@@ -124,13 +124,11 @@ void main()
 						else
 							photon.dir = refract(photon.dir, normal, refractRatio);
 					}
-					//photon.dir = refract(photon.dir, isFrontface ? payload.normal : -payload.normal, isFrontface ? ior : 1 / ior);
 				}
 				else
 				{
 					photon.dir = mix(diffuseDir, specularDir, payload.smoothness * isSpecularBounce);
 				}
-
 				photon.light *= mix(payload.color, vec3(1), isSpecularBounce);
 				radiance += payload.emission * photon.light;
 			}

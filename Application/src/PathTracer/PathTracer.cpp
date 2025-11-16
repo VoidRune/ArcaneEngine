@@ -192,7 +192,7 @@ void PathTracer::CreateAccelerationStructure()
 	}
 	{ // BACK
 		mat4 T = translate(mat4(1.0f), vec3(0.0f, 0.5f, 0.5f));
-		mat4 R = rotate(mat4(1.0f), radians(90.0f), vec3(1, 0, 0));
+		mat4 R = rotate(mat4(1.0f), radians(-90.0f), vec3(1, 0, 0));
 		mat4 S = scale(mat4(1.0f), vec3(1.0f));
 		m.Color = vec4(0.1, 0.1, 0.8, 1);
 		m.Emission = vec4(0);
@@ -200,7 +200,7 @@ void PathTracer::CreateAccelerationStructure()
 	}
 	{ // LEFT
 		mat4 T = translate(mat4(1.0f), vec3(-0.5f, 0.5f, 0.0f));
-		mat4 R = rotate(mat4(1.0f), radians(90.0f), vec3(0, 0, 1));
+		mat4 R = rotate(mat4(1.0f), radians(-90.0f), vec3(0, 0, 1));
 		mat4 S = scale(mat4(1.0f), vec3(1.0f));
 		m.Color = vec4(0.8, 0.1, 0.1, 1);
 		m.Emission = vec4(0);
@@ -208,7 +208,7 @@ void PathTracer::CreateAccelerationStructure()
 	}
 	{ // RIGHT
 		mat4 T = translate(mat4(1.0f), vec3(+0.5f, 0.5f, 0.0f));
-		mat4 R = rotate(mat4(1.0f), radians(-90.0f), vec3(0, 0, 1));
+		mat4 R = rotate(mat4(1.0f), radians(90.0f), vec3(0, 0, 1));
 		mat4 S = scale(mat4(1.0f), vec3(1.0f));
 		m.Color = vec4(0.1, 0.8, 0.1, 1);
 		m.Emission = vec4(0);
@@ -224,7 +224,7 @@ void PathTracer::CreateAccelerationStructure()
 	}
 	{ // DRAGON
 		mat4 T = translate(mat4(1.0f), vec3(0.0f, 0.26f, 0.0f));
-		mat4 R = rotate(mat4(1.0f), radians(70.0f), vec3(0, 1, 0));
+		mat4 R = rotate(mat4(1.0f), radians(80.0f), vec3(0, 1, 0));
 		mat4 S = scale(mat4(1.0f), vec3(0.9f));
 		m.Color = vec4(0.95);
 		m.Emission = vec4(0);
@@ -375,7 +375,7 @@ void PathTracer::RenderFrame(float elapsedTime)
 		ARC_LOG("Screenshot saved to disk");
 	}
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	std::this_thread::sleep_for(std::chrono::milliseconds(16));
 
 	Arc::FrameData frameData = m_PresentQueue->BeginFrame();
 	Arc::CommandBuffer* cmd = frameData.CommandBuffer;
