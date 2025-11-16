@@ -2,8 +2,11 @@ struct RayPayload {
   vec3 color;
   vec3 origin;
   vec3 normal;
+  vec3 emission;
   float hitDistance;
-  uint hitInfo;
+  uint didHit;
+  float smoothness;
+  float glossy;
 };
 
 float RandomValue(inout uint state)

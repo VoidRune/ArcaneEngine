@@ -212,7 +212,7 @@ void VolumeRenderer::RenderFrame(float elapsedTime)
 		//(globalFrameData.frameIndex - 1) <= 4000 || 
 		//(globalFrameData.frameIndex - 1) % 40000 == 0 && (globalFrameData.frameIndex - 1) != 0)
 	{
-		std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get());
+		std::vector<uint8_t> imageData = m_Device->GetImageData(m_OutputImage.get(), Arc::ImageLayout::General);
 		std::string path = "img" + std::to_string(globalFrameData.frameIndex - 1) + ".png";
 		stbi_write_png(path.c_str(), m_OutputImage->GetExtent()[0], m_OutputImage->GetExtent()[1], 4, imageData.data(), m_OutputImage->GetExtent()[0] * 4);
 		ARC_LOG("Screenshot saved to disk");

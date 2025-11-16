@@ -203,7 +203,7 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 
 	if (Arc::Input::IsKeyPressed(Arc::KeyCode::G))
 	{
-		std::vector<uint8_t> imageData = m_Device->GetImageData(m_Dye1.get());
+		std::vector<uint8_t> imageData = m_Device->GetImageData(m_Dye1.get(), Arc::ImageLayout::General);
 		std::string path = "img.png";
 		stbi_write_png(path.c_str(), m_CanvasSize.x, m_CanvasSize.y, 4, imageData.data(), m_CanvasSize.x * 4);
 	}
@@ -276,7 +276,6 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 	m_RenderGraph->BuildGraph();
 	m_RenderGraph->Execute(frameData, m_PresentQueue->GetExtent());
 	m_PresentQueue->EndFrame();
-	m_Device->WaitIdle();
 }
 
 void FluidDynamics::SwapchainResized(void* presentQueue)

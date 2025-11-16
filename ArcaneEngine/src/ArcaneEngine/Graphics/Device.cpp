@@ -271,55 +271,46 @@ namespace Arc
         });
     }
 
-    std::vector<uint8_t> Device::GetImageData(GpuImage* image)
+    std::vector<uint8_t> Device::GetImageData(GpuImage* image, ImageLayout currentLayout)
     {
-        bool screenshotSaved = false;
-        bool supportsBlit = true;
-
-        // Check blit support for source and destination
-        VkFormatProperties formatProps;
-
-        // Check if the device supports blitting from optimal images (the swapchain images are in optimal format)
-        vkGetPhysicalDeviceFormatProperties((VkPhysicalDevice)m_PhysicalDevice, (VkFormat)image->GetFormat(), &formatProps);
-        if (!(formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT)) {
-            supportsBlit = false;
-        }
-        // Check if the device supports blitting to linear images
-        vkGetPhysicalDeviceFormatProperties((VkPhysicalDevice)m_PhysicalDevice, VK_FORMAT_R8G8B8A8_UNORM, &formatProps);
-        if (!(formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT)) {
-            supportsBlit = false;
-        }
-
         VkImage srcImage = (VkImage)image->GetHandle();
         uint32_t width = image->GetExtent()[0];
         uint32_t height = image->GetExtent()[1];
+        VkFormat format = (VkFormat)image->GetFormat();
+        VkFormatProperties formatProps;
 
-        // Create the linear tiled destination image to copy to and to read the memory from
-        VkImageCreateInfo imageCreateCI = {};
-        imageCreateCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageCreateCI.imageType = VK_IMAGE_TYPE_2D;
-        // Note that vkCmdBlitImage (if supported) will also do format conversions if the swapchain color format would differ
-        imageCreateCI.format = VK_FORMAT_R8G8B8A8_UNORM;
-        imageCreateCI.extent.width = width;
-        imageCreateCI.extent.height = height;
-        imageCreateCI.extent.depth = 1;
-        imageCreateCI.arrayLayers = 1;
-        imageCreateCI.mipLevels = 1;
-        imageCreateCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageCreateCI.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageCreateCI.tiling = VK_IMAGE_TILING_LINEAR;
-        imageCreateCI.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        // Create the image
+        bool supportsBlit = true;
+        VkFormatProperties srcProps;
+        vkGetPhysicalDeviceFormatProperties((VkPhysicalDevice)m_PhysicalDevice, format, &srcProps);
+        if (!(srcProps.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT))
+            supportsBlit = false;
+
+        VkFormatProperties dstProps;
+        vkGetPhysicalDeviceFormatProperties((VkPhysicalDevice)m_PhysicalDevice, VK_FORMAT_R8G8B8A8_UNORM, &dstProps);
+        if (!(dstProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT))
+            supportsBlit = false;
+
+        VkImageCreateInfo imageCI = {};
+        imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageCI.imageType = VK_IMAGE_TYPE_2D;
+        imageCI.format = VK_FORMAT_R8G8B8A8_UNORM;
+        imageCI.extent = { width, height, 1 };
+        imageCI.arrayLayers = 1;
+        imageCI.mipLevels = 1;
+        imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageCI.tiling = VK_IMAGE_TILING_LINEAR;
+        imageCI.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
         VkImage dstImage;
-        vkCreateImage((VkDevice)m_LogicalDevice, &imageCreateCI, nullptr, &dstImage);
-        // Create memory to back up the image
+        vkCreateImage((VkDevice)m_LogicalDevice, &imageCI, nullptr, &dstImage);
+
         VkMemoryRequirements memRequirements;
         VkMemoryAllocateInfo memAllocInfo{};
         memAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         VkDeviceMemory dstImageMemory;
         vkGetImageMemoryRequirements((VkDevice)m_LogicalDevice, dstImage, &memRequirements);
         memAllocInfo.allocationSize = memRequirements.size;
-        // Memory must be host visible to copy from
         
         VkPhysicalDeviceMemoryProperties memProps;
         vkGetPhysicalDeviceMemoryProperties((VkPhysicalDevice)m_PhysicalDevice, &memProps);
@@ -341,11 +332,8 @@ namespace Arc
         vkAllocateMemory((VkDevice)m_LogicalDevice, &memAllocInfo, nullptr, &dstImageMemory);
         vkBindImageMemory((VkDevice)m_LogicalDevice, dstImage, dstImageMemory, 0);
 
-        // Do the actual blit from the swapchain image to our host visible destination image
-        //VkCommandBuffer copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
         ImmediateSubmit([=](CommandBufferHandle cmd) {
-            // Transition destination image to transfer destination layout
             VkImageMemoryBarrier imageMemoryBarrier = {};
             imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -366,13 +354,12 @@ namespace Arc
                 0, nullptr,
                 1, &imageMemoryBarrier);
 
-            // Transition swapchain image from present to transfer source layout
             imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             imageMemoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
             imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+            imageMemoryBarrier.oldLayout = (VkImageLayout)currentLayout;
             imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
             imageMemoryBarrier.image = srcImage;
             imageMemoryBarrier.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
@@ -386,10 +373,8 @@ namespace Arc
                 0, nullptr,
                 1, &imageMemoryBarrier);
 
-            // If source and destination support blit we'll blit as this also does automatic format conversion (e.g. from BGR to RGB)
             if (supportsBlit)
             {
-                // Define the region to blit (we will blit the whole swapchain image)
                 VkOffset3D blitSize;
                 blitSize.x = width;
                 blitSize.y = height;
@@ -402,7 +387,6 @@ namespace Arc
                 imageBlitRegion.dstSubresource.layerCount = 1;
                 imageBlitRegion.dstOffsets[1] = blitSize;
 
-                // Issue the blit command
                 vkCmdBlitImage(
                     (VkCommandBuffer)cmd,
                     srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -413,7 +397,6 @@ namespace Arc
             }
             else
             {
-                // Otherwise use image copy (requires us to manually flip components)
                 VkImageCopy imageCopyRegion{};
                 imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                 imageCopyRegion.srcSubresource.layerCount = 1;
@@ -423,7 +406,6 @@ namespace Arc
                 imageCopyRegion.extent.height = height;
                 imageCopyRegion.extent.depth = 1;
 
-                // Issue the copy command
                 vkCmdCopyImage(
                     (VkCommandBuffer)cmd,
                     srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -431,8 +413,6 @@ namespace Arc
                     1,
                     &imageCopyRegion);
             }
-
-            // Transition destination image to general layout, which is the required layout for mapping the image memory later on
 
             imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -447,13 +427,11 @@ namespace Arc
             vkCmdPipelineBarrier(
                 (VkCommandBuffer)cmd,
                 VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_HOST_BIT,
                 0,
                 0, nullptr,
                 0, nullptr,
                 1, &imageMemoryBarrier);
-
-            // Transition back the swap chain image after the blit is done
 
             imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -461,26 +439,24 @@ namespace Arc
             imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
             imageMemoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
             imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-            imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-            imageMemoryBarrier.image = dstImage;
+            imageMemoryBarrier.newLayout = (VkImageLayout)currentLayout;
+            imageMemoryBarrier.image = srcImage;
             imageMemoryBarrier.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
             vkCmdPipelineBarrier(
                 (VkCommandBuffer)cmd,
                 VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 0,
                 0, nullptr,
                 0, nullptr,
                 1, &imageMemoryBarrier);
             });
 
-        // Get layout of the image (including row pitch)
         VkImageSubresource subResource{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
         VkSubresourceLayout subResourceLayout;
         vkGetImageSubresourceLayout((VkDevice)m_LogicalDevice, dstImage, &subResource, &subResourceLayout);
 
-        // Map image memory so we can start copying from it
         uint8_t* dataPtr;
         vkMapMemory((VkDevice)m_LogicalDevice, dstImageMemory, 0, VK_WHOLE_SIZE, 0, (void**)&dataPtr);
         dataPtr += subResourceLayout.offset;
@@ -489,13 +465,7 @@ namespace Arc
         vkFreeMemory((VkDevice)m_LogicalDevice, dstImageMemory, nullptr);
         vkDestroyImage((VkDevice)m_LogicalDevice, dstImage, nullptr);
 
-        return std::move(data);
-        //bool colorSwizzle = false;
-        //if (!supportsBlit)
-        //{
-        //    std::vector<VkFormat> formatsBGR = { VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_B8G8R8A8_SNORM };
-        //    colorSwizzle = (std::find(formatsBGR.begin(), formatsBGR.end(), _swapchain->GetSurfaceFormat().format) != formatsBGR.end());
-        //}
+        return data;
     }
 
     void Device::ClearColorImage(GpuImage* image, float clearColor[4], ImageLayout layout)
@@ -511,6 +481,45 @@ namespace Arc
             vkCmdClearColorImage((VkCommandBuffer)cmd, (VkImage)image->GetHandle(), (VkImageLayout)layout, &clear, 1, &range);
         });
 
+    }
+
+    uint64_t Device::GetBufferDeviceAddress(GpuBuffer* buffer)
+    {
+        VkBufferDeviceAddressInfo addressInfo = { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+        addressInfo.buffer = (VkBuffer)buffer->GetHandle();
+        VkDeviceAddress address = vkGetBufferDeviceAddress((VkDevice)m_LogicalDevice, &addressInfo);
+        return address;
+    }
+
+    void Device::SetDeviceLocalBufferData(GpuBuffer* buffer, const void* data, uint32_t size)
+    {
+        GpuBuffer stagingBuffer;
+        m_ResourceCache->CreateGpuBuffer(&stagingBuffer, GpuBufferDesc{
+            .Size = size,
+            .UsageFlags = Arc::BufferUsage::TransferSrc,
+            .MemoryProperty = Arc::MemoryProperty::HostVisible,
+        });
+
+        void* dataPtr = m_ResourceCache->MapMemory(&stagingBuffer);
+        memcpy(dataPtr, data, size);
+        m_ResourceCache->UnmapMemory(&stagingBuffer);
+
+        ImmediateSubmit([&](BufferHandle cmd) {
+            VkBufferCopy copyRegion{};
+            copyRegion.srcOffset = 0;
+            copyRegion.dstOffset = 0;
+            copyRegion.size = size;
+
+            vkCmdCopyBuffer(
+                (VkCommandBuffer)cmd,
+                (VkBuffer)stagingBuffer.GetHandle(),
+                (VkBuffer)buffer->GetHandle(),
+                1,
+                &copyRegion
+            );
+        });
+
+        m_ResourceCache->ReleaseResource(&stagingBuffer);
     }
 
     void Device::SetImageData(GpuImage* image, const void* data, uint32_t size, ImageLayout newLayout)

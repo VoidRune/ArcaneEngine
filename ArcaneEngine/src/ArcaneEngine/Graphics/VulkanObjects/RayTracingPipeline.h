@@ -8,7 +8,7 @@ namespace Arc
 	struct RayTracingPipelineDesc
 	{
 		std::vector<Shader*> ShaderStages = {};
-		bool UsePushDescriptors = false;
+		std::vector<uint32_t> PushDescriptorSets = {};
 	};
 
 	class RayTracingPipeline

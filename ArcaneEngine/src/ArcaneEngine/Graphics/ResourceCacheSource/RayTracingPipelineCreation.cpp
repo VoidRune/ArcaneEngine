@@ -54,13 +54,20 @@ namespace Arc
         std::vector<VkDescriptorSetLayout> layouts;
         for (auto& set : bindings)
         {
-            uint32_t flags = set.second.size() > 2 && desc.UsePushDescriptors ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT : 0;
+            bool isPushDescriptor = false;
+            for (const uint32_t& pd : desc.PushDescriptorSets)
+            {
+                if (pd == set.first)
+                {
+                    isPushDescriptor = true;
+                    break;
+                }
+            }
+            uint32_t flags = isPushDescriptor ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT : 0;
             std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
             for (auto& binding : set.second)
             {
                 layoutBindings.push_back(binding.second);
-                //if (binding.second.descriptorCount >= MAX_BINDLESS_DESCRIPTOR_COUNT)
-                //    flags |= (uint32_t)DescriptorFlags::Bindless;
             }
             layouts.push_back(GetDescriptorSetLayout((VkDevice)m_LogicalDevice, m_DescriptorSetLayouts, layoutBindings, flags));
         }

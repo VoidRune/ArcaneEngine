@@ -30,6 +30,7 @@ namespace Arc
             &buffer,
             &allocation,
             nullptr));
+
         gpuBuffer->m_Buffer = buffer;
         gpuBuffer->m_Allocation = allocation;
         gpuBuffer->m_Size = desc.Size;

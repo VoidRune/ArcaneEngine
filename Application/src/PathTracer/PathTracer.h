@@ -7,6 +7,8 @@
 #include "ArcaneEngine/Graphics/RenderGraph.h"
 #include "Core/CameraFP.h"
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 class PathTracer : public RendererBase
 {
@@ -51,6 +53,8 @@ private:
 		Arc::GpuBuffer VertexBuffer;
 		Arc::GpuBuffer IndexBuffer;
 		Arc::BottomLevelAS BottomLevelAS;
+		uint64_t VertexBufferDeviceAddress;
+		uint64_t IndexBufferDeviceAddress;
 	};
 	void LoadModel(std::string filepath, Model* model);
 
@@ -62,11 +66,28 @@ private:
 
 	struct GlobalFrameData
 	{
-		glm::mat4 InverseView;
-		glm::mat4 InverseProjection;
-		uint32_t FrameIndex;
+		glm::vec4 CameraPosition;
+		glm::vec4 CameraForward;
+		glm::vec4 CameraRight;
+		glm::vec4 CameraUp;
+		float TanHalfFov = 0;
+		float AspectRatio = 0;
+		float Aperture = 0;
+		float FocusDistance = 0;
+		uint32_t FrameIndex = 0;
 	} globalFrameData;
 
+	struct MeshInfo
+	{
+		uint64_t VertexBufferDeviceAddress;
+		uint64_t IndexBufferDeviceAddress;
+		glm::vec4 Color = glm::vec4(1);
+		glm::vec4 Emission = glm::vec4(0);
+		glm::vec4 Smoothness = glm::vec4(0);
+	};
+	void AddInstance(std::vector<MeshInfo>& meshInfos, Model* model, glm::mat4 transform, MeshInfo meshInfo);
+
+	std::unique_ptr<Arc::GpuBuffer> m_MeshInfoBuffer;
 	std::unique_ptr<Arc::DescriptorSet> m_SceneDescriptorSet;
 	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;
 	std::unique_ptr<CameraFP> m_Camera;
@@ -80,7 +101,7 @@ private:
 	std::unique_ptr<Arc::GpuImage> m_AccumulationImage2;
 	std::unique_ptr<Arc::GpuImage> m_OutputImage;
 
-	std::unique_ptr<Model> m_Sponza;
+	std::unique_ptr<Model> m_Plane;
 	std::unique_ptr<Model> m_Dragon;
 	std::unique_ptr<Arc::TopLevelAS> m_Scene;
 

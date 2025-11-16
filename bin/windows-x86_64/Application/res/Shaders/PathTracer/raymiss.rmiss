@@ -28,5 +28,5 @@ void main()
     payload.origin = vec3(0);
     payload.normal = vec3(0);
     payload.hitDistance = 0;
-    payload.hitInfo = 0;
+    payload.didHit = 0;
 }

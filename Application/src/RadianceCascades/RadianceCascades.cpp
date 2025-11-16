@@ -191,7 +191,7 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 
 	if (Arc::Input::IsKeyPressed(Arc::KeyCode::G))
 	{
-		std::vector<uint8_t> imageData = m_Device->GetImageData(&m_Cascades[0]);
+		std::vector<uint8_t> imageData = m_Device->GetImageData(&m_Cascades[0], Arc::ImageLayout::General);
 		std::string path = "img.png";
 		stbi_write_png(path.c_str(), m_Cascades[0].GetExtent()[0], m_Cascades[0].GetExtent()[1], 4, imageData.data(), m_Cascades[0].GetExtent()[0] * 4);
 		ARC_LOG("Screenshot saved to disk");
@@ -248,7 +248,6 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 	m_RenderGraph->BuildGraph();
 	m_RenderGraph->Execute(frameData, m_PresentQueue->GetExtent());
 	m_PresentQueue->EndFrame();
-	m_Device->WaitIdle();
 	//m_Device->GetTimestampQuery()->QueryResults();
 }
 

@@ -241,9 +241,8 @@ void main()
             }
         }
 
-        outputColor.rgb = photon.
+        outputColor.rgb = photon.light;
         
-        ;
         if (globalData.debugDraw.x == 1)
         {
             outputColor.rgb = vec3(scatteringEventCount / float(globalData.debugDraw.z), nullEventCount / float(globalData.debugDraw.w), absorptionEventCount / float(globalData.debugDraw.y)); 
