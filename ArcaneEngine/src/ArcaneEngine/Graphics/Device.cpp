@@ -134,7 +134,7 @@ namespace Arc
             writeInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             writeInfo.dstSet = (VkDescriptorSet)descriptor->GetHandle();
             writeInfo.dstBinding = iw.Binding;
-            writeInfo.dstArrayElement = 0;
+            writeInfo.dstArrayElement = iw.ArrayElement;
             writeInfo.descriptorType = (VkDescriptorType)descriptor->GetBindingType(iw.Binding);
             writeInfo.descriptorCount = 1;
             writeInfo.pImageInfo = &imageInfos[imageInfos.size() - 1];

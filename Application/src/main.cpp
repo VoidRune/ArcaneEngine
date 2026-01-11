@@ -18,30 +18,21 @@ void GetRenderer(int rendererId, std::unique_ptr<RendererBase>& renderer,
 	if (currentRendererId == rendererId)
 		return;
 
+	device->WaitIdle();
+	device->GetResourceCache()->FreeResources();
+	renderer.reset();
 	switch (rendererId)
 	{
 		case 1: 
-			device->WaitIdle();
-			device->GetResourceCache()->FreeResources();
-			renderer.reset();
 			renderer = std::make_unique<VolumeRenderer>(window, device, presentQueue);
 			break;
 		case 2: 
-			device->WaitIdle();
-			device->GetResourceCache()->FreeResources();
-			renderer.reset();
 			renderer = std::make_unique<RadianceCascades>(window, device, presentQueue);
 			break;
 		case 3:
-			device->WaitIdle();
-			device->GetResourceCache()->FreeResources();
-			renderer.reset();
 			renderer = std::make_unique<FluidDynamics>(window, device, presentQueue);
 			break;
 		case 4:
-			device->WaitIdle();
-			device->GetResourceCache()->FreeResources();
-			renderer.reset();
 			renderer = std::make_unique<PathTracer>(window, device, presentQueue);
 			break;
 	}
@@ -64,7 +55,7 @@ int main()
 	auto presentQueue = std::make_unique<Arc::PresentQueue>(device.get(), presentMode);
 
 	std::unique_ptr<RendererBase> renderer;
-	GetRenderer(4, renderer, window.get(), device.get(), presentQueue.get());
+	GetRenderer(3, renderer, window.get(), device.get(), presentQueue.get());
 	
 	Arc::Timer timer;
 	while (!window->IsClosed())

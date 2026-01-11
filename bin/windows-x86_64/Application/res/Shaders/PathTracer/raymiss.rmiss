@@ -27,6 +27,6 @@ void main()
     payload.color = vec3(1);
     payload.origin = vec3(0);
     payload.normal = vec3(0);
-    payload.hitDistance = 0;
+    payload.hitDistance = 1e30;
     payload.didHit = 0;
 }

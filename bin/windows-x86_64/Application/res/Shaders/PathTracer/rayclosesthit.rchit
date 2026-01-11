@@ -14,19 +14,27 @@ struct Vertex {
     vec3 normal;
     vec2 uv;
 };
-//layout(set = 0, binding = 0, scalar) buffer Vertices { Vertex vertices[2]; } vertexBuffers[];
-//layout(set = 0, binding = 1) buffer Indices { uint indices[2]; } indexBuffers[];
 
-struct MeshInfo 
+struct MeshPrimitive
 {
     uvec2 vertexAddress;
     uvec2 indexAddress;
-    vec4 color;
-    vec4 emission;
-    vec4 smoothness;
+    uint materialIndex;
 };
 
-layout(set=0, binding=0) buffer MeshInfoBuffer { MeshInfo meshInfos[]; };
+struct Material 
+{
+    vec4 color;
+    vec4 emission;
+    float metallic;
+    float roughness;
+    float transmission;
+    uint textureIndex;
+};
+
+layout(set = 0, binding = 0) buffer MeshPrimitiveBuffer { MeshPrimitive meshPrimitives[]; };
+layout(set = 0, binding = 1) buffer MaterialBuffer { Material materials[]; };
+layout(set = 0, binding = 2) uniform sampler2D textures[];
 
 layout(buffer_reference, scalar) readonly buffer VertexBuffer { Vertex vertices[]; };
 layout(buffer_reference, scalar) readonly buffer IndexBuffer { uint indices[]; };
@@ -38,9 +46,10 @@ void main()
     uint primID = gl_PrimitiveID;
 
     uint instanceIndex = gl_InstanceCustomIndexEXT;
-    MeshInfo mi = meshInfos[instanceIndex];
-    VertexBuffer vb = VertexBuffer(mi.vertexAddress);
-    IndexBuffer  ib = IndexBuffer(mi.indexAddress);
+    MeshPrimitive mesh = meshPrimitives[instanceIndex];
+    VertexBuffer vb = VertexBuffer(mesh.vertexAddress);
+    IndexBuffer  ib = IndexBuffer(mesh.indexAddress);
+    Material mat = materials[mesh.materialIndex];
 
     uint i0 = ib.indices[primID * 3 + 0];
     uint i1 = ib.indices[primID * 3 + 1];
@@ -51,20 +60,24 @@ void main()
     vec3 n0 = vb.vertices[i0].normal;
     vec3 n1 = vb.vertices[i1].normal;
     vec3 n2 = vb.vertices[i2].normal;
+    vec2 uv0 = vb.vertices[i0].uv;
+    vec2 uv1 = vb.vertices[i1].uv;
+    vec2 uv2 = vb.vertices[i2].uv;
 
     vec3 bary = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
     vec3 localPosition = p0 * bary.x + p1 * bary.y + p2 * bary.z;
     vec3 localNormal = n0 * bary.x + n1 * bary.y + n2 * bary.z;
+    vec2 uv = uv0 * bary.x + uv1 * bary.y + uv2 * bary.z;
     vec3 position = gl_ObjectToWorldEXT * vec4(localPosition, 1.0);
-    //vec3 normal = normalize(mat3(gl_WorldToObjectEXT) * localNormal);
-    vec3 normal = normalize(transpose(mat3(gl_WorldToObjectEXT)) * localNormal);
+    vec3 normal = normalize(gl_ObjectToWorldEXT * vec4(localNormal, 0));
 
-    payload.color = mi.color.rgb;
+    payload.color = mat.color.rgb * texture(textures[mat.textureIndex], uv).rgb;
     payload.origin = position;
     payload.normal = normal;
     payload.hitDistance = gl_HitTEXT;
     payload.didHit = 1;
-    payload.smoothness = mi.smoothness.r;
-    payload.emission = mi.emission.rgb;
-    payload.glossy = 0.1;
+    payload.emission = mat.emission.rgb;
+    payload.metallic = mat.metallic;
+    payload.roughness = mat.roughness;
+    payload.transmission = mat.transmission;
 }

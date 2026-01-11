@@ -195,11 +195,12 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 	auto delta = currentMousePos - m_LastMousePos;
 	m_LastMousePos = currentMousePos;
 
-	fluidData.SourceColor = glm::vec4(HsvToRgb(elapsedTime * 0.1f, 1, 1), 1);
+	//fluidData.SourceColor = glm::vec4(HsvToRgb(elapsedTime * 0.1f, 1, 1), 1);
+	fluidData.SourceColor = glm::vec4(1, 1, 1, 1);
 	fluidData.SourcePos = currentMousePos;
 	fluidData.SourceVelocity = delta;
 	fluidData.SourceRadius = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? 50.0f * m_Resolution : 0.0f;
-	fluidData.DeltaTime = dt * 50;
+	fluidData.DeltaTime = 0.5f;
 
 	if (Arc::Input::IsKeyPressed(Arc::KeyCode::G))
 	{

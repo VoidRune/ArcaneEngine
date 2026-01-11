@@ -21,9 +21,9 @@ PathTracer::PathTracer(Arc::Window* window, Arc::Device* device, Arc::PresentQue
 	m_Camera->Position = glm::vec3(0, 0.5f, -1.5f);
 	m_Camera->MovementSpeed = 1.0f;
 
+	CreateSamplers();
 	CreateAccelerationStructure();
 	CreatePipelines();
-	CreateSamplers();
 	CreateImages();
 
 	m_GlobalDataBuffer = std::make_unique<Arc::GpuBufferArray>();
@@ -84,15 +84,15 @@ bool PathTracer::LoadObjModel(std::string filePath, std::vector<Vertex>& outVert
 					vertex.normal = { 0.0f, 0.0f, 0.0f };
 				}
 
-				//if (idx.texcoord_index >= 0) {
-				//	vertex.uv = {
-				//		attrib.texcoords[2 * idx.texcoord_index + 0],
-				//		1.0f - attrib.texcoords[2 * idx.texcoord_index + 1] // flip Y for Vulkan
-				//	};
-				//}
-				//else {
-				//	vertex.uv = { 0.0f, 0.0f };
-				//}
+				if (idx.texcoord_index >= 0) {
+					vertex.uv = {
+						attrib.texcoords[2 * idx.texcoord_index + 0],
+						1.0f - attrib.texcoords[2 * idx.texcoord_index + 1]
+					};
+				}
+				else {
+					vertex.uv = { 0.0f, 0.0f };
+				}
 
 				if (uniqueVertices.count(vertex) == 0) {
 					uniqueVertices[vertex] = static_cast<uint32_t>(outVertices.size());
@@ -146,7 +146,7 @@ void PathTracer::LoadModel(std::string filepath, Model* model)
 	model->IndexBufferDeviceAddress = m_Device->GetBufferDeviceAddress(&model->IndexBuffer);
 }
 
-void PathTracer::AddInstance(std::vector<MeshInfo>& meshInfos, Model* model, glm::mat4 transform, MeshInfo meshInfo)
+void PathTracer::AddInstance(std::vector<MeshPrimitive>& meshInfos, std::vector<Material>& materials, Model* model, glm::mat4 transform, const Material& material)
 {
 	m_Scene->AddInstance(Arc::TopLevelASInstance{
 		.BottomLevelASHandle = model->BottomLevelAS.GetHandle(),
@@ -157,8 +157,27 @@ void PathTracer::AddInstance(std::vector<MeshInfo>& meshInfos, Model* model, glm
 			transform[0][2], transform[1][2], transform[2][2], transform[3][2],
 		}
 	});
+
+	MeshPrimitive meshInfo{};
 	meshInfo.VertexBufferDeviceAddress = model->VertexBufferDeviceAddress;
 	meshInfo.IndexBufferDeviceAddress = model->IndexBufferDeviceAddress;
+
+	uint32_t materialIndex = 0xFFFFFFFF;
+	for (uint32_t i = 0; i < materials.size(); ++i)
+	{
+		if (materials[i] == material)
+		{
+			materialIndex = i;
+			break;
+		}
+	}
+
+	if (materialIndex == 0xFFFFFFFF)
+	{
+		materialIndex = static_cast<uint32_t>(materials.size());
+		materials.push_back(material);
+	}
+	meshInfo.MaterialIndex = materialIndex;
 	meshInfos.push_back(meshInfo);
 }
 
@@ -168,90 +187,142 @@ void PathTracer::CreateAccelerationStructure()
 	LoadModel("res/3DModels/plane.obj", m_Plane.get());
 	m_Dragon = std::make_unique<Model>();
 	LoadModel("res/3DModels/dragon.obj", m_Dragon.get());
-
-	m_Scene = std::make_unique<Arc::TopLevelAS>();
+	m_Sphere = std::make_unique<Model>();
+	LoadModel("res/3DModels/sphere.obj", m_Sphere.get());
+	m_Scene = std::make_unique<Arc::TopLevelAS>(); 
 	m_ResourceCache->CreateTopLevelAS(m_Scene.get(), Arc::TopLevelASDesc{});
 
-	std::vector<MeshInfo> meshInfos;
-	MeshInfo m{};
+	std::vector<MeshPrimitive> meshInfos;
+	std::vector<Material> materials;
+	Material glass{};
+	glass.Color = glm::vec4(0.95, 0.7, 0.7, 1);
+	glass.Roughness = 0.1f;
+	glass.Transmission = 1.0f;
+	Material redWall{};
+	redWall.Color = vec4(1.0, 0.2, 0.3, 1);
+	redWall.TextureIndex = 1;
+	Material greenWall{};
+	greenWall.Color = vec4(0.25, 1.0, 0.35, 1);
+	greenWall.Metallic = 1.0f;
+	Material blueWall{};
+	blueWall.Color = vec4(0.25, 0.55, 1.0, 1);
+	Material whiteWall{};
+	whiteWall.Color = vec4(0.8, 0.8, 0.8, 1);
+	Material light{};
+	light.Color = vec4(1);
+	light.Emission = vec4(15.0, 15.0, 15.0, 1);
+
 	{ // FLOOR
 		mat4 T = translate(mat4(1.0f), vec3(0.0f, 0.0f, 0.0f));
 		mat4 R = mat4(1.0f);
 		mat4 S = scale(mat4(1.0f), vec3(1.0f, 1.0f, 1.0f));
-		m.Color = vec4(0.8, 0.8, 0.8, 1);
-		m.Emission = vec4(0);
-		AddInstance(meshInfos, m_Plane.get(), T * R * S, m);
+		AddInstance(meshInfos, materials, m_Plane.get(), T * R * S, whiteWall);
 	}
 	{ // CEILING
 		mat4 T = translate(mat4(1.0f), vec3(0.0f, 1.0f, 0.0f));
 		mat4 R = rotate(mat4(1.0f), radians(180.0f), vec3(1, 0, 0));
 		mat4 S = scale(mat4(1.0f), vec3(1.0f));
-		m.Color = vec4(0.8, 0.8, 0.8, 1);
-		m.Emission = vec4(0);
-		AddInstance(meshInfos, m_Plane.get(), T * R * S, m);
+		AddInstance(meshInfos, materials, m_Plane.get(), T * R * S, whiteWall);
 	}
 	{ // BACK
 		mat4 T = translate(mat4(1.0f), vec3(0.0f, 0.5f, 0.5f));
 		mat4 R = rotate(mat4(1.0f), radians(-90.0f), vec3(1, 0, 0));
 		mat4 S = scale(mat4(1.0f), vec3(1.0f));
-		m.Color = vec4(0.1, 0.1, 0.8, 1);
-		m.Emission = vec4(0);
-		AddInstance(meshInfos, m_Plane.get(), T * R * S, m);
+		AddInstance(meshInfos, materials, m_Plane.get(), T * R * S, blueWall);
 	}
 	{ // LEFT
 		mat4 T = translate(mat4(1.0f), vec3(-0.5f, 0.5f, 0.0f));
 		mat4 R = rotate(mat4(1.0f), radians(-90.0f), vec3(0, 0, 1));
 		mat4 S = scale(mat4(1.0f), vec3(1.0f));
-		m.Color = vec4(0.8, 0.1, 0.1, 1);
-		m.Emission = vec4(0);
-		AddInstance(meshInfos, m_Plane.get(), T * R * S, m);
+		AddInstance(meshInfos, materials, m_Plane.get(), T * R * S, redWall);
 	}
 	{ // RIGHT
 		mat4 T = translate(mat4(1.0f), vec3(+0.5f, 0.5f, 0.0f));
 		mat4 R = rotate(mat4(1.0f), radians(90.0f), vec3(0, 0, 1));
 		mat4 S = scale(mat4(1.0f), vec3(1.0f));
-		m.Color = vec4(0.1, 0.8, 0.1, 1);
-		m.Emission = vec4(0);
-		AddInstance(meshInfos, m_Plane.get(), T * R * S, m);
+		AddInstance(meshInfos, materials, m_Plane.get(), T * R * S, greenWall);
 	}
 	{ // LIGHT
 		mat4 T = translate(mat4(1.0f), vec3(0.0f, 0.999f, 0.0f));
 		mat4 R = rotate(mat4(1.0f), radians(180.0f), vec3(1, 0, 0));
 		mat4 S = scale(mat4(1.0f), vec3(0.25f));
-		m.Color = vec4(1);
-		m.Emission = vec4(10.0, 10.0, 10.0, 1);
-		AddInstance(meshInfos, m_Plane.get(), T * R * S, m);
+		AddInstance(meshInfos, materials, m_Plane.get(), T * R * S, light);
 	}
 	{ // DRAGON
 		mat4 T = translate(mat4(1.0f), vec3(0.0f, 0.26f, 0.0f));
-		mat4 R = rotate(mat4(1.0f), radians(80.0f), vec3(0, 1, 0));
+		mat4 R = rotate(mat4(1.0f), radians(70.0f), vec3(0, 1, 0));
 		mat4 S = scale(mat4(1.0f), vec3(0.9f));
-		m.Color = vec4(0.95);
-		m.Emission = vec4(0);
-		m.Smoothness = vec4(1);
-		AddInstance(meshInfos, m_Dragon.get(), T * R * S, m);
+		AddInstance(meshInfos, materials, m_Dragon.get(), T * R * S, glass);
+	}
+	{ // SPHERE
+		mat4 T = translate(mat4(1.0f), vec3(0.0f, 0.7f, 0.0f));
+		mat4 R = mat4(1.0f);
+		mat4 S = scale(mat4(1.0f), vec3(0.3f));
+		//AddInstance(meshInfos, materials, m_Sphere.get(), T * R * S, glass);
 	}
 	m_Scene->Build();
 	
 	m_MeshInfoBuffer = std::make_unique<Arc::GpuBuffer>();
 	m_ResourceCache->CreateGpuBuffer(m_MeshInfoBuffer.get(), Arc::GpuBufferDesc{
-		.Size = (uint32_t)meshInfos.size() * (uint32_t)sizeof(MeshInfo),
+		.Size = (uint32_t)meshInfos.size() * (uint32_t)sizeof(MeshPrimitive),
 		.UsageFlags = Arc::BufferUsage::StorageBuffer | Arc::BufferUsage::ShaderDeviceAddress,
 		.MemoryProperty = Arc::MemoryProperty::HostVisible
 	});
 
 	void* data = m_ResourceCache->MapMemory(m_MeshInfoBuffer.get());
-	memcpy(data, meshInfos.data(), meshInfos.size() * sizeof(MeshInfo));
+	memcpy(data, meshInfos.data(), meshInfos.size() * sizeof(MeshPrimitive));
 	m_ResourceCache->UnmapMemory(m_MeshInfoBuffer.get());
+
+	m_MaterialBuffer = std::make_unique<Arc::GpuBuffer>();
+	m_ResourceCache->CreateGpuBuffer(m_MaterialBuffer.get(), Arc::GpuBufferDesc{
+		.Size = (uint32_t)materials.size() * (uint32_t)sizeof(Material),
+		.UsageFlags = Arc::BufferUsage::StorageBuffer | Arc::BufferUsage::ShaderDeviceAddress,
+		.MemoryProperty = Arc::MemoryProperty::HostVisible
+	});
+
+	data = m_ResourceCache->MapMemory(m_MaterialBuffer.get());
+	memcpy(data, materials.data(), materials.size() * sizeof(Material));
+	m_ResourceCache->UnmapMemory(m_MaterialBuffer.get());
+
+
+	m_WhiteTexture = std::make_unique<Arc::GpuImage>();
+	m_ResourceCache->CreateGpuImage(m_WhiteTexture.get(), Arc::GpuImageDesc{
+		.Extent = { 1, 1, 1},
+		.Format = Arc::Format::R8G8B8A8_Unorm,
+		.UsageFlags = Arc::ImageUsage::TransferDst | Arc::ImageUsage::Sampled,
+		.AspectFlags = Arc::ImageAspect::Color,
+		});
+	uint32_t whitePixel = 0xFFFFFFFF;
+	m_Device->SetImageData(m_WhiteTexture.get(), &whitePixel, sizeof(uint32_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
+
+	int imgWidth, imgHeight, imgChannels;
+	const char* file = "res/Images/Granite.jpg";
+	stbi_info(file, &imgWidth, &imgHeight, &imgChannels);
+	m_Texture = std::make_unique<Arc::GpuImage>();
+	m_ResourceCache->CreateGpuImage(m_Texture.get(), Arc::GpuImageDesc{
+		.Extent = { (uint32_t)imgWidth, (uint32_t)imgHeight, 1},
+		.Format = Arc::Format::R8G8B8A8_Unorm,
+		.UsageFlags = Arc::ImageUsage::TransferDst | Arc::ImageUsage::Sampled,
+		.AspectFlags = Arc::ImageAspect::Color,
+		});
+	data = stbi_load(file, &imgWidth, &imgHeight, &imgChannels, 4);
+	m_Device->SetImageData(m_Texture.get(), data, imgWidth * imgHeight * 4 * sizeof(uint8_t), Arc::ImageLayout::ShaderReadOnlyOptimal);
+	stbi_image_free(data);
+
 
 	m_SceneDescriptorSet = std::make_unique<Arc::DescriptorSet>();
 	m_ResourceCache->AllocateDescriptorSet(m_SceneDescriptorSet.get(), Arc::DescriptorSetDesc{
 		.Bindings = {
 			{ Arc::DescriptorType::StorageBuffer, Arc::ShaderStage::RayClosestHit },
+			{ Arc::DescriptorType::StorageBuffer, Arc::ShaderStage::RayClosestHit },
+			{ Arc::DescriptorType::CombinedImageSampler, Arc::ShaderStage::RayClosestHit, Arc::DescriptorFlag::Bindless },
 		}
 	});
 	m_Device->UpdateDescriptorSet(m_SceneDescriptorSet.get(), Arc::DescriptorWrite()
 		.AddWrite(Arc::BufferWrite(0, m_MeshInfoBuffer.get()))
+		.AddWrite(Arc::BufferWrite(1, m_MaterialBuffer.get()))
+		.AddWrite(Arc::ImageWrite(2, 0, m_WhiteTexture.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
+		.AddWrite(Arc::ImageWrite(2, 1, m_Texture.get(), Arc::ImageLayout::ShaderReadOnlyOptimal, m_LinearSampler.get()))
 	);
 }
 

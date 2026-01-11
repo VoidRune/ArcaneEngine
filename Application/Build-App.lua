@@ -21,6 +21,11 @@ project "Application"
 		"dependencies/**.hpp",		
 		"dependencies/stb/**.h",
 		"dependencies/stb/**.cpp",
+        "dependencies/tiny_obj_loader/**.h",
+		"dependencies/tiny_obj_loader/**.cpp",
+        "dependencies/tinygltf/**.h",
+        "dependencies/tinygltf/**.hpp",
+		"dependencies/tinygltf/**.cpp",
 	}
 
    	includedirs

@@ -77,17 +77,37 @@ private:
 		uint32_t FrameIndex = 0;
 	} globalFrameData;
 
-	struct MeshInfo
+	struct MeshPrimitive
 	{
 		uint64_t VertexBufferDeviceAddress;
 		uint64_t IndexBufferDeviceAddress;
+		uint32_t MaterialIndex = 0;
+	};
+
+	struct Material
+	{
 		glm::vec4 Color = glm::vec4(1);
 		glm::vec4 Emission = glm::vec4(0);
-		glm::vec4 Smoothness = glm::vec4(0);
+		float Metallic = 0;
+		float Roughness = 0;
+		float Transmission = 0;
+		uint32_t TextureIndex = 0;
+
+		bool operator==(const Material& other) const noexcept
+		{
+			return Color == other.Color &&
+				Emission == other.Emission &&
+				Metallic == other.Metallic &&
+				Roughness == other.Roughness &&
+				Transmission == other.Transmission &&
+				TextureIndex == other.TextureIndex;
+		}
 	};
-	void AddInstance(std::vector<MeshInfo>& meshInfos, Model* model, glm::mat4 transform, MeshInfo meshInfo);
+
+	void AddInstance(std::vector<MeshPrimitive>& meshInfos, std::vector<Material>& materials, Model* model, glm::mat4 transform, const Material& material);
 
 	std::unique_ptr<Arc::GpuBuffer> m_MeshInfoBuffer;
+	std::unique_ptr<Arc::GpuBuffer> m_MaterialBuffer;
 	std::unique_ptr<Arc::DescriptorSet> m_SceneDescriptorSet;
 	std::unique_ptr<Arc::GpuBufferArray> m_GlobalDataBuffer;
 	std::unique_ptr<CameraFP> m_Camera;
@@ -103,7 +123,11 @@ private:
 
 	std::unique_ptr<Model> m_Plane;
 	std::unique_ptr<Model> m_Dragon;
+	std::unique_ptr<Model> m_Sphere;
 	std::unique_ptr<Arc::TopLevelAS> m_Scene;
+	std::unique_ptr<Arc::GpuImage> m_WhiteTexture;
+	std::unique_ptr<Arc::GpuImage> m_Texture;
+
 
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
