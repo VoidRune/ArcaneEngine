@@ -1,7 +1,9 @@
 #version 450
+#extension GL_KHR_vulkan_glsl: enable
 
-layout(set = 0, binding = 0, rg16f) uniform image2D velocity;
-layout(set = 0, binding = 1, rgba16) uniform image2D dye;
+layout(set = 0, binding = 0, rgba16f) uniform image2D dye;
+layout(set = 0, binding = 1, rg32f) uniform image2D velocity;
+//layout(set = 0, binding = 2, r8ui) uniform uimage2D wall;
 
 layout( push_constant ) uniform constants
 {
@@ -9,19 +11,32 @@ layout( push_constant ) uniform constants
 	vec2 sourcePos;
 	vec2 sourceVelocity;
 	float sourceRadius;
+	float boundaryRadius;
 	float deltaTime;
-} pushConstants;
+} pc;
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
-	float dist = length(pushConstants.sourcePos - vec2(px));
-	if (dist < pushConstants.sourceRadius &&
-		pushConstants.sourceVelocity != vec2(0))
+	ivec2 size = imageSize(dye);
+    if (px.x < 0 || px.y < 0 || px.x >= size.x || px.y >= size.y)
+    {
+        return;
+    }
+
+	float dist = length(pc.sourcePos - vec2(px));
+	if (dist < pc.sourceRadius &&
+		pc.sourceVelocity != vec2(0))
 	{
-		imageStore(velocity, px, vec4(pushConstants.sourceVelocity, 0, 0));	
-		imageStore(dye, px, pushConstants.sourceColor);	
+		imageStore(dye, px, vec4(pc.sourceColor.rgb, 0));
+
+		//vec2 v = imageLoad(velocity, px).xy;
+		imageStore(velocity, px, vec4(pc.sourceVelocity, 0, 0));	
 	}
+	//else if (dist < pc.boundaryRadius)
+	//{
+	//	imageStore(wall, px, uvec4(1, 0, 0, 0));
+	//}
 }

@@ -1,0 +1,39 @@
+#version 450
+#extension GL_KHR_vulkan_glsl: enable
+
+layout(set = 0, binding = 0, rgba16f) uniform image2D dyeIn;
+layout(set = 0, binding = 1, rgba16f) uniform image2D dyeOut;
+
+layout( push_constant ) uniform constants
+{
+	vec4 sourceColor;
+	vec2 sourcePos;
+	vec2 sourceVelocity;
+	float sourceRadius;
+    float boundaryRadius;
+	float deltaTime;
+} pc;
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+void main()
+{
+    ivec2 px = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 size = imageSize(dyeOut);
+	if (px.x < 0 || px.y < 0 || px.x >= size.x || px.y >= size.y)
+    {
+        return;
+    }
+
+	vec3 dC = imageLoad(dyeIn, px).rgb;
+	vec3 dL = imageLoad(dyeIn, px - ivec2(1, 0)).rgb;
+	vec3 dR = imageLoad(dyeIn, px + ivec2(1, 0)).rgb;
+	vec3 dB = imageLoad(dyeIn, px - ivec2(0, 1)).rgb;
+	vec3 dT = imageLoad(dyeIn, px + ivec2(0, 1)).rgb;
+
+	float viscosity = 0.001f;
+	float k = viscosity * pc.deltaTime;
+
+	vec3 dN = (dC + k * (dL + dR + dB + dT) * 0.25) / (1 + k);
+	imageStore(dyeOut, px, vec4(dN, 0));	
+}

@@ -1,0 +1,69 @@
+#version 450
+#extension GL_KHR_vulkan_glsl: enable
+
+layout(set = 0, binding = 0, rg32f) uniform image2D velocityIn;
+layout(set = 0, binding = 1, rg32f) uniform image2D velocityOut;
+
+layout( push_constant ) uniform constants
+{
+	vec4 sourceColor;
+	vec2 sourcePos;
+	vec2 sourceVelocity;
+	float sourceRadius;
+    float boundaryRadius;
+	float deltaTime;
+} pc;
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+vec2 sampleVelocity(vec2 pos)
+{
+    vec2 pu = vec2(pos.x, pos.y - 0.5);
+    ivec2 baseU = ivec2(floor(pu));
+    vec2 fU = fract(pu);
+
+    float u00 = imageLoad(velocityIn, baseU + ivec2(0, 0)).x;
+    float u10 = imageLoad(velocityIn, baseU + ivec2(1, 0)).x;
+    float u01 = imageLoad(velocityIn, baseU + ivec2(0, 1)).x;
+    float u11 = imageLoad(velocityIn, baseU + ivec2(1, 1)).x;
+
+    float u0 = mix(u00, u10, fU.x);
+    float u1 = mix(u01, u11, fU.x);
+    float u = mix(u0, u1, fU.y);
+
+    vec2 pv = vec2(pos.x - 0.5, pos.y);
+    ivec2 baseV = ivec2(floor(pv));
+    vec2 fV = fract(pv);
+
+    float v00 = imageLoad(velocityIn, baseV + ivec2(0, 0)).y;
+    float v10 = imageLoad(velocityIn, baseV + ivec2(1, 0)).y;
+    float v01 = imageLoad(velocityIn, baseV + ivec2(0, 1)).y;
+    float v11 = imageLoad(velocityIn, baseV + ivec2(1, 1)).y;
+
+    float v0 = mix(v00, v01, fV.y);
+    float v1 = mix(v10, v11, fV.y);
+    float v = mix(v0, v1, fV.x);
+
+    return vec2(u, v);
+}
+
+void main()
+{
+    ivec2 px = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = imageSize(velocityOut);
+    if (px.x < 0 || px.y < 0 || px.x >= size.x || px.y >= size.y)
+    {
+        return;
+    }
+
+    vec2 uPos = vec2(px.x, px.y + 0.5);
+    vec2 uVel = sampleVelocity(uPos);
+    vec2 uPrev = uPos - uVel * pc.deltaTime;
+    float uNew = sampleVelocity(uPrev).x;
+
+    vec2 vPos = vec2(px.x + 0.5, px.y);
+    vec2 vVel = sampleVelocity(vPos);
+    vec2 vPrev = vPos - vVel * pc.deltaTime;
+    float vNew = sampleVelocity(vPrev).y;
+    imageStore(velocityOut, px, vec4(uNew, vNew, 0, 0));
+}

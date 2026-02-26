@@ -36,6 +36,7 @@ private:
 		glm::vec2 SourcePos;
 		glm::vec2 SourceVelocity;
 		float SourceRadius;
+		float BoundaryRadius;
 		float DeltaTime;
 	} fluidData;
 	glm::vec2 m_LastMousePos;
@@ -43,26 +44,32 @@ private:
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
 
-	float m_Resolution = 0.5f;
-	glm::ivec2 m_CanvasSize;
+	float m_Resolution = 0.25;
+	glm::ivec2 m_Size;
 	glm::ivec2 m_ThreadDispatchSize;
-	std::unique_ptr<Arc::GpuImage> m_Velocity1;
-	std::unique_ptr<Arc::GpuImage> m_DivergencePressure1;
+	glm::ivec2 m_VelocityThreadDispatchSize;
 	std::unique_ptr<Arc::GpuImage> m_Dye1;
-	std::unique_ptr<Arc::GpuImage> m_Velocity2;
-	std::unique_ptr<Arc::GpuImage> m_DivergencePressure2;
 	std::unique_ptr<Arc::GpuImage> m_Dye2;
+	std::unique_ptr<Arc::GpuImage> m_Wall;
+	std::unique_ptr<Arc::GpuImage> m_Boundary;
+	std::unique_ptr<Arc::GpuImage> m_Velocity1;
+	std::unique_ptr<Arc::GpuImage> m_Velocity2;
+	std::unique_ptr<Arc::GpuImage> m_Divergence;
+	std::unique_ptr<Arc::GpuImage> m_Pressure1;
+	std::unique_ptr<Arc::GpuImage> m_Pressure2;
 
 	std::unique_ptr<Arc::Shader> m_AddForcesShader;
 	std::unique_ptr<Arc::ComputePipeline> m_AddForcesPipeline;
-	std::unique_ptr<Arc::Shader> m_DiffusionShader;
-	std::unique_ptr<Arc::ComputePipeline> m_DiffusionPipeline;
-	std::unique_ptr<Arc::Shader> m_AdvectionShader;
-	std::unique_ptr<Arc::ComputePipeline> m_AdvectionPipeline;
 	std::unique_ptr<Arc::Shader> m_DivergenceShader;
 	std::unique_ptr<Arc::ComputePipeline> m_DivergencePipeline;
-	std::unique_ptr<Arc::Shader> m_JacobiIterationShader;
-	std::unique_ptr<Arc::ComputePipeline> m_JacobiIterationPipeline;
+	std::unique_ptr<Arc::Shader> m_PressureSolverShader;
+	std::unique_ptr<Arc::ComputePipeline> m_PressureSolverPipeline;
+	std::unique_ptr<Arc::Shader> m_DiffusionShader;
+	std::unique_ptr<Arc::ComputePipeline> m_DiffusionPipeline;
+	std::unique_ptr<Arc::Shader> m_FluidAdvectionShader;
+	std::unique_ptr<Arc::ComputePipeline> m_FluidAdvectionPipeline;
+	std::unique_ptr<Arc::Shader> m_VelocityAdvectionShader;
+	std::unique_ptr<Arc::ComputePipeline> m_VelocityAdvectionPipeline;
 	std::unique_ptr<Arc::Shader> m_ProjectionShader;
 	std::unique_ptr<Arc::ComputePipeline> m_ProjectionPipeline;
 
