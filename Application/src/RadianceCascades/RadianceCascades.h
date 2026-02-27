@@ -42,17 +42,22 @@ private:
 		float radius = 10.0f;
 		float clear = 0.0f;
 		glm::vec4 color = { 0, 1, 0, 1 };
-		float iteration = 0.0f;
+		//float iteration = 0.0f;
+		int phase = 0;
+		int jump = 0;
 	} jfaData;
 
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
 
 	std::unique_ptr<Arc::GpuImage> m_SeedImage;
-	std::unique_ptr<Arc::GpuImage> m_JFAImage;
+	std::unique_ptr<Arc::GpuImage> m_JFAImage1;
+	std::unique_ptr<Arc::GpuImage> m_JFAImage2;
 	std::unique_ptr<Arc::GpuImage> m_SDFImage;
 	std::unique_ptr<Arc::GpuImage> m_NearestColorImage;
 	std::vector<Arc::GpuImage> m_Cascades;
+	uint32_t m_MaxJFAIterations = 0;
+	bool m_ClearFrame = true;
 
 	std::unique_ptr<Arc::Shader> m_JFAShader;
 	std::unique_ptr<Arc::ComputePipeline> m_JFAPipeline;

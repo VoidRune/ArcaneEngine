@@ -1,102 +1,130 @@
 #version 450
 
-layout(set = 0, binding = 0, rgba8) uniform image2D seedImage;
-layout(set = 0, binding = 1, rg16f) uniform image2D jfaInputImage;
-layout(set = 0, binding = 2, r16f) uniform image2D sdfImage;
-layout(set = 0, binding = 3, rgba8) uniform image2D nearestColorImage;
+layout(set = 0, binding = 0, rgba8)  uniform image2D seedImage;
+layout(set = 0, binding = 1, rg16f)  uniform image2D jfaInputImage;
+layout(set = 0, binding = 2, rg16f)  uniform image2D jfaOutputImage;
+layout(set = 0, binding = 3, r16f)   uniform image2D sdfImage;
+layout(set = 0, binding = 4, rgba8)  uniform image2D nearestColorImage;
 
-layout( push_constant ) uniform constants
+layout(push_constant) uniform Constants
 {
-    vec2 position;
+    vec2  position;
     float radius;
     float clear;
-    vec4 color;
-	float iteration;
-} pushConstants;
+    vec4  color;
+    int   phase;   // 0 = init, 1 = jfa, 2 = finalize
+    int   jump;
+} pc;
 
-layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+const vec2 INVALID_SEED = vec2(-1.0);
+
+bool isValidSeed(vec2 s)
+{
+    return s.x >= 0.0;
+}
+
+float sqrDistance(vec2 a, vec2 b)
+{
+    vec2 d = a - b;
+    return dot(d, d);
+}
+
+void phaseInit(ivec2 px)
+{
+    float dist = length(pc.position - vec2(px));
+
+    if (pc.clear >= 1.0)
+    {
+        imageStore(seedImage, px, vec4(0.0));
+        imageStore(jfaInputImage, px, vec4(INVALID_SEED, 0.0, 0.0));
+        return;
+    }
+
+    vec4 pixel = imageLoad(seedImage, px);
+
+    if (pc.radius > 0.0 && dist < pc.radius)
+    {
+        pixel = pc.color;
+        imageStore(seedImage, px, pixel);
+    }
+
+    if (pixel.a == 1.0)
+        imageStore(jfaInputImage, px, vec4(vec2(px), 0.0, 0.0));
+    else
+        imageStore(jfaInputImage, px, vec4(INVALID_SEED, 0.0, 0.0));
+}
+
+void phaseJFA(ivec2 px, ivec2 resolution)
+{
+    vec2 currentSeed = imageLoad(jfaInputImage, px).rg;
+
+    float minDist = 1e20;
+    vec2 bestSeed = currentSeed;
+
+    if (isValidSeed(currentSeed))
+        minDist = sqrDistance(vec2(px), currentSeed);
+
+    for (int y = -1; y <= 1; ++y)
+    {
+        for (int x = -1; x <= 1; ++x)
+        {
+            if (x == 0 && y == 0) continue;
+
+            ivec2 neighbor = px + ivec2(x, y) * pc.jump;
+
+            if (neighbor.x < 0 || neighbor.y < 0 ||
+                neighbor.x >= resolution.x || neighbor.y >= resolution.y)
+                continue;
+
+            vec2 neighborSeed = imageLoad(jfaInputImage, neighbor).rg;
+            if (!isValidSeed(neighborSeed))
+                continue;
+
+            float d = sqrDistance(vec2(px), neighborSeed);
+
+            if (d < minDist)
+            {
+                minDist = d;
+                bestSeed = neighborSeed;
+            }
+        }
+    }
+
+    imageStore(jfaOutputImage, px, vec4(bestSeed, 0.0, 0.0));
+}
+
+void phaseFinalize(ivec2 px)
+{
+    vec2 seed = imageLoad(jfaInputImage, px).rg;
+
+    if (!isValidSeed(seed))
+    {
+        imageStore(sdfImage, px, vec4(0.0));
+        imageStore(nearestColorImage, px, vec4(0.0));
+        return;
+    }
+
+    float dist = sqrt(sqrDistance(vec2(px), seed));
+    vec3 color = imageLoad(seedImage, ivec2(seed)).rgb;
+
+    imageStore(sdfImage, px, vec4(dist, 0.0, 0.0, 0.0));
+    imageStore(nearestColorImage, px, vec4(color, 1.0));
+}
 
 void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
     ivec2 resolution = imageSize(seedImage);
 
-    if (pushConstants.iteration == 0)
-    {
-        float dist = length(pushConstants.position - vec2(px));
-        if (pushConstants.clear >= 1.0)
-        {
-            imageStore(seedImage, px, vec4(0, 0, 0, 0));
-            imageStore(jfaInputImage, px, vec4(0, 0, 0, 0));
-        }
-        else
-        {
-            vec4 pixel = vec4(0);
-            if (pushConstants.radius > 0 && dist < pushConstants.radius)
-            {
-                pixel = pushConstants.color;
-                imageStore(seedImage, px, pixel);
-            }
-            else
-            {
-                pixel = imageLoad(seedImage, px);
-            }
-        
-            if (pixel.a == 1.0)
-            {
-    	        imageStore(jfaInputImage, px, vec4(vec2(px), 0, 1));
-            }
-            //else
-            //{
-            //    imageStore(jfaInputImage, px, vec4(-1, -1, 0, 0));
-            //}
-        }
-    }
-    else if (pushConstants.iteration == -1)
-    {
-        vec2 px2 = imageLoad(jfaInputImage, px).rg;
-        vec3 color = imageLoad(seedImage, ivec2(px2)).rgb;
-        float dist = length(vec2(px) - px2);
-        imageStore(sdfImage, px, vec4(dist, 0, 0, 0));
-        imageStore(nearestColorImage, px, vec4(color, 1));
-    }
-    else 
-    {
-        int startJump = max(resolution.x, resolution.y);
-        int jump = max(1, startJump >> int(pushConstants.iteration));
-        jump = 1;
-        //int jump = 1 << int(pushConstants.iteration - 1);
-        //jump = min(jump, startJump);
+    if (px.x >= resolution.x || px.y >= resolution.y)
+        return;
 
-        vec2 currentSeed = imageLoad(jfaInputImage, px).rg;
-        float minDistance = 1e20;
-        vec2 bestSeed = currentSeed;
-
-        for (int dy = -1; dy <= 1; ++dy)
-        {
-            for (int dx = -1; dx <= 1; ++dx)
-            {
-                if (dx == 0 && dy == 0) continue;
-
-                ivec2 offset = ivec2(dx, dy) * jump;
-                ivec2 neighbor = px + offset;
-
-                if (neighbor.x < 0 || neighbor.y < 0 || neighbor.x >= resolution.x || neighbor.y >= resolution.y)
-                    continue;
-
-                vec2 neighborSeed = imageLoad(jfaInputImage, neighbor).rg;
-
-                if (neighborSeed.x < 0 || neighborSeed.y < 0) continue;  // Not a valid seed
-
-                float dist = length(vec2(px) - neighborSeed);
-                if (dist < minDistance)
-                {
-                    minDistance = dist;
-                    bestSeed = neighborSeed;
-                }
-            }
-        }
-
-        imageStore(jfaInputImage, px, vec4(bestSeed, 0.0, 0.0));
-    }
+    if (pc.phase == 0)
+        phaseInit(px);
+    else if (pc.phase == 1)
+        phaseJFA(px, resolution);
+    else if (pc.phase == 2)
+        phaseFinalize(px);
 }

@@ -78,6 +78,7 @@ void RadianceCascades::CreateImages()
 {
 	uint32_t w = m_PresentQueue->GetExtent()[0];
 	uint32_t h = m_PresentQueue->GetExtent()[1];
+	float clearColor[4] = { 0, 0, 0, 0 };
 
 	m_Device->WaitIdle();
 	if (m_SeedImage.get())
@@ -102,21 +103,26 @@ void RadianceCascades::CreateImages()
 	else
 	{
 		m_Device->TransitionImageLayout(m_SeedImage.get(), Arc::ImageLayout::General);
-		float clearColor[4] = {0, 0, 0, 0};
 		m_Device->ClearColorImage(m_SeedImage.get(), clearColor, Arc::ImageLayout::General);
 	}
 
-	if (m_JFAImage.get())
-		m_ResourceCache->ReleaseResource(m_JFAImage.get());
+	if (m_JFAImage1.get())
+		m_ResourceCache->ReleaseResource(m_JFAImage1.get());
+	if (m_JFAImage2.get())
+		m_ResourceCache->ReleaseResource(m_JFAImage2.get());
 
-	m_JFAImage = std::make_unique<Arc::GpuImage>();
-	m_ResourceCache->CreateGpuImage(m_JFAImage.get(), Arc::GpuImageDesc{
+	m_JFAImage1 = std::make_unique<Arc::GpuImage>();
+	m_JFAImage2 = std::make_unique<Arc::GpuImage>();
+	auto jfaImageDesc = Arc::GpuImageDesc{
 		.Extent = { w, h, 1},
 		.Format = Arc::Format::R16G16_Sfloat,
 		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
 		.AspectFlags = Arc::ImageAspect::Color,
-		});
-	m_Device->TransitionImageLayout(m_JFAImage.get(), Arc::ImageLayout::General);
+	};
+	m_ResourceCache->CreateGpuImage(m_JFAImage1.get(), jfaImageDesc);
+	m_ResourceCache->CreateGpuImage(m_JFAImage2.get(), jfaImageDesc);
+	m_Device->TransitionImageLayout(m_JFAImage1.get(), Arc::ImageLayout::General);
+	m_Device->TransitionImageLayout(m_JFAImage2.get(), Arc::ImageLayout::General);
 
 	if (m_SDFImage.get())
 		m_ResourceCache->ReleaseResource(m_SDFImage.get());
@@ -149,7 +155,7 @@ void RadianceCascades::CreateImages()
 	}
 
 	// Gets size that is equal or less that (w, h) and is divisible by 2^(cascadeCount - 1)
-	// 2^(cascadeCount - 1) is how many probe groups are one one side of the cascade
+	// 2^(cascadeCount - 1) is how many probe groups are on one side of the cascade
 	uint32_t cascadeCount = 6;
 	uint32_t div = 1 << (cascadeCount - 1);
 	glm::uvec2 cascadeExtent = { w - (w % div), h - (h % div)};
@@ -164,6 +170,9 @@ void RadianceCascades::CreateImages()
 			});
 		m_Device->TransitionImageLayout(&cascade, Arc::ImageLayout::General);
 	}
+
+	m_MaxJFAIterations = std::ceil(std::log2(std::max(w, h)));
+	m_ClearFrame = true;
 }
 
 RadianceCascades::~RadianceCascades()
@@ -197,42 +206,71 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 		ARC_LOG("Screenshot saved to disk");
 	}
 
-
-	m_RenderGraph->AddPass(Arc::RenderPass{
-		.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
-			cmd->BindComputePipeline(m_JFAPipeline->GetHandle());
-
-			for (int i = 0; i < 3; i++)
-			{
-				jfaData.iteration = (i == 2) ? -1 : i;
-
+	if (Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ||
+		Arc::Input::IsKeyDown(Arc::KeyCode::C) ||
+		m_ClearFrame)
+	{
+		m_ClearFrame = false;
+		m_RenderGraph->AddPass(Arc::RenderPass{
+			.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
+				cmd->BindComputePipeline(m_JFAPipeline->GetHandle());
 				cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_JFAPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 					.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_SeedImage->GetImageView(), Arc::ImageLayout::General, nullptr))
-					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_JFAImage->GetImageView(), Arc::ImageLayout::General, nullptr))
-					.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_SDFImage->GetImageView(), Arc::ImageLayout::General, nullptr))
-					.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, nullptr)));
+					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_JFAImage1->GetImageView(), Arc::ImageLayout::General, nullptr))
+					.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_JFAImage2->GetImageView(), Arc::ImageLayout::General, nullptr))
+					.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_SDFImage->GetImageView(), Arc::ImageLayout::General, nullptr))
+					.AddWrite(Arc::PushImageWrite(4, Arc::DescriptorType::StorageImage, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, nullptr)));
+				
+				jfaData.phase = 0;
 				cmd->PushConstants(Arc::ShaderStage::Compute, m_JFAPipeline->GetLayout(), &jfaData, sizeof(jfaData));
 				cmd->Dispatch(std::ceil(m_SeedImage->GetExtent()[0] / 32.0f), std::ceil(m_SeedImage->GetExtent()[1] / 32.0f), 1);
-			}
 
-			cmd->BindComputePipeline(m_RadianceCascadesPipeline->GetHandle());
-			for (int i = m_Cascades.size() - 1; i >= 0; i--)
-			{
-				cascadeData.Index = i;
-				cascadeData.Interval = 2.0f;
-				cascadeData.Count = m_Cascades.size();
-				float cascadeIndex = i;
-				cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_RadianceCascadesPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
-					.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::CombinedImageSampler, m_SDFImage->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
-					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::CombinedImageSampler, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
-					.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Cascades[i].GetImageView(), Arc::ImageLayout::General, nullptr))
-					.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::CombinedImageSampler, m_Cascades[std::min(i + 1, (int)m_Cascades.size() - 1)].GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle())));
-				cmd->PushConstants(Arc::ShaderStage::Compute, m_RadianceCascadesPipeline->GetLayout(), &cascadeData, sizeof(cascadeData));
-				cmd->Dispatch(m_Cascades[0].GetExtent()[0] / 32.0f, m_Cascades[0].GetExtent()[1] / 32.0f, 1);
-			}
-		}
-	});
+				for (int i = 0; i < m_MaxJFAIterations; i++)
+				{
+					jfaData.phase = 1;
+					jfaData.jump = 1 << (m_MaxJFAIterations - i - 1);
 
+					cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_JFAPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
+						.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_SeedImage->GetImageView(), Arc::ImageLayout::General, nullptr))
+						.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_JFAImage1->GetImageView(), Arc::ImageLayout::General, nullptr))
+						.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_JFAImage2->GetImageView(), Arc::ImageLayout::General, nullptr))
+						.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_SDFImage->GetImageView(), Arc::ImageLayout::General, nullptr))
+						.AddWrite(Arc::PushImageWrite(4, Arc::DescriptorType::StorageImage, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, nullptr)));
+
+					cmd->PushConstants(Arc::ShaderStage::Compute, m_JFAPipeline->GetLayout(), &jfaData, sizeof(jfaData));
+					cmd->Dispatch(std::ceil(m_SeedImage->GetExtent()[0] / 32.0f), std::ceil(m_SeedImage->GetExtent()[1] / 32.0f), 1);			
+					std::swap(m_JFAImage1, m_JFAImage2);
+				}
+
+				jfaData.phase = 2;
+				cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_JFAPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
+					.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_SeedImage->GetImageView(), Arc::ImageLayout::General, nullptr))
+					.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_JFAImage1->GetImageView(), Arc::ImageLayout::General, nullptr))
+					.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_JFAImage2->GetImageView(), Arc::ImageLayout::General, nullptr))
+					.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_SDFImage->GetImageView(), Arc::ImageLayout::General, nullptr))
+					.AddWrite(Arc::PushImageWrite(4, Arc::DescriptorType::StorageImage, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, nullptr)));
+
+				cmd->PushConstants(Arc::ShaderStage::Compute, m_JFAPipeline->GetLayout(), &jfaData, sizeof(jfaData));
+				cmd->Dispatch(std::ceil(m_SeedImage->GetExtent()[0] / 32.0f), std::ceil(m_SeedImage->GetExtent()[1] / 32.0f), 1);
+
+				cmd->BindComputePipeline(m_RadianceCascadesPipeline->GetHandle());
+				for (int i = m_Cascades.size() - 1; i >= 0; i--)
+				{
+					cascadeData.Index = i;
+					cascadeData.Interval = 2.0f;
+					cascadeData.Count = m_Cascades.size();
+					float cascadeIndex = i;
+					cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_RadianceCascadesPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
+						.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::CombinedImageSampler, m_SDFImage->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
+						.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::CombinedImageSampler, m_NearestColorImage->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
+						.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Cascades[i].GetImageView(), Arc::ImageLayout::General, nullptr))
+						.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::CombinedImageSampler, m_Cascades[std::min(i + 1, (int)m_Cascades.size() - 1)].GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle())));
+					cmd->PushConstants(Arc::ShaderStage::Compute, m_RadianceCascadesPipeline->GetLayout(), &cascadeData, sizeof(cascadeData));
+					cmd->Dispatch(m_Cascades[0].GetExtent()[0] / 32.0f, m_Cascades[0].GetExtent()[1] / 32.0f, 1);
+				}
+			}
+		});
+	}
 	m_RenderGraph->SetPresentPass(Arc::PresentPass{
 		.LoadOp = Arc::AttachmentLoadOp::Clear,
 		.ClearColor = {0.1, 0.6, 0.6, 1.0},
@@ -244,7 +282,6 @@ void RadianceCascades::RenderFrame(float elapsedTime)
 			cmd->Draw(6, 1, 0, 0);
 		}
 	});
-
 	m_RenderGraph->BuildGraph();
 	m_RenderGraph->Execute(frameData, m_PresentQueue->GetExtent());
 	m_PresentQueue->EndFrame();
