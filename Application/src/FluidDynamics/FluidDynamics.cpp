@@ -21,6 +21,8 @@ FluidDynamics::FluidDynamics(Arc::Window* window, Arc::Device* device, Arc::Pres
 void FluidDynamics::CreatePipelines()
 {
 	m_AddForcesShader = std::make_unique<Arc::Shader>();
+	m_PaintOverlayShader = std::make_unique<Arc::Shader>();
+	m_BoundaryShader = std::make_unique<Arc::Shader>();
 	m_DiffusionShader = std::make_unique<Arc::Shader>();
 	m_FluidAdvectionShader = std::make_unique<Arc::Shader>();
 	m_VelocityAdvectionShader = std::make_unique<Arc::Shader>();
@@ -33,6 +35,10 @@ void FluidDynamics::CreatePipelines()
 	Arc::ShaderDesc shaderDesc;
 	if (Arc::ShaderCompiler::Compile("res/Shaders/FluidDynamics/addForces.comp", shaderDesc))
 		m_ResourceCache->CreateShader(m_AddForcesShader.get(), shaderDesc);
+	if (Arc::ShaderCompiler::Compile("res/Shaders/FluidDynamics/paintOverlay.comp", shaderDesc))
+		m_ResourceCache->CreateShader(m_PaintOverlayShader.get(), shaderDesc);
+	if (Arc::ShaderCompiler::Compile("res/Shaders/FluidDynamics/boundary.comp", shaderDesc))
+		m_ResourceCache->CreateShader(m_BoundaryShader.get(), shaderDesc);
 	if (Arc::ShaderCompiler::Compile("res/Shaders/FluidDynamics/fluidDiffusion.comp", shaderDesc))
 		m_ResourceCache->CreateShader(m_DiffusionShader.get(), shaderDesc);
 	if (Arc::ShaderCompiler::Compile("res/Shaders/FluidDynamics/fluidAdvection.comp", shaderDesc))
@@ -61,6 +67,18 @@ void FluidDynamics::CreatePipelines()
 	m_AddForcesPipeline = std::make_unique<Arc::ComputePipeline>();
 	m_ResourceCache->CreateComputePipeline(m_AddForcesPipeline.get(), Arc::ComputePipelineDesc{
 		.Shader = m_AddForcesShader.get(),
+		.UsePushDescriptors = true
+	});
+
+	m_PaintOverlayPipeline = std::make_unique<Arc::ComputePipeline>();
+	m_ResourceCache->CreateComputePipeline(m_PaintOverlayPipeline.get(), Arc::ComputePipelineDesc{
+		.Shader = m_PaintOverlayShader.get(),
+		.UsePushDescriptors = true
+	});
+
+	m_BoundaryPipeline = std::make_unique<Arc::ComputePipeline>();
+	m_ResourceCache->CreateComputePipeline(m_BoundaryPipeline.get(), Arc::ComputePipelineDesc{
+		.Shader = m_BoundaryShader.get(),
 		.UsePushDescriptors = true
 	});
 
@@ -119,11 +137,14 @@ void FluidDynamics::CreateSamplers()
 
 void FluidDynamics::CreateImages()
 {
-	uint32_t w = m_PresentQueue->GetExtent()[0] * m_Resolution;
-	uint32_t h = m_PresentQueue->GetExtent()[1] * m_Resolution;
+	uint32_t unscaledW = m_PresentQueue->GetExtent()[0];
+	uint32_t unscaledH = m_PresentQueue->GetExtent()[1];
+	uint32_t w = unscaledW * m_Resolution;
+	uint32_t h = unscaledH * m_Resolution;
 	m_Size = { w, h };
 	m_ThreadDispatchSize = glm::ceil(glm::vec2(m_Size) / 32.0f);
 	m_VelocityThreadDispatchSize = glm::ceil((glm::vec2(m_Size) + glm::vec2(1, 1)) / 32.0f);
+	m_OverlayDispatchSize = glm::ceil(glm::vec2(unscaledW, unscaledH) / 32.0f);
 	float clearColor[4] = { 0, 0, 0, 0 };
 
 	m_Device->WaitIdle();
@@ -147,6 +168,20 @@ void FluidDynamics::CreateImages()
 	m_Device->TransitionImageLayout(m_Dye2.get(), Arc::ImageLayout::General);
 	m_Device->ClearColorImage(m_Dye1.get(), clearColor, Arc::ImageLayout::General);
 	m_Device->ClearColorImage(m_Dye2.get(), clearColor, Arc::ImageLayout::General);
+
+	if (m_Overlay.get())
+		m_ResourceCache->ReleaseResource(m_Overlay.get());
+
+	m_Overlay = std::make_unique<Arc::GpuImage>();
+	auto overlayDesc = Arc::GpuImageDesc{
+		.Extent = { unscaledW, unscaledH, 1 },
+		.Format = Arc::Format::R8G8B8A8_Unorm,
+		.UsageFlags = Arc::ImageUsage::TransferSrc | Arc::ImageUsage::TransferDst | Arc::ImageUsage::Storage | Arc::ImageUsage::Sampled,
+		.AspectFlags = Arc::ImageAspect::Color,
+	};
+	m_ResourceCache->CreateGpuImage(m_Overlay.get(), overlayDesc);
+	m_Device->TransitionImageLayout(m_Overlay.get(), Arc::ImageLayout::General);
+	m_Device->ClearColorImage(m_Overlay.get(), clearColor, Arc::ImageLayout::General);
 
 	if (m_Boundary.get())
 		m_ResourceCache->ReleaseResource(m_Boundary.get());
@@ -232,6 +267,7 @@ void FluidDynamics::CreateImages()
 	m_Device->TransitionImageLayout(m_Pressure2.get(), Arc::ImageLayout::General);
 	m_Device->ClearColorImage(m_Pressure1.get(), clearColor, Arc::ImageLayout::General);
 	m_Device->ClearColorImage(m_Pressure2.get(), clearColor, Arc::ImageLayout::General);
+	m_ClearFrame = true;
 }
 
 
@@ -249,15 +285,20 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 	Arc::FrameData frameData = m_PresentQueue->BeginFrame();
 	Arc::CommandBuffer* cmd = frameData.CommandBuffer;
 
-	glm::vec2 currentMousePos = { Arc::Input::GetMouseX() * m_Resolution, Arc::Input::GetMouseY() * m_Resolution };
-	auto delta = currentMousePos - m_LastMousePos;
-	m_LastMousePos = currentMousePos;
+	bool rc = Arc::Input::IsKeyDown(Arc::KeyCode::MouseRight);
+	bool lc = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft);
+
+	glm::vec2 currentMousePos = { Arc::Input::GetMouseX(), Arc::Input::GetMouseY() };
+	auto delta = currentMousePos * m_Resolution - m_LastMousePos;
+	m_LastMousePos = currentMousePos * m_Resolution;
 	//fluidData.SourceColor = glm::vec4(HsvToRgb(elapsedTime * 0.1f, 1, 1), 1);
 	fluidData.SourceColor = glm::vec4(1, 1, 1, 1);
-	fluidData.SourcePos = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? currentMousePos : glm::vec2(m_Window->Width() * m_Resolution * 0.5f, m_Window->Height() * m_Resolution * 0.9f);
-	fluidData.SourceVelocity = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? delta * 0.5f : glm::vec2(0,-0.35f);
-	fluidData.SourceRadius = Arc::Input::IsKeyDown(Arc::KeyCode::MouseLeft) ? 50.0f * m_Resolution : 20.0f * m_Resolution;
-	fluidData.BoundaryRadius = Arc::Input::IsKeyDown(Arc::KeyCode::MouseRight) ? 50.0f * m_Resolution : 0.0f;
+	fluidData.SourcePos = (lc || rc) ? currentMousePos * m_Resolution : glm::vec2(m_Window->Width() * m_Resolution * 0.5f, m_Window->Height() * m_Resolution);
+	fluidData.UnscaledSourcePos = currentMousePos;
+	fluidData.SourceVelocity = lc ? delta * 0.5f : glm::vec2(0,-0.35f);
+	fluidData.SourceRadius = lc ? 40.0f * m_Resolution : 20.0f * m_Resolution;
+	fluidData.BoundaryRadius = rc ? 10.0f * m_Resolution : 0.0f;
+	fluidData.UnscaledBoundaryRadius = rc ? 12.0f : 0.0f;
 	fluidData.DeltaTime = 0.5f;
 
 	if (Arc::Input::IsKeyPressed(Arc::KeyCode::G))
@@ -274,15 +315,31 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 		cmd->BindComputePipeline(m_AddForcesPipeline->GetHandle());
 		cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_AddForcesPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Dye1->GetImageView(), Arc::ImageLayout::General, nullptr))
-			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Velocity1->GetImageView(), Arc::ImageLayout::General, nullptr)));
-			//.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Wall->GetImageView(), Arc::ImageLayout::General, nullptr)));
+			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Velocity1->GetImageView(), Arc::ImageLayout::General, nullptr))
+			.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Wall->GetImageView(), Arc::ImageLayout::General, nullptr)));
 		cmd->Dispatch(m_ThreadDispatchSize.x, m_ThreadDispatchSize.y, 1);
+
+		if (m_ClearFrame || lc || rc)
+		{
+			m_ClearFrame = false;
+			cmd->BindComputePipeline(m_PaintOverlayPipeline->GetHandle());
+			cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_PaintOverlayPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
+				.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Overlay->GetImageView(), Arc::ImageLayout::General, nullptr)));
+			cmd->Dispatch(m_OverlayDispatchSize.x, m_OverlayDispatchSize.y, 1);
+
+			cmd->BindComputePipeline(m_BoundaryPipeline->GetHandle());
+			cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_BoundaryPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
+				.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Wall->GetImageView(), Arc::ImageLayout::General, nullptr))
+				.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Boundary->GetImageView(), Arc::ImageLayout::General, nullptr)));
+			cmd->Dispatch(m_ThreadDispatchSize.x, m_ThreadDispatchSize.y, 1);
+		}
 
 		cmd->BindComputePipeline(m_FluidAdvectionPipeline->GetHandle());
 		cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_FluidAdvectionPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Velocity1->GetImageView(), Arc::ImageLayout::General, nullptr))
 			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Dye1->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
-			.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::CombinedImageSampler, m_Dye1->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle())));
+			.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::CombinedImageSampler, m_Dye1->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
+			.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_Boundary->GetImageView(), Arc::ImageLayout::General, nullptr)));
 		cmd->Dispatch(m_ThreadDispatchSize.x, m_ThreadDispatchSize.y, 1);
 		
 		cmd->BindComputePipeline(m_VelocityAdvectionPipeline->GetHandle());
@@ -293,23 +350,21 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 		std::swap(m_Velocity1, m_Velocity2);
 
 
-
 		cmd->BindComputePipeline(m_DivergencePipeline->GetHandle());
 		cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_DivergencePipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Velocity1->GetImageView(), Arc::ImageLayout::General, nullptr))
-			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Divergence->GetImageView(), Arc::ImageLayout::General, nullptr)));
-			//.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Wall->GetImageView(), Arc::ImageLayout::General, nullptr))
-			//.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_Boundary->GetImageView(), Arc::ImageLayout::General, nullptr)));
+			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Divergence->GetImageView(), Arc::ImageLayout::General, nullptr))
+			.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Boundary->GetImageView(), Arc::ImageLayout::General, nullptr)));
 		cmd->Dispatch(m_ThreadDispatchSize.x, m_ThreadDispatchSize.y, 1);
 
 		cmd->BindComputePipeline(m_PressureSolverPipeline->GetHandle());
-		for (size_t i = 0; i < 200; i++)
+		for (size_t i = 0; i < 100; i++)
 		{
 			cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_PressureSolverPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 				.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Divergence->GetImageView(), Arc::ImageLayout::General, nullptr))
 				.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Pressure1->GetImageView(), Arc::ImageLayout::General, nullptr))
-				.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Pressure2->GetImageView(), Arc::ImageLayout::General, nullptr)));
-				//.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_Boundary->GetImageView(), Arc::ImageLayout::General, nullptr)));
+				.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Pressure2->GetImageView(), Arc::ImageLayout::General, nullptr))
+				.AddWrite(Arc::PushImageWrite(3, Arc::DescriptorType::StorageImage, m_Boundary->GetImageView(), Arc::ImageLayout::General, nullptr)));
 			cmd->Dispatch(m_ThreadDispatchSize.x, m_ThreadDispatchSize.y, 1);
 			std::swap(m_Pressure1, m_Pressure2);
 		}
@@ -317,16 +372,17 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 		cmd->BindComputePipeline(m_ProjectionPipeline->GetHandle());
 		cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_ProjectionPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Velocity1->GetImageView(), Arc::ImageLayout::General, nullptr))
-			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Pressure1->GetImageView(), Arc::ImageLayout::General, nullptr)));
+			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Pressure1->GetImageView(), Arc::ImageLayout::General, nullptr))
+			.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Boundary->GetImageView(), Arc::ImageLayout::General, nullptr)));
 		cmd->Dispatch(m_VelocityThreadDispatchSize.x, m_VelocityThreadDispatchSize.y, 1);
 
 		cmd->BindComputePipeline(m_DiffusionPipeline->GetHandle());
 		cmd->PushDescriptorSets(Arc::PipelineBindPoint::Compute, m_DiffusionPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
 			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::StorageImage, m_Dye1->GetImageView(), Arc::ImageLayout::General, nullptr))
-			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Dye2->GetImageView(), Arc::ImageLayout::General, nullptr)));
+			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::StorageImage, m_Dye2->GetImageView(), Arc::ImageLayout::General, nullptr))
+			.AddWrite(Arc::PushImageWrite(2, Arc::DescriptorType::StorageImage, m_Boundary->GetImageView(), Arc::ImageLayout::General, nullptr)));
 		cmd->Dispatch(m_ThreadDispatchSize.x, m_ThreadDispatchSize.y, 1);
 		std::swap(m_Dye1, m_Dye2);
-
 	} });
 
 	m_RenderGraph->SetPresentPass(Arc::PresentPass{
@@ -335,7 +391,8 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 	.ExecuteFunction = [&](Arc::CommandBuffer* cmd, uint32_t frameIndex) {
 		cmd->BindPipeline(m_PresentPipeline->GetHandle());
 		cmd->PushDescriptorSets(Arc::PipelineBindPoint::Graphics, m_PresentPipeline->GetLayout(), 0, Arc::PushDescriptorWrite()
-			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::CombinedImageSampler, m_Dye1->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle())));
+			.AddWrite(Arc::PushImageWrite(0, Arc::DescriptorType::CombinedImageSampler, m_Dye1->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle()))
+			.AddWrite(Arc::PushImageWrite(1, Arc::DescriptorType::CombinedImageSampler, m_Overlay->GetImageView(), Arc::ImageLayout::General, m_LinearSampler->GetHandle())));
 		cmd->Draw(6, 1, 0, 0);
 	} });
 

@@ -3,15 +3,17 @@
 
 layout(set = 0, binding = 0, rgba16f) uniform image2D dye;
 layout(set = 0, binding = 1, rg32f) uniform image2D velocity;
-//layout(set = 0, binding = 2, r8ui) uniform uimage2D wall;
+layout(set = 0, binding = 2, r8ui) uniform uimage2D wall;
 
 layout( push_constant ) uniform constants
 {
 	vec4 sourceColor;
 	vec2 sourcePos;
+	vec2 unscaledSourcePos;
 	vec2 sourceVelocity;
 	float sourceRadius;
 	float boundaryRadius;
+	float unscaledBoundaryRadius;
 	float deltaTime;
 } pc;
 
@@ -21,22 +23,21 @@ void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
 	ivec2 size = imageSize(dye);
-    if (px.x < 0 || px.y < 0 || px.x >= size.x || px.y >= size.y)
-    {
+    if (px.x >= size.x || px.y >= size.y)
         return;
-    }
 
 	float dist = length(pc.sourcePos - vec2(px));
 	if (dist < pc.sourceRadius &&
-		pc.sourceVelocity != vec2(0))
+		pc.sourceVelocity != vec2(0) &&
+		pc.boundaryRadius == 0.0)
 	{
-		imageStore(dye, px, vec4(pc.sourceColor.rgb, 0));
-
 		//vec2 v = imageLoad(velocity, px).xy;
+		imageStore(dye, px, vec4(pc.sourceColor.rgb, 0));
 		imageStore(velocity, px, vec4(pc.sourceVelocity, 0, 0));	
 	}
-	//else if (dist < pc.boundaryRadius)
-	//{
-	//	imageStore(wall, px, uvec4(1, 0, 0, 0));
-	//}
+	else if (dist < pc.boundaryRadius)
+	{
+		imageStore(wall, px, uvec4(1));
+		imageStore(velocity, px, vec4(0));
+	}
 }

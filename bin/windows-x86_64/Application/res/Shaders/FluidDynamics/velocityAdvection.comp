@@ -8,9 +8,11 @@ layout( push_constant ) uniform constants
 {
 	vec4 sourceColor;
 	vec2 sourcePos;
+	vec2 unscaledSourcePos;
 	vec2 sourceVelocity;
 	float sourceRadius;
-    float boundaryRadius;
+	float boundaryRadius;
+	float unscaledBoundaryRadius;
 	float deltaTime;
 } pc;
 

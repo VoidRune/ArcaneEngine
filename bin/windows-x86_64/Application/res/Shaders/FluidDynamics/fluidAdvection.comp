@@ -4,14 +4,17 @@
 layout(set = 0, binding = 0, rg32f) uniform image2D velocity;
 layout(set = 0, binding = 1, rgba16f) uniform image2D dye;
 layout(set = 0, binding = 2) uniform sampler2D dyeSampler;
+layout(set = 0, binding = 3, r8ui) uniform uimage2D boundary;
 
 layout( push_constant ) uniform constants
 {
 	vec4 sourceColor;
 	vec2 sourcePos;
+	vec2 unscaledSourcePos;
 	vec2 sourceVelocity;
 	float sourceRadius;
-    float boundaryRadius;
+	float boundaryRadius;
+	float unscaledBoundaryRadius;
 	float deltaTime;
 } pc;
 
@@ -52,11 +55,13 @@ void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
     ivec2 size = imageSize(dye);
-    bool isWall = imageLoad(dye, px).a == 1.0;
-    if (px.x < 0 || px.y < 0 || px.x >= size.x || px.y >= size.y || isWall)
+    uint bounds = imageLoad(boundary, px).r;
+    if (px.x >= size.x || px.y >= size.y || (bounds & 1u) == 0u)
     {
+        imageStore(dye, px, vec4(0));
         return;
     }
+
     float vL = imageLoad(velocity, px).x;
 	float vB = imageLoad(velocity, px).y;
 	float vR = imageLoad(velocity, px + ivec2(1, 0)).x;

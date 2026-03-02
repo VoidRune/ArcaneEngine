@@ -4,7 +4,7 @@
 layout(set = 0, binding = 0, r32f) uniform image2D divergence;
 layout(set = 0, binding = 1, r32f) uniform image2D pressureIn;
 layout(set = 0, binding = 2, r32f) uniform image2D pressureOut;
-//layout(set = 0, binding = 3, r8ui) uniform uimage2D boundary;
+layout(set = 0, binding = 3, r8ui) uniform uimage2D boundary;
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
@@ -16,6 +16,13 @@ void main()
     if (px.x >= size.x || px.y >= size.y)
         return;
 
+    uint bounds = imageLoad(boundary, px).r;
+    if (px.x >= size.x || px.y >= size.y || (bounds & 1u) == 0u)
+    {
+        imageStore(pressureOut, px, vec4(0));
+        return;
+    }
+
     float pL = 0.0;
     float pR = 0.0;
     float pB = 0.0;
@@ -23,28 +30,34 @@ void main()
 
     float count = 0.0;
 
-    if (px.x > 0)
+    if ((bounds >> 1 & 1u) == 1u)
     {
         pL = imageLoad(pressureIn, px - ivec2(1,0)).x;
         count += 1.0;
     }
 
-    if (px.x < size.x - 1)
+    if ((bounds >> 2 & 1u) == 1u)
     {
         pR = imageLoad(pressureIn, px + ivec2(1,0)).x;
         count += 1.0;
     }
 
-    if (px.y > 0)
+    if ((bounds >> 3 & 1u) == 1u)
     {
         pB = imageLoad(pressureIn, px - ivec2(0,1)).x;
         count += 1.0;
     }
 
-    if (px.y < size.y - 1)
+    if ((bounds >> 4 & 1u) == 1u)
     {
         pT = imageLoad(pressureIn, px + ivec2(0,1)).x;
         count += 1.0;
+    }
+
+    if (count == 0.0)
+    {
+        imageStore(pressureOut, px, vec4(0));
+        return;
     }
 
     float div = imageLoad(divergence, px).x;

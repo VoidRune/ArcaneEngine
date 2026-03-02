@@ -3,8 +3,7 @@
 
 layout(set = 0, binding = 0, rg32f) uniform image2D velocity;
 layout(set = 0, binding = 1, r32f) uniform image2D divergence;
-//layout(set = 0, binding = 2, r8ui) uniform uimage2D wall;
-//layout(set = 0, binding = 3, r8ui) uniform uimage2D boundary;
+layout(set = 0, binding = 2, r8ui) uniform uimage2D boundary;
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
@@ -12,9 +11,11 @@ layout( push_constant ) uniform constants
 {
 	vec4 sourceColor;
 	vec2 sourcePos;
+	vec2 unscaledSourcePos;
 	vec2 sourceVelocity;
 	float sourceRadius;
 	float boundaryRadius;
+	float unscaledBoundaryRadius;
 	float deltaTime;
 } pc;
 
@@ -23,13 +24,17 @@ void main()
 	ivec2 px = ivec2(gl_GlobalInvocationID.xy);
     ivec2 size = imageSize(divergence);
 
-    if (px.x >= size.x || px.y >= size.y)
+    uint bounds = imageLoad(boundary, px).r;
+    if (px.x >= size.x || px.y >= size.y || (bounds & 1u) == 0u)
+    {
+        imageStore(divergence, px, vec4(0));
         return;
+    }
 
-    float vL = (px.x == 0		  ) ? 0.0 : imageLoad(velocity, px).x;
-    float vR = (px.x == size.x - 1) ? 0.0 : imageLoad(velocity, px + ivec2(1, 0)).x;
-    float vB = (px.y == 0		  ) ? 0.0 : imageLoad(velocity, px).y;
-    float vT = (px.y == size.y - 1) ? 0.0 : imageLoad(velocity, px + ivec2(0, 1)).y;
+    float vL = ((bounds >> 1 & 1u) == 1u) ? imageLoad(velocity, px).x : 0.0;
+    float vR = ((bounds >> 2 & 1u) == 1u) ? imageLoad(velocity, px + ivec2(1,0)).x : 0;
+    float vB = ((bounds >> 3 & 1u) == 1u) ? imageLoad(velocity, px).y : 0;
+    float vT = ((bounds >> 4 & 1u) == 1u) ? imageLoad(velocity, px + ivec2(0,1)).y : 0;
 
 	float K = 0.5;
     float div = (vR - vL + vT - vB) * K;

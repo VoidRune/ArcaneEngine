@@ -34,12 +34,15 @@ private:
 	{
 		glm::vec4 SourceColor;
 		glm::vec2 SourcePos;
+		glm::vec2 UnscaledSourcePos;
 		glm::vec2 SourceVelocity;
 		float SourceRadius;
 		float BoundaryRadius;
+		float UnscaledBoundaryRadius;
 		float DeltaTime;
 	} fluidData;
 	glm::vec2 m_LastMousePos;
+	bool m_ClearFrame = true;
 
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
@@ -48,6 +51,7 @@ private:
 	glm::ivec2 m_Size;
 	glm::ivec2 m_ThreadDispatchSize;
 	glm::ivec2 m_VelocityThreadDispatchSize;
+	glm::ivec2 m_OverlayDispatchSize;
 	std::unique_ptr<Arc::GpuImage> m_Dye1;
 	std::unique_ptr<Arc::GpuImage> m_Dye2;
 	std::unique_ptr<Arc::GpuImage> m_Wall;
@@ -57,9 +61,14 @@ private:
 	std::unique_ptr<Arc::GpuImage> m_Divergence;
 	std::unique_ptr<Arc::GpuImage> m_Pressure1;
 	std::unique_ptr<Arc::GpuImage> m_Pressure2;
+	std::unique_ptr<Arc::GpuImage> m_Overlay;
 
 	std::unique_ptr<Arc::Shader> m_AddForcesShader;
 	std::unique_ptr<Arc::ComputePipeline> m_AddForcesPipeline;
+	std::unique_ptr<Arc::Shader> m_PaintOverlayShader;
+	std::unique_ptr<Arc::ComputePipeline> m_PaintOverlayPipeline;
+	std::unique_ptr<Arc::Shader> m_BoundaryShader;
+	std::unique_ptr<Arc::ComputePipeline> m_BoundaryPipeline;
 	std::unique_ptr<Arc::Shader> m_DivergenceShader;
 	std::unique_ptr<Arc::ComputePipeline> m_DivergencePipeline;
 	std::unique_ptr<Arc::Shader> m_PressureSolverShader;

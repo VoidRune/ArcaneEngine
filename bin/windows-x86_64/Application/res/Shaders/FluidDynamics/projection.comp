@@ -3,6 +3,7 @@
 
 layout(set = 0, binding = 0, rg32f) uniform image2D velocity;
 layout(set = 0, binding = 1, r32f) uniform image2D pressure;
+layout(set = 0, binding = 2, r8ui) uniform uimage2D boundary;
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
@@ -10,18 +11,27 @@ void main()
 {
     ivec2 px = ivec2(gl_GlobalInvocationID.xy);
 	ivec2 size = imageSize(velocity);
-    if (px.x >= size.x || px.y >= size.y)
+
+    uint bounds = imageLoad(boundary, px).r;
+    if (px.x >= size.x || px.y >= size.y || (bounds & 1u) == 0u)
+    {
+        imageStore(velocity, px, vec4(0));
         return;
+    }
 
 	vec2 u = imageLoad(velocity, px).xy;
     float pC = imageLoad(pressure, px).x;
-    float pL = (px.x > 0) ? imageLoad(pressure, px - ivec2(1,0)).x : 0.0;
-    float pB = (px.y > 0) ? imageLoad(pressure, px - ivec2(0,1)).x : 0.0;
+    float pL = ((bounds >> 1 & 1u) == 1u) ? imageLoad(pressure, px - ivec2(1,0)).x : pC;
+    float pB = ((bounds >> 3 & 1u) == 1u) ? imageLoad(pressure, px - ivec2(0,1)).x : pC;
+
     float K = 0.5;
     u.x -= K * (pC - pL);
     u.y -= K * (pC - pB);
     if (px.x == 0 || px.x == size.x - 1) u.x = 0.0;
     if (px.y == 0 || px.y == size.y - 1) u.y = 0.0;
+
+    if ((bounds >> 1 & 1u) != 1u) u.x = 0.0;
+    if ((bounds >> 3 & 1u) != 1u) u.y = 0.0;
 
     imageStore(velocity, px, vec4(u, 0, 0));
 }
