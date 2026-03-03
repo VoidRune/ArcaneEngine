@@ -293,10 +293,10 @@ void FluidDynamics::RenderFrame(float elapsedTime)
 	m_LastMousePos = currentMousePos * m_Resolution;
 	//fluidData.SourceColor = glm::vec4(HsvToRgb(elapsedTime * 0.1f, 1, 1), 1);
 	fluidData.SourceColor = glm::vec4(1, 1, 1, 1);
-	fluidData.SourcePos = (lc || rc) ? currentMousePos * m_Resolution : glm::vec2(m_Window->Width() * m_Resolution * 0.5f, m_Window->Height() * m_Resolution);
+	fluidData.SourcePos = (lc || rc) ? currentMousePos * m_Resolution : glm::vec2(m_Window->Width() * m_Resolution * 0.5f, m_Window->Height() * m_Resolution * 0.97);
 	fluidData.UnscaledSourcePos = currentMousePos;
-	fluidData.SourceVelocity = lc ? delta * 0.5f : glm::vec2(0,-0.35f);
-	fluidData.SourceRadius = lc ? 40.0f * m_Resolution : 20.0f * m_Resolution;
+	fluidData.SourceVelocity = lc ? delta * 0.5f : glm::vec2(0,-1.35f);
+	fluidData.SourceRadius = lc ? 60.0f * m_Resolution : 100.0f * m_Resolution;
 	fluidData.BoundaryRadius = rc ? 10.0f * m_Resolution : 0.0f;
 	fluidData.UnscaledBoundaryRadius = rc ? 12.0f : 0.0f;
 	fluidData.DeltaTime = 0.5f;

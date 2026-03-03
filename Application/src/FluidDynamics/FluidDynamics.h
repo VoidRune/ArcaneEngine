@@ -47,7 +47,7 @@ private:
 	std::unique_ptr<Arc::Sampler> m_NearestSampler;
 	std::unique_ptr<Arc::Sampler> m_LinearSampler;
 
-	float m_Resolution = 0.25;
+	float m_Resolution = 1.0;
 	glm::ivec2 m_Size;
 	glm::ivec2 m_ThreadDispatchSize;
 	glm::ivec2 m_VelocityThreadDispatchSize;

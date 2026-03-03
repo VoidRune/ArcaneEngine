@@ -73,5 +73,5 @@ void main()
 
 	//vec3 dN = (dC + k * (dL + dR + dB + dT) / 4) / (1 + k);
     vec3 dN = (dC + k * (dL + dR + dB + dT) * 0.25) / (1 + k);
-	imageStore(dyeOut, px, vec4(dN, 0));	
+	imageStore(dyeOut, px, vec4(dN, 1));	
 }
